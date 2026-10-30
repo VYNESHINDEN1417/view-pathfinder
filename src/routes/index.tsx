@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
 });
 
 const MODEL_DIR = "/models/";
-const MODEL = "airboat.obj";
+const MODEL = "Iowaaa.obj";
 
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);

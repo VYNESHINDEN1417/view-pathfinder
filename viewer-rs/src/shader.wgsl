@@ -2,6 +2,7 @@ struct Globals {
   view_proj: mat4x4<f32>,
   eye: vec4<f32>,
   light: vec4<f32>, // xyz = direction (towards light), w = intensity
+  screen: vec4<f32>, // xy = framebuffer size in pixels
 };
 
 struct Material {
