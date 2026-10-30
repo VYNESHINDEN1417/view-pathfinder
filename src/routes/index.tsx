@@ -50,7 +50,7 @@ function Index() {
       await mod.default();
       const text = (u: string) => fetch(u).then((r) => (r.ok ? r.text() : "")).catch(() => "");
       const obj = await text(MODEL_DIR + MODEL);
-      const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1].trim();
+      const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtl = lib ? await text(MODEL_DIR + lib.replace(/^\.\//, "")) : "";
       if (disposed) return;
       sizeCanvas();
