@@ -71,6 +71,7 @@ pub struct Viewer {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
+    bg_pipeline: wgpu::RenderPipeline,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -305,6 +306,32 @@ impl Viewer {
                 stencil: Default::default(),
                 bias: Default::default(),
             }),
+            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
+            multiview: None,
+            cache: None,
+        });
+        let bg_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&g_layout],
+            push_constant_ranges: &[],
+        });
+        let bg_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&bg_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_bg"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_bg"),
+                compilation_options: Default::default(),
+                targets: &[Some(format.into())],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
             multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
             multiview: None,
             cache: None,
