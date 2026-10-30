@@ -415,6 +415,7 @@ impl Viewer {
             queue,
             config,
             pipeline,
+            bg_pipeline,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -650,6 +651,7 @@ impl Viewer {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
+            screen: [self.config.width as f32, self.config.height as f32, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
@@ -675,8 +677,10 @@ impl Viewer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.pipeline);
+            pass.set_pipeline(&self.bg_pipeline);
             pass.set_bind_group(0, &self.globals_bind, &[]);
+            pass.draw(0..3, 0..1);
+            pass.set_pipeline(&self.pipeline);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));
             pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
             for d in &self.draws {
