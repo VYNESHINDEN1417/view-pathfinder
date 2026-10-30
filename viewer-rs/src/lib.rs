@@ -26,6 +26,7 @@ struct Globals {
     view_proj: [[f32; 4]; 4],
     eye: [f32; 4],
     light: [f32; 4],
+    screen: [f32; 4],
 }
 
 #[repr(C)]
