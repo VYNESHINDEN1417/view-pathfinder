@@ -26,6 +26,7 @@ struct Globals {
     view_proj: [[f32; 4]; 4],
     eye: [f32; 4],
     light: [f32; 4],
+    screen: [f32; 4],
 }
 
 #[repr(C)]
@@ -70,6 +71,7 @@ pub struct Viewer {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
+    bg_pipeline: wgpu::RenderPipeline,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -308,6 +310,38 @@ impl Viewer {
             multiview: None,
             cache: None,
         });
+        let bg_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&g_layout],
+            push_constant_ranges: &[],
+        });
+        let bg_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&bg_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_bg"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_bg"),
+                compilation_options: Default::default(),
+                targets: &[Some(format.into())],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
+            multiview: None,
+            cache: None,
+        });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -387,6 +421,7 @@ impl Viewer {
             queue,
             config,
             pipeline,
+            bg_pipeline,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -622,6 +657,7 @@ impl Viewer {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
+            screen: [self.config.width as f32, self.config.height as f32, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
@@ -647,8 +683,10 @@ impl Viewer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.pipeline);
+            pass.set_pipeline(&self.bg_pipeline);
             pass.set_bind_group(0, &self.globals_bind, &[]);
+            pass.draw(0..3, 0..1);
+            pass.set_pipeline(&self.pipeline);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));
             pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
             for d in &self.draws {

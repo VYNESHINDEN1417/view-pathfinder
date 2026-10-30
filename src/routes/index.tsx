@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Airboat — 3D Inspection Viewer" },
-      { name: "description", content: "Interactive Rust + WebGPU inspection viewer for the airboat model." },
-      { property: "og:title", content: "Airboat — 3D Inspection Viewer" },
-      { property: "og:description", content: "Interactive Rust + WebGPU inspection viewer for the airboat model." },
+      { title: "Iowa — 3D Inspection Viewer" },
+      { name: "description", content: "Interactive Rust + WebGPU inspection viewer for the Iowa battleship model." },
+      { property: "og:title", content: "Iowa — 3D Inspection Viewer" },
+      { property: "og:description", content: "Interactive Rust + WebGPU inspection viewer for the Iowa battleship model." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
 });
 
 const MODEL_DIR = "/models/";
-const MODEL = "airboat.obj";
+const MODEL = "Iowaaa.obj";
 
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
