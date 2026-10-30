@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- 3D rendering lives in Rust (`viewer-rs/`, wgpu + tobj) compiled to `public/wasm/viewer_bg.wasm` with glue in `src/lib/wasm/viewer/`; JS only forwards browser events. Why: user requires a Rust/wgpu engine, no JS 3D libs. Build with CARGO_TARGET_DIR outside the repo (artifacts exceed commit limits).

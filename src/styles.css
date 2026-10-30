@@ -142,3 +142,27 @@
     color: var(--color-foreground);
   }
 }
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: oklch(0 0 0);
+  overscroll-behavior: none;
+}
+
+.viewer-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  background: oklch(0 0 0);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
