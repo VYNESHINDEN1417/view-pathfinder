@@ -3,6 +3,7 @@ struct Globals {
   eye: vec4<f32>,
   light: vec4<f32>, // xyz = direction (towards light), w = intensity
   screen: vec4<f32>, // xy = framebuffer size in pixels
+  light_vp: mat4x4<f32>,
 };
 
 struct Material {
@@ -16,6 +17,8 @@ struct Material {
 @group(1) @binding(0) var<uniform> m: Material;
 @group(1) @binding(1) var tex: texture_2d<f32>;
 @group(1) @binding(2) var samp: sampler;
+@group(2) @binding(0) var shadow_tex: texture_depth_2d;
+@group(2) @binding(1) var shadow_samp: sampler_comparison;
 
 struct VsOut {
   @builtin(position) pos: vec4<f32>,
@@ -40,15 +43,39 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let v = normalize(g.eye.xyz - in.world);
   if (dot(n, v) < 0.0) { n = -n; }
   let l = normalize(g.light.xyz);
-  let h = normalize(l + v);
   let t = textureSample(tex, samp, in.uv);
+  if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   var kd = m.diffuse.rgb;
   if (m.flags.x > 0.5) { kd = kd * t.rgb; }
   let diff = max(dot(n, l), 0.0);
-  let fill = 0.35 * max(dot(n, normalize(vec3<f32>(-0.4, 0.8, 0.3))), 0.0) + 0.15;
-  let spec = pow(max(dot(n, h), 0.0), max(m.specular.w, 1.0));
-  let color = m.ambient.rgb * 0.3 + kd * (diff * g.light.w + fill) + m.specular.rgb * spec * 0.5 * g.light.w;
+  let lp = g.light_vp * vec4<f32>(in.world, 1.0);
+  let ndc = lp.xyz / lp.w;
+  let uv = ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
+  // One comparison sample keeps shadow overhead small on mobile.
+  let shadow = textureSampleCompare(shadow_tex, shadow_samp, uv, ndc.z - 0.0015);
+  var visibility = shadow;
+  if (any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z > 1.0) { visibility = 1.0; }
+  // Two cheap, bounded diffuse interactions: sky/ground fill then subtle albedo bounce.
+  let bounce_one = 0.22 + 0.08 * max(n.y, 0.0);
+  let bounce_two = kd * 0.035 * max(-n.y, 0.0);
+  let color = kd * (bounce_one + diff * visibility * 0.78 * g.light.w) + bounce_two;
   return vec4<f32>(color, 1.0);
+}
+
+@vertex
+fn vs_shadow(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VsOut {
+  var o: VsOut;
+  o.pos = g.light_vp * vec4<f32>(pos, 1.0);
+  o.world = pos;
+  o.normal = normal;
+  o.uv = uv;
+  return o;
+}
+
+@fragment
+fn fs_shadow(in: VsOut) {
+  let alpha = textureSample(tex, samp, in.uv).a;
+  if (m.flags.x > 0.5 && alpha * m.diffuse.a < 0.3) { discard; }
 }
 
 // Fullscreen background: vertical gradient, lighter grey at top fading to black at bottom.
