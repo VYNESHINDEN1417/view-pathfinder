@@ -790,6 +790,7 @@ dependencies = [
  "console_error_panic_hook",
  "glam",
  "image",
+ "js-sys",
  "tobj",
  "wasm-bindgen",
  "wasm-bindgen-futures",

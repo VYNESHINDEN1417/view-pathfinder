@@ -18,18 +18,42 @@ export class Viewer {
         wasm.__wbg_viewer_free(ptr, 0);
     }
     /**
+     * @param {number} time_ms
+     */
+    animate(time_ms) {
+        wasm.viewer_animate(this.__wbg_ptr, time_ms);
+    }
+    /**
+     * @returns {boolean}
+     */
+    animating() {
+        const ret = wasm.viewer_animating(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
+     * @returns {Float32Array}
+     */
+    camera_rotation() {
+        const ret = wasm.viewer_camera_rotation(this.__wbg_ptr);
+        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Creates the viewer. `mtl` may be empty if the material library failed to load.
      * @param {HTMLCanvasElement} canvas
      * @param {string} obj
      * @param {string} mtl
+     * @param {Function} progress
      * @returns {Promise<Viewer>}
      */
-    static create(canvas, obj, mtl) {
+    static create(canvas, obj, mtl, progress) {
         const ptr0 = passStringToWasm0(obj, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(mtl, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.viewer_create(canvas, ptr0, len0, ptr1, len1);
+        const ret = wasm.viewer_create(canvas, ptr0, len0, ptr1, len1, progress);
         return ret;
     }
     /**
@@ -53,6 +77,13 @@ export class Viewer {
     needs_redraw() {
         const ret = wasm.viewer_needs_redraw(this.__wbg_ptr);
         return ret !== 0;
+    }
+    /**
+     * @param {number} dx
+     * @param {number} dy
+     */
+    orbit_drag(dx, dy) {
+        wasm.viewer_orbit_drag(this.__wbg_ptr, dx, dy);
     }
     /**
      * @param {number} id
@@ -122,6 +153,15 @@ export class Viewer {
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.viewer_set_texture(this.__wbg_ptr, ptr0, len0, ptr1, len1);
         return ret !== 0;
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @param {number} time_ms
+     */
+    snap_direction(x, y, z, time_ms) {
+        wasm.viewer_snap_direction(this.__wbg_ptr, x, y, z, time_ms);
     }
     /**
      * Distinct texture file names referenced by the MTL file.
@@ -314,6 +354,14 @@ function __wbg_get_imports() {
         },
         __wbg_call_187d372bd5fdd4aa: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.call(arg1, arg2);
+            return ret;
+        }, arguments); },
+        __wbg_call_6137034ef55c9d0f: function() { return handleError(function (arg0, arg1) {
+            const ret = arg0.call(arg1);
+            return ret;
+        }, arguments); },
+        __wbg_call_939a2607c4484b0b: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
+            const ret = arg0.call(arg1, arg2, arg3, arg4);
             return ret;
         }, arguments); },
         __wbg_clearBufferfv_05f7fc7252e623eb: function(arg0, arg1, arg2, arg3, arg4) {
@@ -1044,6 +1092,24 @@ function __wbg_get_imports() {
             const ret = new Error();
             return ret;
         },
+        __wbg_new_5502aad30c185fc8: function(arg0, arg1) {
+            try {
+                var state0 = {a: arg0, b: arg1};
+                var cb0 = (arg0, arg1) => {
+                    const a = state0.a;
+                    state0.a = 0;
+                    try {
+                        return wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13(a, state0.b, arg0, arg1);
+                    } finally {
+                        state0.a = a;
+                    }
+                };
+                const ret = new Promise(cb0);
+                return ret;
+            } finally {
+                state0.a = 0;
+            }
+        },
         __wbg_new_617a8cdb8bb1130e: function() {
             const ret = new Object();
             return ret;
@@ -1187,6 +1253,10 @@ function __wbg_get_imports() {
         __wbg_setPipeline_88a119262ecbb240: function(arg0, arg1) {
             arg0.setPipeline(arg1);
         },
+        __wbg_setTimeout_db7bbc18a17e152a: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.setTimeout(arg1, arg2);
+            return ret;
+        }, arguments); },
         __wbg_setVertexBuffer_6a8d07ae366fb470: function(arg0, arg1, arg2, arg3) {
             arg0.setVertexBuffer(arg1 >>> 0, arg2, arg3);
         },
@@ -1972,7 +2042,7 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 210, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 191, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h27b336f34cce715a);
             return ret;
         },
