@@ -230,6 +230,7 @@ impl Viewer {
                 report(&progress, "geometry", (model_index + 1) as f64, models.len() as f64).await;
             }
         }
+        report(&progress, "geometry", models.len() as f64, models.len() as f64).await;
         if verts.is_empty() {
             return Err(JsValue::from_str("model contains no geometry"));
         }
