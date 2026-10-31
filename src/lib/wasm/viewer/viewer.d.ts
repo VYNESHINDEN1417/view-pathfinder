@@ -5,10 +5,16 @@ export class Viewer {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
+    animate(time_ms: number): void;
+    animating(): boolean;
+    /**
+     * Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
+     */
+    camera_rotation(): Float32Array;
     /**
      * Creates the viewer. `mtl` may be empty if the material library failed to load.
      */
-    static create(canvas: HTMLCanvasElement, obj: string, mtl: string): Promise<Viewer>;
+    static create(canvas: HTMLCanvasElement, obj: string, mtl: string, progress: Function): Promise<Viewer>;
     /**
      * Explicitly release GPU resources.
      */
@@ -18,6 +24,7 @@ export class Viewer {
      */
     frame(): boolean;
     needs_redraw(): boolean;
+    orbit_drag(dx: number, dy: number): void;
     pointer_cancel(id: number): void;
     pointer_down(id: number, x: number, y: number, button: number): void;
     pointer_move(id: number, x: number, y: number): void;
@@ -38,6 +45,7 @@ export class Viewer {
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
      */
     set_texture(name: string, bytes: Uint8Array): boolean;
+    snap_direction(x: number, y: number, z: number, time_ms: number): void;
     /**
      * Distinct texture file names referenced by the MTL file.
      */
@@ -50,10 +58,14 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_viewer_free: (a: number, b: number) => void;
-    readonly viewer_create: (a: any, b: number, c: number, d: number, e: number) => any;
+    readonly viewer_animate: (a: number, b: number) => void;
+    readonly viewer_animating: (a: number) => number;
+    readonly viewer_camera_rotation: (a: number) => [number, number];
+    readonly viewer_create: (a: any, b: number, c: number, d: number, e: number, f: any) => any;
     readonly viewer_destroy: (a: number) => void;
     readonly viewer_frame: (a: number) => number;
     readonly viewer_needs_redraw: (a: number) => number;
+    readonly viewer_orbit_drag: (a: number, b: number, c: number) => void;
     readonly viewer_pointer_cancel: (a: number, b: number) => void;
     readonly viewer_pointer_down: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_pointer_move: (a: number, b: number, c: number, d: number) => void;
@@ -62,6 +74,7 @@ export interface InitOutput {
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_texture: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_texture_names: (a: number) => [number, number];
     readonly viewer_wheel: (a: number, b: number) => void;
     readonly wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13: (a: number, b: number, c: any, d: any) => void;
