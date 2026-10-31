@@ -28,7 +28,7 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
       const length = Math.hypot(...point.direction);
       const projected = project(point.direction.map((v) => v / length) as Direction, rotation);
       const radius = point.diagonal ? 84 : 57;
-      return { ...point, x: 110 + projected[0] * radius, y: 110 - projected[1] * radius, depth: projected[2] };
+      return { ...point, x: 110 + (projected[0] ?? 0) * radius, y: 110 - (projected[1] ?? 0) * radius, depth: projected[2] ?? 0 };
     }).sort((a, b) => a.depth - b.depth);
   return (
     <div className="viewer-gizmo" role="group" aria-label="XYZ camera navigation"
@@ -54,7 +54,7 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
         suppressClick.current = g.dragged;
         if (!g.dragged) {
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-direction]");
-          if (target && event.currentTarget.contains(target)) onSnap(JSON.parse(target.dataset.direction ?? "[0,0,1]") as Direction);
+          if (target && event.currentTarget.contains(target)) onSnap(JSON.parse(target.dataset["direction"] ?? "[0,0,1]") as Direction);
         }
         gesture.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -71,7 +71,7 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
         aria-label={point.diagonal ? `View diagonal ${point.direction.join(", ")}` : `View ${point.label} axis`}
         title={point.diagonal ? `Diagonal ${point.direction.join(", ")}` : `${point.label} view`}
         aria-pressed={point.depth > 0.999} data-direction={JSON.stringify(point.direction)}
-        onClick={(event) => { event.stopPropagation(); if (event.detail === 0 && !suppressClick.current) onSnap(point.direction); }}>
+        onClick={(event) => { event.stopPropagation(); if (event.detail === 0) onSnap(point.direction); }}>
         {point.diagonal ? <span className="diagonal-dot" /> : point.label}
       </Button>)}
     </div>

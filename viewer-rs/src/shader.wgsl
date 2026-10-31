@@ -44,17 +44,24 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (dot(n, v) < 0.0) { n = -n; }
   let l = normalize(g.light.xyz);
   let t = textureSample(tex, samp, in.uv);
-  if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   var kd = m.diffuse.rgb;
   if (m.flags.x > 0.5) { kd = kd * t.rgb; }
   let diff = max(dot(n, l), 0.0);
   let lp = g.light_vp * vec4<f32>(in.world, 1.0);
   let ndc = lp.xyz / lp.w;
   let uv = ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
-  // One comparison sample keeps shadow overhead small on mobile.
-  let shadow = textureSampleCompare(shadow_tex, shadow_samp, uv, ndc.z - 0.0015);
+  // Four fixed comparison taps provide inexpensive PCF without blurring block textures.
+  // All implicit-derivative samples occur before the alpha discard.
+  let step = vec2<f32>(0.5) / vec2<f32>(textureDimensions(shadow_tex));
+  let depth = ndc.z - 0.0015;
+  let shadow = 0.25 * (
+    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x, -step.y), depth) +
+    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x, -step.y), depth) +
+    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
+    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
+  if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   var visibility = shadow;
-  if (any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z > 1.0) { visibility = 1.0; }
+  if (any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // Two cheap, bounded diffuse interactions: sky/ground fill then subtle albedo bounce.
   let bounce_one = 0.22 + 0.08 * max(n.y, 0.0);
   let bounce_two = kd * 0.035 * max(-n.y, 0.0);

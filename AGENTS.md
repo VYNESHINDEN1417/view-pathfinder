@@ -10,3 +10,5 @@
 <!-- LOVABLE:END -->
 
 - 3D rendering lives in Rust (`viewer-rs/`, wgpu + tobj) compiled to `public/wasm/viewer_bg.wasm` with glue in `src/lib/wasm/viewer/`; JS only forwards browser events. Why: user requires a Rust/wgpu engine, no JS 3D libs. Build with CARGO_TARGET_DIR outside the repo (artifacts exceed commit limits).
+- Camera orientation and transitions are owned by Rust; the browser gizmo projects the returned quaternion and schedules frames only during changes. Why: navigation must remain synchronized without a second renderer.
+- Loading uses a fixed set of measured stages with texture operations grouped together; replacement texture URLs and original fallbacks are explicit manifest entries. Why: progress cannot reset as assets are discovered and missing replacements must not lose materials.

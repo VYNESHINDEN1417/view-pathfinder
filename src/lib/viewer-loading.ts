@@ -3,12 +3,22 @@ export type LoadingState = { progress: number; status: string; indeterminate: bo
 /** Each known asset or processing operation contributes one measured work item, not a timed percentage. */
 export class LoadingTracker {
   private tasks = new Map<string, number>();
+  private textureTasks = new Map<string, number>();
   private highWater = 0;
   constructor(keys: string[], private notify: (state: LoadingState) => void) {
     keys.forEach((key) => this.tasks.set(key, 0));
   }
+  addTextureTasks(names: string[]) {
+    names.forEach((name) => {
+      this.textureTasks.set("download:" + name, 0);
+      this.textureTasks.set("decode:" + name, 0);
+    });
+    if (!names.length) this.tasks.set("textures", 1);
+  }
   update(key: string, completed: number, total: number, status: string) {
-    if (total > 0) this.tasks.set(key, Math.max(this.tasks.get(key) ?? 0, Math.min(completed / total, 1)));
+    const tasks = this.textureTasks.has(key) ? this.textureTasks : this.tasks;
+    if (total > 0) tasks.set(key, Math.max(tasks.get(key) ?? 0, Math.min(completed / total, 1)));
+    if (this.textureTasks.size) this.tasks.set("textures", [...this.textureTasks.values()].reduce((sum, value) => sum + value, 0) / this.textureTasks.size);
     const value = [...this.tasks.values()].reduce((sum, fraction) => sum + fraction, 0) / this.tasks.size;
     this.highWater = Math.max(this.highWater, Math.min(value, 0.99));
     this.notify({ progress: this.highWater, status, indeterminate: total <= 0, ready: false });
@@ -44,7 +54,7 @@ export async function downloadAsset(url: string, signal: AbortSignal, onBytes: (
 }
 
 export function materialTextures(mtl: string) {
-  return [...new Set([...mtl.matchAll(/^map_Kd\s+(.+)$/gm)].map((match) => match[1].trim()))].sort();
+  return [...new Set([...mtl.matchAll(/^map_Kd\s+(.+)$/gm)].flatMap((match) => match[1] ? [match[1].trim()] : []))].sort();
 }
 
 export type Replacement = { url: string; source: string; fallback: string; width: number; height: number };
