@@ -42,9 +42,13 @@ function Index() {
 
     const schedule = () => {
       if (!raf && viewer)
-        raf = requestAnimationFrame(() => {
+        raf = requestAnimationFrame((time) => {
           raf = 0;
-          viewer?.frame();
+          if (!viewer) return;
+          viewer.animate(time);
+          viewer.frame();
+          setRotation(Array.from(viewer.camera_rotation()));
+          if (viewer.animating() || viewer.needs_redraw()) schedule();
         });
     };
     scheduleRef.current = schedule;
@@ -60,17 +64,17 @@ function Index() {
 
     (async () => {
       const notify = (state: LoadingState) => { if (!disposed) setLoading(state); };
-      let tracker = new LoadingTracker(["wasm", "obj", "mtl"], notify);
+      const tracker = new LoadingTracker(["wasm", "obj", "mtl", "renderer", "parse", "geometry", "upload", "textures", "ready"], notify);
       const bytes = (url: string, key: string, label: string) => downloadAsset(url, controller.signal, (done, total) => tracker.update(key, done, total, label));
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
-      await mod.default({ module_or_path: wasm });
+      await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const obj = new TextDecoder().decode(await bytes(MODEL_DIR + MODEL, "obj", "Loading model..."));
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtl = lib ? new TextDecoder().decode(await bytes(MODEL_DIR + lib.replace(/^\.\//, ""), "mtl", "Loading materials...")) : "";
       const names = materialTextures(mtl);
-      tracker = new LoadingTracker(["wasm", "obj", "mtl", "renderer", "parse", "geometry", "upload", ...names.flatMap((name) => ["download:" + name, "decode:" + name]), "ready"], notify);
-      for (const key of ["wasm", "obj", "mtl"]) tracker.update(key, 1, 1, "Preparing viewer...");
+      if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
+      tracker.addTextureTasks(names);
       // Download while Rust prepares geometry; decoded uploads begin only after initialization.
       const downloads = new Map(names.map((name) => [name, (async () => {
         const candidates = textureCandidates(name, replacements, MODEL_DIR);
@@ -112,7 +116,7 @@ function Index() {
       }
       if (disposed) return;
       v.frame();
-      setRotation(v.camera_rotation());
+      setRotation(Array.from(v.camera_rotation()));
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
 
