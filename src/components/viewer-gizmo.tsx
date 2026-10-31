@@ -54,7 +54,7 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
         suppressClick.current = g.dragged;
         if (!g.dragged) {
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-direction]");
-          if (target && event.currentTarget.contains(target)) onSnap(JSON.parse(target.dataset.direction ?? "[0,0,1]") as Direction);
+          if (target && event.currentTarget.contains(target)) onSnap(JSON.parse(target.dataset["direction"] ?? "[0,0,1]") as Direction);
         }
         gesture.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
