@@ -1,0 +1,443 @@
+{
+  "tex/andesite.png": {
+    "source": "blocks/stone_andesite.png",
+    "url": "/__l5e/assets-v1/bb82d636-a4b6-4e98-8ce1-d4ae76b55fae/stone_andesite.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/andesite.png"
+  },
+  "tex/anvil.png": {
+    "source": "blocks/anvil_base.png",
+    "url": "/__l5e/assets-v1/346d4445-48e3-4f0a-8021-6b93ccf9ccec/anvil_base.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/anvil.png"
+  },
+  "tex/anvil_top.png": {
+    "source": "blocks/anvil_top_damaged_0.png",
+    "url": "/__l5e/assets-v1/ee6100b7-f5ba-43f8-9f04-68edf3bd32b5/anvil_top_damaged_0.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/anvil_top.png"
+  },
+  "tex/bell_bottom.png": {
+    "source": "blocks/bell_bottom.png",
+    "url": "/__l5e/assets-v1/5d913ded-205a-4e81-822e-5791321776fe/bell_bottom.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/bell_bottom.png"
+  },
+  "tex/bell_side.png": {
+    "source": "blocks/bell_side.png",
+    "url": "/__l5e/assets-v1/39aba5a4-8505-42c3-8335-ef76171f9826/bell_side.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/bell_side.png"
+  },
+  "tex/bell_top.png": {
+    "source": "blocks/bell_top.png",
+    "url": "/__l5e/assets-v1/6a432258-965f-4790-8b0d-7d97bff87fe4/bell_top.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/bell_top.png"
+  },
+  "tex/black_candle.png": {
+    "source": "blocks/candles/black_candle.png",
+    "url": "/__l5e/assets-v1/f0030c3d-46e5-45b8-ad3c-dac37c509bc8/black_candle.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/black_candle.png"
+  },
+  "tex/black_wool.png": {
+    "source": "blocks/wool_colored_black.png",
+    "url": "/__l5e/assets-v1/21e9b750-cdfc-4017-a18e-fde2203f2338/wool_colored_black.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/black_wool.png"
+  },
+  "tex/blue_wool.png": {
+    "source": "blocks/wool_colored_blue.png",
+    "url": "/__l5e/assets-v1/e920b8fe-d0a2-4127-b0a8-965122dd8521/wool_colored_blue.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/blue_wool.png"
+  },
+  "tex/brewing_stand.png": {
+    "source": "blocks/brewing_stand.png",
+    "url": "/__l5e/assets-v1/c6e7bafd-b6bd-415a-a366-c9b49db9544d/brewing_stand.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/brewing_stand.png"
+  },
+  "tex/brewing_stand_base.png": {
+    "source": "blocks/brewing_stand_base.png",
+    "url": "/__l5e/assets-v1/ad52f09d-5e68-4e3f-8ca9-3db81fc00af4/brewing_stand_base.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/brewing_stand_base.png"
+  },
+  "tex/bricks.png": {
+    "source": "blocks/brick.png",
+    "url": "/__l5e/assets-v1/9900dc23-f27c-40b8-b649-de1720b6c315/brick.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/bricks.png"
+  },
+  "tex/brown_wool.png": {
+    "source": "blocks/wool_colored_brown.png",
+    "url": "/__l5e/assets-v1/229b09cf-bd72-46ff-bb93-afd19253e353/wool_colored_brown.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/brown_wool.png"
+  },
+  "tex/carved_pumpkin.png": {
+    "source": "blocks/pumpkin_face_off.png",
+    "url": "/__l5e/assets-v1/d2e6ed2b-f8e2-4e1f-811a-ffe3080eebbf/pumpkin_face_off.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/carved_pumpkin.png"
+  },
+  "tex/cobblestone.png": {
+    "source": "blocks/cobblestone.png",
+    "url": "/__l5e/assets-v1/92e13464-c9d9-4c28-8408-c34cb6f080c6/cobblestone.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/cobblestone.png"
+  },
+  "tex/cyan_terracotta.png": {
+    "source": "blocks/hardened_clay_stained_cyan.png",
+    "url": "/__l5e/assets-v1/62a70ae6-3df5-490c-b14b-bc10f3811bd4/hardened_clay_stained_cyan.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/cyan_terracotta.png"
+  },
+  "tex/dark_oak_log.png": {
+    "source": "blocks/log_big_oak.png",
+    "url": "/__l5e/assets-v1/057bc84d-7879-41ea-9bf0-0f420d52b5f8/log_big_oak.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/dark_oak_log.png"
+  },
+  "tex/dark_oak_planks.png": {
+    "source": "blocks/planks_big_oak.png",
+    "url": "/__l5e/assets-v1/1734f26e-9d05-42a0-8312-529a2616d70f/planks_big_oak.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/dark_oak_planks.png"
+  },
+  "tex/dark_oak_trapdoor.png": {
+    "source": "blocks/dark_oak_trapdoor.png",
+    "url": "/__l5e/assets-v1/9c798f72-af1d-437f-b3dd-193cddb583e9/dark_oak_trapdoor.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/dark_oak_trapdoor.png"
+  },
+  "tex/deepslate_tiles.png": {
+    "source": "blocks/deepslate/deepslate_tiles.png",
+    "url": "/__l5e/assets-v1/213b7a28-b04a-4980-9d2e-d3b0b3c8e98c/deepslate_tiles.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/deepslate_tiles.png"
+  },
+  "tex/diorite.png": {
+    "source": "blocks/stone_diorite.png",
+    "url": "/__l5e/assets-v1/968a1d73-cc37-4b37-ba7d-e9b1cfcf7f2b/stone_diorite.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/diorite.png"
+  },
+  "tex/end_rod.png": {
+    "source": "blocks/end_rod.png",
+    "url": "/__l5e/assets-v1/63537a9e-3ad3-46bb-861c-000f515282b8/end_rod.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/end_rod.png"
+  },
+  "tex/end_stone_bricks.png": {
+    "source": "blocks/end_bricks.png",
+    "url": "/__l5e/assets-v1/d01759ef-9121-40f4-9709-fc4657e773cd/end_bricks.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/end_stone_bricks.png"
+  },
+  "tex/granite.png": {
+    "source": "blocks/stone_granite.png",
+    "url": "/__l5e/assets-v1/0dec2625-4dc3-41be-b8f0-f0dce2232f9d/stone_granite.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/granite.png"
+  },
+  "tex/gray_candle.png": {
+    "source": "blocks/candles/gray_candle.png",
+    "url": "/__l5e/assets-v1/9021e2f6-25e0-4103-95c9-17899e86aa35/gray_candle.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/gray_candle.png"
+  },
+  "tex/gray_stained_glass.png": {
+    "source": "blocks/glass_gray.png",
+    "url": "/__l5e/assets-v1/a81c6637-cc5e-4bc0-a435-0d3aeae771c4/glass_gray.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/gray_stained_glass.png"
+  },
+  "tex/gray_stained_glass_pane_top.png": {
+    "source": "blocks/glass_pane_top_gray.png",
+    "url": "/__l5e/assets-v1/50160671-6ee8-4597-93da-d95b1f4a383e/glass_pane_top_gray.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/gray_stained_glass_pane_top.png"
+  },
+  "tex/gray_wool.png": {
+    "source": "blocks/wool_colored_gray.png",
+    "url": "/__l5e/assets-v1/af4e82b2-23a2-42e2-8765-e3d169879064/wool_colored_gray.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/gray_wool.png"
+  },
+  "tex/grindstone_pivot.png": {
+    "source": "blocks/grindstone_pivot.tga",
+    "url": "/__l5e/assets-v1/8fbed8c1-e769-4721-b231-125834a79a81/grindstone_pivot.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/grindstone_pivot.png"
+  },
+  "tex/grindstone_round.png": {
+    "source": "blocks/grindstone_round.tga",
+    "url": "/__l5e/assets-v1/2bba387b-9226-4ec8-907e-ecc3a9d77ed2/grindstone_round.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/grindstone_round.png"
+  },
+  "tex/grindstone_side.png": {
+    "source": "blocks/grindstone_side.tga",
+    "url": "/__l5e/assets-v1/75529e9c-606b-462b-9e4f-108f3d2163a5/grindstone_side.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/grindstone_side.png"
+  },
+  "tex/iron_bars.png": {
+    "source": "blocks/iron_bars.png",
+    "url": "/__l5e/assets-v1/dba6c0b5-6649-4291-a1f6-32543735965b/iron_bars.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/iron_bars.png"
+  },
+  "tex/iron_door_bottom.png": {
+    "source": "blocks/door_iron_lower.png",
+    "url": "/__l5e/assets-v1/60d10d40-53d4-4d0c-b6d9-355e453e2d3e/door_iron_lower.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/iron_door_bottom.png"
+  },
+  "tex/iron_door_top.png": {
+    "source": "blocks/door_iron_upper.png",
+    "url": "/__l5e/assets-v1/da0250d9-7259-4856-be85-4bce96f2f34d/door_iron_upper.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/iron_door_top.png"
+  },
+  "tex/iron_trapdoor.png": {
+    "source": "blocks/iron_trapdoor.png",
+    "url": "/__l5e/assets-v1/358c358f-9b27-4649-86cc-bb646e80eae0/iron_trapdoor.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/iron_trapdoor.png"
+  },
+  "tex/lever.png": {
+    "source": "blocks/lever.png",
+    "url": "/__l5e/assets-v1/010ad3f9-fc5b-4c86-8faf-aed11a1e86e5/lever.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/lever.png"
+  },
+  "tex/light_gray_candle.png": {
+    "source": "blocks/candles/light_gray_candle.png",
+    "url": "/__l5e/assets-v1/aa855de7-6380-4fcc-8c87-7202b076bf91/light_gray_candle.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/light_gray_candle.png"
+  },
+  "tex/light_gray_stained_glass.png": {
+    "source": "blocks/glass_silver.png",
+    "url": "/__l5e/assets-v1/58b3d016-7783-4d06-ae15-d1b89b06c478/glass_silver.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/light_gray_stained_glass.png"
+  },
+  "tex/light_gray_stained_glass_pane_top.png": {
+    "source": "blocks/glass_pane_top_silver.png",
+    "url": "/__l5e/assets-v1/50b8f122-b048-4269-b1cd-65ef67afabf6/glass_pane_top_silver.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/light_gray_stained_glass_pane_top.png"
+  },
+  "tex/lime_wool.png": {
+    "source": "blocks/wool_colored_lime.png",
+    "url": "/__l5e/assets-v1/b120e0d4-5f2f-4f7c-81ec-64ad7b1ebe19/wool_colored_lime.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/lime_wool.png"
+  },
+  "tex/mossy_cobblestone.png": {
+    "source": "blocks/cobblestone_mossy.png",
+    "url": "/__l5e/assets-v1/bc82099b-0e3a-4de2-bc8c-bf6d8c9c96f2/cobblestone_mossy.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/mossy_cobblestone.png"
+  },
+  "tex/oak_planks.png": {
+    "source": "blocks/planks_oak.png",
+    "url": "/__l5e/assets-v1/d5550624-7f36-46e2-b36e-541fdcf407f8/planks_oak.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/oak_planks.png"
+  },
+  "tex/oak_trapdoor.png": {
+    "source": "blocks/trapdoor.png",
+    "url": "/__l5e/assets-v1/9a577e54-9c25-4369-a00c-6dc47809a871/trapdoor.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/oak_trapdoor.png"
+  },
+  "tex/polished_andesite.png": {
+    "source": "blocks/stone_andesite_smooth.png",
+    "url": "/__l5e/assets-v1/bc80fb41-2bef-4590-aa28-d9ba3ea4c3bc/stone_andesite_smooth.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/polished_andesite.png"
+  },
+  "tex/polished_blackstone.png": {
+    "source": "blocks/polished_blackstone.png",
+    "url": "/__l5e/assets-v1/98a875ef-11e1-4042-b1f8-a2c8cd1f474b/polished_blackstone.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/polished_blackstone.png"
+  },
+  "tex/polished_blackstone_bricks.png": {
+    "source": "blocks/polished_blackstone_bricks.png",
+    "url": "/__l5e/assets-v1/1aa26699-9499-42b9-956b-e5b62e02d011/polished_blackstone_bricks.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/polished_blackstone_bricks.png"
+  },
+  "tex/polished_deepslate.png": {
+    "source": "blocks/deepslate/polished_deepslate.png",
+    "url": "/__l5e/assets-v1/74fe2191-ea93-4924-9853-3c69e27fb3cc/polished_deepslate.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/polished_deepslate.png"
+  },
+  "tex/polished_diorite.png": {
+    "source": "blocks/stone_diorite_smooth.png",
+    "url": "/__l5e/assets-v1/db551fc1-c4bb-4353-beab-d9b1f5d9bd48/stone_diorite_smooth.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/polished_diorite.png"
+  },
+  "tex/pumpkin_side.png": {
+    "source": "blocks/pumpkin_side.png",
+    "url": "/__l5e/assets-v1/1fbe1cb9-8a84-4451-979d-d1e04c7e6827/pumpkin_side.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/pumpkin_side.png"
+  },
+  "tex/pumpkin_top.png": {
+    "source": "blocks/pumpkin_top.png",
+    "url": "/__l5e/assets-v1/15a4c6e8-1075-4ec9-a2a3-e1504f785c12/pumpkin_top.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/pumpkin_top.png"
+  },
+  "tex/red_concrete.png": {
+    "source": "blocks/concrete_red.png",
+    "url": "/__l5e/assets-v1/56de1996-b656-48c1-af4c-c4559549fc8a/concrete_red.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/red_concrete.png"
+  },
+  "tex/sandstone.png": {
+    "source": "blocks/sandstone_normal.png",
+    "url": "/__l5e/assets-v1/6e4899cc-49d5-4495-912e-b86794800933/sandstone_normal.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/sandstone.png"
+  },
+  "tex/sandstone_top.png": {
+    "source": "blocks/sandstone_top.png",
+    "url": "/__l5e/assets-v1/92d4f693-8498-4bba-98f2-84ade454b745/sandstone_top.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/sandstone_top.png"
+  },
+  "tex/smooth_stone.png": {
+    "source": "blocks/stone_slab_top.png",
+    "url": "/__l5e/assets-v1/ac1e7e4d-e44e-4e15-8135-c74be5d8f3c6/stone_slab_top.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/smooth_stone.png"
+  },
+  "tex/smooth_stone_slab_side.png": {
+    "source": "blocks/stone_slab_side.png",
+    "url": "/__l5e/assets-v1/68bb0ff6-1786-47a0-9fcb-7f983abb1f78/stone_slab_side.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/smooth_stone_slab_side.png"
+  },
+  "tex/spruce_planks.png": {
+    "source": "blocks/planks_spruce.png",
+    "url": "/__l5e/assets-v1/96f013ea-de07-49b9-b297-3c383f979da7/planks_spruce.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/spruce_planks.png"
+  },
+  "tex/spruce_trapdoor.png": {
+    "source": "blocks/spruce_trapdoor.png",
+    "url": "/__l5e/assets-v1/3ed5edcd-b3f0-41bd-850e-d857952d0a30/spruce_trapdoor.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/spruce_trapdoor.png"
+  },
+  "tex/stone.png": {
+    "source": "blocks/stone.png",
+    "url": "/__l5e/assets-v1/06b20cd4-67cf-4ca5-90df-9c9f35874734/stone.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/stone.png"
+  },
+  "tex/stone_bricks.png": {
+    "source": "blocks/stonebrick.png",
+    "url": "/__l5e/assets-v1/3d4f0bf2-232a-48dd-a51d-2239df3936b1/stonebrick.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/stone_bricks.png"
+  },
+  "tex/tnt_bottom.png": {
+    "source": "blocks/tnt_bottom.png",
+    "url": "/__l5e/assets-v1/c6eef96a-95e6-433b-ba65-6d4b46b8e928/tnt_bottom.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/tnt_bottom.png"
+  },
+  "tex/tnt_side.png": {
+    "source": "blocks/tnt_side.png",
+    "url": "/__l5e/assets-v1/9bd4e14a-8f77-4be2-b585-2823d6432c55/tnt_side.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/tnt_side.png"
+  },
+  "tex/tnt_top.png": {
+    "source": "blocks/tnt_top.png",
+    "url": "/__l5e/assets-v1/5e49d28c-b1d9-4340-85a8-d7ab22908963/tnt_top.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/tnt_top.png"
+  },
+  "tex/white_wool.png": {
+    "source": "blocks/wool_colored_white.png",
+    "url": "/__l5e/assets-v1/473825d9-a353-4098-8f6b-9fc3812c1d23/wool_colored_white.png",
+    "width": 16,
+    "height": 16,
+    "fallback": "/models/tex/white_wool.png"
+  }
+}
