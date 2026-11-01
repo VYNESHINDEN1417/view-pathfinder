@@ -229,8 +229,8 @@ body {
 .viewer-save { right: max(16px, env(safe-area-inset-right)); }
 .viewer-brightness { position: absolute; left: calc(50% - 150px); bottom: max(48px, calc(env(safe-area-inset-bottom) + 48px)); width: 36px; height: 142px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--viewer-label); z-index: 2; background: var(--viewer-tool-bg); border-radius: 6px; padding: 10px 0; }
 .brightness-slider[data-orientation="vertical"] { height: 104px; width: 24px; flex-direction: column; }
-.brightness-slider [data-orientation="vertical"] { width: 5px; height: 100%; background: var(--viewer-tool-hover); }
-.brightness-slider [data-radix-slider-range] { background: var(--viewer-label); }
+.brightness-slider > span:first-child { width: 5px; height: 100%; background: var(--viewer-tool-hover); }
+.brightness-slider > span:first-child > span { width: 100%; background: var(--viewer-label); }
 .brightness-slider [role="slider"] { background: var(--viewer-label); border-color: var(--viewer-tool-border); }
 .viewer-projection { position: absolute; left: calc(50% + 114px); bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px)); z-index: 2; }
 .capture-error { position: absolute; top: 70px; right: 16px; z-index: 4; background: var(--viewer-tool-bg); color: var(--viewer-label); font-size: 12px; padding: 8px; max-width: 220px; }
