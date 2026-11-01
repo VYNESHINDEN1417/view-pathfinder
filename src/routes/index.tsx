@@ -128,7 +128,7 @@ function Index() {
         let valid = v.set_texture(name, result.data);
         const fallback = textureCandidates(name, {}, MODEL_DIR)[0];
         if (!valid && fallback && result.url !== fallback) {
-          const original = await bytes(fallback, "download:" + name, "download:" + name === "" ? "" : "Loading original texture...");
+          const original = await bytes(fallback, "download:" + name, "Loading original texture...");
           if (disposed) return;
           valid = v.set_texture(name, original);
         }
