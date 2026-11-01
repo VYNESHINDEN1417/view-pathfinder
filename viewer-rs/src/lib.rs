@@ -100,6 +100,8 @@ pub struct Viewer {
     cam: Camera,
     home: Camera,
     light_intensity: f32,
+    orthographic: bool,
+    background: u32,
     dirty: bool,
     pointers: Vec<Pointer>,
     button: i32,
@@ -158,7 +160,9 @@ impl Viewer {
             width: w.min(max_dim),
             height: h.min(max_dim),
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: caps.alpha_modes[0],
+            alpha_mode: caps.alpha_modes.iter().copied().find(|m| *m == wgpu::CompositeAlphaMode::PreMultiplied)
+                .or_else(|| caps.alpha_modes.iter().copied().find(|m| *m == wgpu::CompositeAlphaMode::PostMultiplied))
+                .unwrap_or(caps.alpha_modes[0]),
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -498,7 +502,9 @@ impl Viewer {
             radius,
             cam: home,
             home,
-            light_intensity: 1.0,
+            light_intensity: 1.5,
+            orthographic: false,
+            background: 0,
             dirty: true,
             pointers: Vec::new(),
             button: 0,
@@ -579,10 +585,27 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Adjust headlight intensity (default 1.0).
+    /// Adjust total scene exposure, including indirect fill and the gradient.
     pub fn set_light(&mut self, intensity: f32) {
-        self.light_intensity = intensity.max(0.0);
+        self.light_intensity = intensity.clamp(0.25, 3.0);
         self.dirty = true;
+    }
+
+    pub fn set_orthographic(&mut self, enabled: bool) {
+        self.orthographic = enabled;
+        self.dirty = true;
+    }
+
+    /// 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
+    pub fn set_background(&mut self, mode: u32) {
+        self.background = mode.min(3);
+        self.dirty = true;
+    }
+
+    /// Force a fresh frame so canvas export never captures a discarded idle buffer.
+    pub fn capture_frame(&mut self) -> bool {
+        self.dirty = true;
+        self.frame()
     }
 
     /// Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
@@ -727,15 +750,21 @@ impl Viewer {
         let aspect = self.config.width as f32 / self.config.height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
-        let near = (self.cam.dist - self.radius * 1.5).max(self.radius * 0.002).max(self.cam.dist * 0.01);
+        let near = if self.orthographic { -self.radius * 3.0 } else {
+            (self.cam.dist - self.radius * 1.5).max(self.radius * 0.002).max(self.cam.dist * 0.01)
+        };
         let far = self.cam.dist + self.radius * 3.0;
-        let vp = Mat4::perspective_rh(FOV_Y, aspect, near, far) * Mat4::look_at_rh(eye, self.cam.target, up);
+        let half_height = self.cam.dist * (FOV_Y * 0.5).tan();
+        let projection = if self.orthographic {
+            Mat4::orthographic_rh(-half_height * aspect, half_height * aspect, -half_height, half_height, near, far)
+        } else { Mat4::perspective_rh(FOV_Y, aspect, near, far) };
+        let vp = projection * Mat4::look_at_rh(eye, self.cam.target, up);
         let light = Vec3::new(0.35, 0.8, 0.55).normalize();
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
-            screen: [self.config.width as f32, self.config.height as f32, 0.0, 0.0],
+            screen: [self.config.width as f32, self.config.height as f32, self.background as f32, 0.0],
             light_vp: self.light_vp.to_cols_array_2d(),
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
@@ -769,7 +798,7 @@ impl Viewer {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: target,
                     resolve_target: resolve,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth,
@@ -779,9 +808,11 @@ impl Viewer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.bg_pipeline);
             pass.set_bind_group(0, &self.globals_bind, &[]);
-            pass.draw(0..3, 0..1);
+            if self.background != 3 {
+                pass.set_pipeline(&self.bg_pipeline);
+                pass.draw(0..3, 0..1);
+            }
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));

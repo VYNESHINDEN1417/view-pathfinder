@@ -1,6 +1,6 @@
-# Viewer upgrades
-- [ ] Integrate synchronized Rust camera gizmo with snapping and dragging.
-- [ ] Track asset bytes and Rust processing stages with retry and cleanup.
-- [ ] Inspect and map replacement textures, retaining originals as fallbacks.
-- [ ] Add one-light Lambert shading and a cached modest depth shadow map.
-- [ ] Compile WASM, run focused tests, and verify desktop/mobile and fullscreen.
+# Viewer controls and snapshots
+- [ ] Add model-only PNG capture with transparent alpha.
+- [ ] Add Rust orthographic projection toggle.
+- [ ] Add background settings and adjustable brighter lighting.
+- [ ] Alias pale-oak trapdoors to iron trapdoors.
+- [ ] Rebuild WASM, test rules, and verify captures and controls.

@@ -59,8 +59,9 @@ export function materialTextures(mtl: string) {
 
 export type Replacement = { url: string; source: string; fallback: string; width: number; height: number };
 export function textureCandidates(name: string, replacements: Record<string, Replacement>, modelDir: string) {
-  const replacement = replacements[name];
-  return replacement ? [replacement.url, modelDir + name] : [modelDir + name];
+  const resolved = name === "tex/pale_oak_trapdoor.png" ? "tex/iron_trapdoor.png" : name;
+  const replacement = replacements[resolved];
+  return replacement ? [replacement.url, modelDir + resolved] : [modelDir + resolved];
 }
 
 export const GIZMO_DRAG_THRESHOLD = 6;
