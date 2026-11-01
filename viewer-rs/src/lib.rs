@@ -631,16 +631,33 @@ impl Viewer {
             wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
         );
         self.queue.submit(Some(encoder.finish()));
+        let completed = std::rc::Rc::new(std::cell::Cell::new(false));
+        let callback_completed = completed.clone();
         let mapped = js_sys::Promise::new(&mut |resolve, reject| {
+            let callback_completed = callback_completed.clone();
             buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| {
+                callback_completed.set(true);
                 match result {
                     Ok(()) => { let _ = resolve.call0(&JsValue::NULL); }
                     Err(error) => { let _ = reject.call1(&JsValue::NULL, &JsValue::from_str(&error.to_string())); }
                 }
             });
         });
-        let _ = self.device.poll(wgpu::PollType::Poll);
+        let device = self.device.clone();
         wasm_bindgen_futures::future_to_promise(async move {
+            // WebGL readback completion needs polling after its GPU fence signals.
+            // Poll only while this requested capture is pending, never when idle.
+            for _ in 0..2000 {
+                let _ = device.poll(wgpu::PollType::Poll);
+                if completed.get() { break; }
+                let tick = js_sys::Promise::new(&mut |resolve, _| {
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10);
+                    }
+                });
+                wasm_bindgen_futures::JsFuture::from(tick).await?;
+            }
+            if !completed.get() { buffer.destroy(); texture.destroy(); return Err(JsValue::from_str("Capture timed out")); }
             wasm_bindgen_futures::JsFuture::from(mapped).await?;
             let pixels = buffer.slice(..).get_mapped_range();
             let mut rgba = Vec::with_capacity((row_bytes * height) as usize);
