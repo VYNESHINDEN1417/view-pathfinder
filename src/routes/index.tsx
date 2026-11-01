@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ViewerGizmo } from "@/components/viewer-gizmo";
 import { LoadingTracker, downloadAsset, materialTextures, textureCandidates, type LoadingState } from "@/lib/viewer-loading";
 import replacements from "@/assets/texture-replacements.json";
+import { ViewerControls } from "@/components/viewer-controls";
+import { DEFAULT_BRIGHTNESS } from "@/lib/viewer-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,6 +30,21 @@ function Index() {
   const scheduleRef = useRef<() => void>(() => {});
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const [attempt, setAttempt] = useState(0);
+  const [background, setBackground] = useState(0);
+  const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
+  const [orthographic, setOrthographic] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [captureError, setCaptureError] = useState("");
+  const settingsRef = useRef({ background, brightness, orthographic });
+  useEffect(() => {
+    settingsRef.current = { background, brightness, orthographic };
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.set_background(background);
+    viewer.set_light(brightness);
+    viewer.set_orthographic(orthographic);
+    scheduleRef.current();
+  }, [background, brightness, orthographic]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -97,6 +114,9 @@ function Index() {
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
       v.reset();
+      v.set_background(settingsRef.current.background);
+      v.set_light(settingsRef.current.brightness);
+      v.set_orthographic(settingsRef.current.orthographic);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
@@ -106,8 +126,9 @@ function Index() {
         // Paint stage state before the synchronous decoder runs; this is not simulated progress.
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         let valid = v.set_texture(name, result.data);
-        if (!valid && result.url !== MODEL_DIR + name) {
-          const original = await bytes(MODEL_DIR + name, "download:" + name, "Loading original texture...");
+        const fallback = textureCandidates(name, {}, MODEL_DIR)[0];
+        if (!valid && fallback && result.url !== fallback) {
+          const original = await bytes(fallback, "download:" + name, "download:" + name === "" ? "" : "Loading original texture...");
           if (disposed) return;
           valid = v.set_texture(name, original);
         }
@@ -191,11 +212,31 @@ function Index() {
     };
   }, [attempt]);
 
-  return <main className="ship-viewer">
+  const saveImage = async () => {
+    const viewer = viewerRef.current;
+    if (!viewer || saving) return;
+    setSaving(true); setCaptureError("");
+    try {
+      // Rust draws only the model and chosen background, never any DOM controls.
+      const png = await viewer.capture_png() as Uint8Array;
+      const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = `VYNESHINDEN-${orthographic ? "orthographic" : "perspective"}.png`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      setCaptureError("Image could not be saved. Please try again.");
+    } finally { setSaving(false); }
+  };
+
+  return <main className={`ship-viewer background-${background}`} data-scene-ready={loading.ready ? "true" : undefined}>
     <canvas ref={ref} className="viewer-canvas" aria-label="Interactive Iowa ship" />
     {loading.ready && <ViewerGizmo rotation={rotation}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
       onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }} />}
+    {loading.ready && <ViewerControls background={background} brightness={brightness} orthographic={orthographic}
+      saving={saving} error={captureError} onBackground={setBackground} onBrightness={setBrightness}
+      onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
         aria-label="Loading ship" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading.indeterminate ? undefined : Math.floor(loading.progress * 100)}
