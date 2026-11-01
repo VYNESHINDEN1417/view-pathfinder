@@ -602,10 +602,74 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Force a fresh frame so canvas export never captures a discarded idle buffer.
-    pub fn capture_frame(&mut self) -> bool {
-        self.dirty = true;
-        self.frame()
+    /// Capture the same renderer into an offscreen target; never depends on canvas preservation.
+    pub fn capture_png(&mut self) -> js_sys::Promise {
+        let width = self.config.width;
+        let height = self.config.height;
+        let format = self.config.format;
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("PNG capture"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        self.render_to(&texture.create_view(&Default::default()));
+        let row_bytes = width * 4;
+        let padded = (row_bytes + 255) & !255;
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("PNG readback"), size: padded as u64 * height as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
+                offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height),
+            } },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        self.queue.submit(Some(encoder.finish()));
+        let mapped = js_sys::Promise::new(&mut |resolve, reject| {
+            buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| {
+                match result {
+                    Ok(()) => { let _ = resolve.call0(&JsValue::NULL); }
+                    Err(error) => { let _ = reject.call1(&JsValue::NULL, &JsValue::from_str(&error.to_string())); }
+                }
+            });
+        });
+        let _ = self.device.poll(wgpu::PollType::Poll);
+        wasm_bindgen_futures::future_to_promise(async move {
+            wasm_bindgen_futures::JsFuture::from(mapped).await?;
+            let pixels = buffer.slice(..).get_mapped_range();
+            let mut rgba = Vec::with_capacity((row_bytes * height) as usize);
+            for row in pixels.chunks(padded as usize) { rgba.extend_from_slice(&row[..row_bytes as usize]); }
+            drop(pixels);
+            buffer.unmap(); buffer.destroy(); texture.destroy();
+            if matches!(format, wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
+                for pixel in rgba.chunks_exact_mut(4) { pixel.swap(0, 2); }
+            }
+            // MSAA resolves premultiplied edge colors; PNG requires straight alpha.
+            for pixel in rgba.chunks_exact_mut(4) {
+                let alpha = pixel[3] as f32 / 255.0;
+                if alpha > 0.0 && alpha < 1.0 {
+                    for channel in &mut pixel[..3] {
+                        let srgb = *channel as f32 / 255.0;
+                        let linear = if srgb <= 0.04045 { srgb / 12.92 } else { ((srgb + 0.055) / 1.055).powf(2.4) };
+                        let straight = (linear / alpha).min(1.0);
+                        let encoded = if straight <= 0.0031308 { straight * 12.92 } else { 1.055 * straight.powf(1.0 / 2.4) - 0.055 };
+                        *channel = (encoded * 255.0).round() as u8;
+                    }
+                }
+            }
+            let mut png = Vec::new();
+            use image::ImageEncoder;
+            image::codecs::png::PngEncoder::new(&mut png)
+                .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            Ok(js_sys::Uint8Array::from(png.as_slice()).into())
+        })
     }
 
     /// Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
@@ -747,6 +811,12 @@ impl Viewer {
             }
         };
         self.dirty = false;
+        self.render_to(&frame.texture.create_view(&Default::default()));
+        frame.present();
+        true
+    }
+
+    fn render_to(&mut self, view: &wgpu::TextureView) {
         let aspect = self.config.width as f32 / self.config.height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
@@ -769,7 +839,6 @@ impl Viewer {
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
-        let view = frame.texture.create_view(&Default::default());
         let mut enc = self.device.create_command_encoder(&Default::default());
         if self.shadow_dirty {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -790,8 +859,8 @@ impl Viewer {
         }
         {
             let (target, resolve) = match &self.msaa {
-                Some(m) => (m, Some(&view)),
-                None => (&view, None),
+                Some(m) => (m, Some(view)),
+                None => (view, None),
             };
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
@@ -823,8 +892,6 @@ impl Viewer {
             }
         }
         self.queue.submit(Some(enc.finish()));
-        frame.present();
-        true
     }
 
     /// Explicitly release GPU resources.
