@@ -100,6 +100,8 @@ pub struct Viewer {
     cam: Camera,
     home: Camera,
     light_intensity: f32,
+    orthographic: bool,
+    background: u32,
     dirty: bool,
     pointers: Vec<Pointer>,
     button: i32,
@@ -158,7 +160,9 @@ impl Viewer {
             width: w.min(max_dim),
             height: h.min(max_dim),
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: caps.alpha_modes[0],
+            alpha_mode: caps.alpha_modes.iter().copied().find(|m| *m == wgpu::CompositeAlphaMode::PreMultiplied)
+                .or_else(|| caps.alpha_modes.iter().copied().find(|m| *m == wgpu::CompositeAlphaMode::PostMultiplied))
+                .unwrap_or(caps.alpha_modes[0]),
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -498,7 +502,9 @@ impl Viewer {
             radius,
             cam: home,
             home,
-            light_intensity: 1.0,
+            light_intensity: 1.5,
+            orthographic: false,
+            background: 0,
             dirty: true,
             pointers: Vec::new(),
             button: 0,
@@ -579,10 +585,108 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Adjust headlight intensity (default 1.0).
+    /// Adjust total scene exposure, including indirect fill and the gradient.
     pub fn set_light(&mut self, intensity: f32) {
-        self.light_intensity = intensity.max(0.0);
+        self.light_intensity = intensity.clamp(0.25, 3.0);
         self.dirty = true;
+    }
+
+    pub fn set_orthographic(&mut self, enabled: bool) {
+        self.orthographic = enabled;
+        self.dirty = true;
+    }
+
+    /// 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
+    pub fn set_background(&mut self, mode: u32) {
+        self.background = mode.min(3);
+        self.dirty = true;
+    }
+
+    /// Capture the same renderer into an offscreen target; never depends on canvas preservation.
+    pub fn capture_png(&mut self) -> js_sys::Promise {
+        let width = self.config.width;
+        let height = self.config.height;
+        let format = self.config.format;
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("PNG capture"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        self.render_to(&texture.create_view(&Default::default()));
+        let row_bytes = width * 4;
+        let padded = (row_bytes + 255) & !255;
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("PNG readback"), size: padded as u64 * height as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
+                offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height),
+            } },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        self.queue.submit(Some(encoder.finish()));
+        let completed = std::rc::Rc::new(std::cell::Cell::new(false));
+        let callback_completed = completed.clone();
+        let mapped = js_sys::Promise::new(&mut |resolve, reject| {
+            let callback_completed = callback_completed.clone();
+            buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| {
+                callback_completed.set(true);
+                match result {
+                    Ok(()) => { let _ = resolve.call0(&JsValue::NULL); }
+                    Err(error) => { let _ = reject.call1(&JsValue::NULL, &JsValue::from_str(&error.to_string())); }
+                }
+            });
+        });
+        let device = self.device.clone();
+        wasm_bindgen_futures::future_to_promise(async move {
+            // WebGL readback completion needs polling after its GPU fence signals.
+            // Poll only while this requested capture is pending, never when idle.
+            for _ in 0..2000 {
+                let _ = device.poll(wgpu::PollType::Poll);
+                if completed.get() { break; }
+                let tick = js_sys::Promise::new(&mut |resolve, _| {
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10);
+                    }
+                });
+                wasm_bindgen_futures::JsFuture::from(tick).await?;
+            }
+            if !completed.get() { buffer.destroy(); texture.destroy(); return Err(JsValue::from_str("Capture timed out")); }
+            wasm_bindgen_futures::JsFuture::from(mapped).await?;
+            let pixels = buffer.slice(..).get_mapped_range();
+            let mut rgba = Vec::with_capacity((row_bytes * height) as usize);
+            for row in pixels.chunks(padded as usize) { rgba.extend_from_slice(&row[..row_bytes as usize]); }
+            drop(pixels);
+            buffer.unmap(); buffer.destroy(); texture.destroy();
+            if matches!(format, wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
+                for pixel in rgba.chunks_exact_mut(4) { pixel.swap(0, 2); }
+            }
+            // MSAA resolves premultiplied edge colors; PNG requires straight alpha.
+            for pixel in rgba.chunks_exact_mut(4) {
+                let alpha = pixel[3] as f32 / 255.0;
+                if alpha > 0.0 && alpha < 1.0 {
+                    for channel in &mut pixel[..3] {
+                        let srgb = *channel as f32 / 255.0;
+                        let linear = if srgb <= 0.04045 { srgb / 12.92 } else { ((srgb + 0.055) / 1.055).powf(2.4) };
+                        let straight = (linear / alpha).min(1.0);
+                        let encoded = if straight <= 0.0031308 { straight * 12.92 } else { 1.055 * straight.powf(1.0 / 2.4) - 0.055 };
+                        *channel = (encoded * 255.0).round() as u8;
+                    }
+                }
+            }
+            let mut png = Vec::new();
+            use image::ImageEncoder;
+            image::codecs::png::PngEncoder::new(&mut png)
+                .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            Ok(js_sys::Uint8Array::from(png.as_slice()).into())
+        })
     }
 
     /// Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
@@ -724,23 +828,34 @@ impl Viewer {
             }
         };
         self.dirty = false;
+        self.render_to(&frame.texture.create_view(&Default::default()));
+        frame.present();
+        true
+    }
+
+    fn render_to(&mut self, view: &wgpu::TextureView) {
         let aspect = self.config.width as f32 / self.config.height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
-        let near = (self.cam.dist - self.radius * 1.5).max(self.radius * 0.002).max(self.cam.dist * 0.01);
+        let near = if self.orthographic { -self.radius * 3.0 } else {
+            (self.cam.dist - self.radius * 1.5).max(self.radius * 0.002).max(self.cam.dist * 0.01)
+        };
         let far = self.cam.dist + self.radius * 3.0;
-        let vp = Mat4::perspective_rh(FOV_Y, aspect, near, far) * Mat4::look_at_rh(eye, self.cam.target, up);
+        let half_height = self.cam.dist * (FOV_Y * 0.5).tan();
+        let projection = if self.orthographic {
+            Mat4::orthographic_rh(-half_height * aspect, half_height * aspect, -half_height, half_height, near, far)
+        } else { Mat4::perspective_rh(FOV_Y, aspect, near, far) };
+        let vp = projection * Mat4::look_at_rh(eye, self.cam.target, up);
         let light = Vec3::new(0.35, 0.8, 0.55).normalize();
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
-            screen: [self.config.width as f32, self.config.height as f32, 0.0, 0.0],
+            screen: [self.config.width as f32, self.config.height as f32, self.background as f32, 0.0],
             light_vp: self.light_vp.to_cols_array_2d(),
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
-        let view = frame.texture.create_view(&Default::default());
         let mut enc = self.device.create_command_encoder(&Default::default());
         if self.shadow_dirty {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -761,15 +876,15 @@ impl Viewer {
         }
         {
             let (target, resolve) = match &self.msaa {
-                Some(m) => (m, Some(&view)),
-                None => (&view, None),
+                Some(m) => (m, Some(view)),
+                None => (view, None),
             };
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: target,
                     resolve_target: resolve,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth,
@@ -779,9 +894,11 @@ impl Viewer {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            pass.set_pipeline(&self.bg_pipeline);
             pass.set_bind_group(0, &self.globals_bind, &[]);
-            pass.draw(0..3, 0..1);
+            if self.background != 3 {
+                pass.set_pipeline(&self.bg_pipeline);
+                pass.draw(0..3, 0..1);
+            }
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));
@@ -792,8 +909,6 @@ impl Viewer {
             }
         }
         self.queue.submit(Some(enc.finish()));
-        frame.present();
-        true
     }
 
     /// Explicitly release GPU resources.

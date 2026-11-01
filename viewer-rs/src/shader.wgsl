@@ -65,7 +65,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // Two cheap, bounded diffuse interactions: sky/ground fill then subtle albedo bounce.
   let bounce_one = 0.22 + 0.08 * max(n.y, 0.0);
   let bounce_two = kd * 0.035 * max(-n.y, 0.0);
-  let color = kd * (bounce_one + diff * visibility * 0.78 * g.light.w) + bounce_two;
+   let color = (kd * (bounce_one + diff * visibility * 0.78) + bounce_two) * g.light.w;
   return vec4<f32>(color, 1.0);
 }
 
@@ -94,8 +94,10 @@ fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 
 @fragment
 fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+  if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
+  if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
   let t = clamp(1.0 - pos.y / max(g.screen.y, 1.0), 0.0, 1.0);
   let top = vec3<f32>(0.16, 0.16, 0.18);
   let bottom = vec3<f32>(0.0, 0.0, 0.0);
-  return vec4<f32>(mix(bottom, top, t * t * (3.0 - 2.0 * t)), 1.0);
+  return vec4<f32>(mix(bottom, top, t * t * (3.0 - 2.0 * t)) * g.light.w, 1.0);
 }

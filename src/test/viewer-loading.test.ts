@@ -28,4 +28,10 @@ describe("Viewer upgrade rules", () => {
   it("deduplicates all material texture references", () => {
     expect(materialTextures("map_Kd tex/stone.png\nmap_Kd tex/oak.png\nmap_Kd tex/stone.png")).toEqual(["tex/oak.png", "tex/stone.png"]);
   });
+  it("uses iron trapdoors instead of pale oak trapdoors, including fallback", () => {
+    expect(textureCandidates("tex/pale_oak_trapdoor.png", {
+      "tex/iron_trapdoor.png": { url: "/iron.png", source: "iron.png", fallback: "/models/tex/iron_trapdoor.png", width: 16, height: 16 },
+    }, "/models/")).toEqual(["/iron.png", "/models/tex/iron_trapdoor.png"]);
+    expect(textureCandidates("tex/pale_oak_trapdoor.png", {}, "/models/")).toEqual(["/models/tex/iron_trapdoor.png"]);
+  });
 });
