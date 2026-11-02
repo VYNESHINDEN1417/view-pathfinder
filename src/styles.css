@@ -77,6 +77,7 @@
   --viewer-tool-border: oklch(0.65 0 0 / 45%);
   --viewer-white: oklch(1 0 0);
   --viewer-green: #00ff00;
+  --viewer-twist: #ff7300;
   --viewer-checker: oklch(0.75 0 0);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -170,7 +171,10 @@ body {
 
 .viewer-canvas {
   position: fixed;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  --frame-ratio: 0;
   width: 100vw;
   height: 100dvh;
   display: block;
@@ -248,3 +252,10 @@ body {
   .viewer-brightness { left: calc(50% - 133px); bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px)); }
   .viewer-projection { left: calc(50% + 92px); bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px)); }
 }
+
+.gizmo-twist { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gizmo-twist path { fill: none; stroke: var(--viewer-twist); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.viewer-settings-scroll { max-height: min(70dvh, 420px); overflow-y: auto; }
+.ratio-input { display: flex; align-items: center; gap: 6px; padding: 8px; }
+.ratio-input input { width: 52px; height: 32px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--viewer-tool-border); background: var(--viewer-tool-hover); color: var(--viewer-label); font-size: 14px; }
+.viewer-canvas.framed { width: min(100vw, calc(100dvh * var(--frame-ratio))); height: min(100dvh, calc(100vw / var(--frame-ratio))); }

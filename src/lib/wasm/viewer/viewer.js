@@ -42,10 +42,12 @@ export class Viewer {
     }
     /**
      * Capture the same renderer into an offscreen target; never depends on canvas preservation.
+     * @param {number} out_w
+     * @param {number} out_h
      * @returns {Promise<any>}
      */
-    capture_png() {
-        const ret = wasm.viewer_capture_png(this.__wbg_ptr);
+    capture_png(out_w, out_h) {
+        const ret = wasm.viewer_capture_png(this.__wbg_ptr, out_w, out_h);
         return ret;
     }
     /**
@@ -142,6 +144,13 @@ export class Viewer {
         wasm.viewer_resize(this.__wbg_ptr, width, height, css_w, css_h);
     }
     /**
+     * Screen-space twist: positive radians turn the model clockwise on screen.
+     * @param {number} angle
+     */
+    roll(angle) {
+        wasm.viewer_roll(this.__wbg_ptr, angle);
+    }
+    /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
      * @param {number} mode
      */
@@ -160,6 +169,20 @@ export class Viewer {
      */
     set_orthographic(enabled) {
         wasm.viewer_set_orthographic(this.__wbg_ptr, enabled);
+    }
+    /**
+     * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
+     * @param {number} mode
+     */
+    set_shadow_mode(mode) {
+        wasm.viewer_set_shadow_mode(this.__wbg_ptr, mode);
+    }
+    /**
+     * Shadow map resolution in texels (clamped to 256..4096 and GPU limits).
+     * @param {number} size
+     */
+    set_shadow_quality(size) {
+        wasm.viewer_set_shadow_quality(this.__wbg_ptr, size);
     }
     /**
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
@@ -1127,7 +1150,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13(a, state0.b, arg0, arg1);
+                        return wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -1157,7 +1180,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13(a, state0.b, arg0, arg1);
+                        return wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -2086,13 +2109,13 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 201, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h27b336f34cce715a);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 205, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h81ff7aff3d0eddb9);
             return ret;
         },
         __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 441, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h896d51e763e626b3);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 442, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h696ca7ed7a36dadc);
             return ret;
         },
         __wbindgen_generic_0000000000000003: function(arg0) {
@@ -2156,19 +2179,19 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__h896d51e763e626b3(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h896d51e763e626b3(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h696ca7ed7a36dadc(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h696ca7ed7a36dadc(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h27b336f34cce715a(arg0, arg1, arg2) {
-    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h27b336f34cce715a(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h81ff7aff3d0eddb9(arg0, arg1, arg2) {
+    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h81ff7aff3d0eddb9(arg0, arg1, arg2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
 
-function wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13(arg0, arg1, arg2, arg3);
+function wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7(arg0, arg1, arg2, arg3);
 }
 
 

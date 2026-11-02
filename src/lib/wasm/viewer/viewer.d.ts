@@ -14,7 +14,7 @@ export class Viewer {
     /**
      * Capture the same renderer into an offscreen target; never depends on canvas preservation.
      */
-    capture_png(): Promise<any>;
+    capture_png(out_w: number, out_h: number): Promise<any>;
     /**
      * Creates the viewer. `mtl` may be empty if the material library failed to load.
      */
@@ -42,6 +42,10 @@ export class Viewer {
      */
     resize(width: number, height: number, css_w: number, css_h: number): void;
     /**
+     * Screen-space twist: positive radians turn the model clockwise on screen.
+     */
+    roll(angle: number): void;
+    /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
      */
     set_background(mode: number): void;
@@ -50,6 +54,14 @@ export class Viewer {
      */
     set_light(intensity: number): void;
     set_orthographic(enabled: boolean): void;
+    /**
+     * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
+     */
+    set_shadow_mode(mode: number): void;
+    /**
+     * Shadow map resolution in texels (clamped to 256..4096 and GPU limits).
+     */
+    set_shadow_quality(size: number): void;
     /**
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
      */
@@ -70,7 +82,7 @@ export interface InitOutput {
     readonly viewer_animate: (a: number, b: number) => void;
     readonly viewer_animating: (a: number) => number;
     readonly viewer_camera_rotation: (a: number) => [number, number];
-    readonly viewer_capture_png: (a: number) => any;
+    readonly viewer_capture_png: (a: number, b: number, c: number) => any;
     readonly viewer_create: (a: any, b: number, c: number, d: number, e: number, f: any) => any;
     readonly viewer_destroy: (a: number) => void;
     readonly viewer_frame: (a: number) => number;
@@ -82,16 +94,19 @@ export interface InitOutput {
     readonly viewer_pointer_up: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly viewer_reset: (a: number) => void;
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly viewer_roll: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
+    readonly viewer_set_shadow_mode: (a: number, b: number) => void;
+    readonly viewer_set_shadow_quality: (a: number, b: number) => void;
     readonly viewer_set_texture: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_texture_names: (a: number) => [number, number];
     readonly viewer_wheel: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h26ddc75da1306d13: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h27b336f34cce715a: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h896d51e763e626b3: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h81ff7aff3d0eddb9: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h696ca7ed7a36dadc: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

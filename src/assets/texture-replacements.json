@@ -91,8 +91,8 @@
     "fallback": "/models/tex/brown_wool.png"
   },
   "tex/carved_pumpkin.png": {
-    "source": "blocks/pumpkin_face_off.png",
-    "url": "/__l5e/assets-v1/d2e6ed2b-f8e2-4e1f-811a-ffe3080eebbf/pumpkin_face_off.png",
+    "source": "skeleton_skull_face.png",
+    "url": "/textures/skeleton_skull_face.png",
     "width": 16,
     "height": 16,
     "fallback": "/models/tex/carved_pumpkin.png"
@@ -336,15 +336,15 @@
     "fallback": "/models/tex/polished_diorite.png"
   },
   "tex/pumpkin_side.png": {
-    "source": "blocks/pumpkin_side.png",
-    "url": "/__l5e/assets-v1/1fbe1cb9-8a84-4451-979d-d1e04c7e6827/pumpkin_side.png",
+    "source": "skeleton_skull_side.png",
+    "url": "/textures/skeleton_skull_side.png",
     "width": 16,
     "height": 16,
     "fallback": "/models/tex/pumpkin_side.png"
   },
   "tex/pumpkin_top.png": {
-    "source": "blocks/pumpkin_top.png",
-    "url": "/__l5e/assets-v1/15a4c6e8-1075-4ec9-a2a3-e1504f785c12/pumpkin_top.png",
+    "source": "skeleton_skull_top.png",
+    "url": "/textures/skeleton_skull_top.png",
     "width": 16,
     "height": 16,
     "fallback": "/models/tex/pumpkin_top.png"
