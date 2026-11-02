@@ -1,25 +1,80 @@
+import { useState } from "react";
 import { Camera, Menu, Box, Sun, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
-import { BACKGROUNDS } from "@/lib/viewer-settings";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
+import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
-export function ViewerControls({ background, brightness, orthographic, saving, error, onBackground, onBrightness, onProjection, onSave }: {
-  background: number; brightness: number; orthographic: boolean; saving: boolean; error: string;
-  onBackground: (mode: number) => void; onBrightness: (value: number) => void;
+export type ViewerOptions = {
+  background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number;
+};
+
+export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave }: {
+  options: ViewerOptions; brightness: number; orthographic: boolean; saving: boolean; error: string;
+  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void;
   onProjection: () => void; onSave: () => void;
 }) {
+  const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
+  const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
+  const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
     <div className="viewer-settings">
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button className="viewer-tool" variant="ghost" size="icon" aria-label="Settings" title="Settings"><Menu /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="viewer-settings-menu">
-          <DropdownMenuLabel>Background</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={String(background)} onValueChange={(value) => onBackground(Number(value))}>
-            {BACKGROUNDS.map((option) => <DropdownMenuRadioItem key={option.id} value={String(option.id)}>
-              <span className={`background-swatch swatch-${option.swatch}`} />{option.label}
-            </DropdownMenuRadioItem>)}
-          </DropdownMenuRadioGroup>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Background</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu">
+              <DropdownMenuRadioGroup value={String(options.background)} onValueChange={(v) => onOptions({ background: Number(v) })}>
+                {BACKGROUNDS.map((o) => <DropdownMenuRadioItem key={o.id} value={String(o.id)}>
+                  <span className={`background-swatch swatch-${o.swatch}`} />{o.label}
+                </DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Aspect ratio</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu viewer-settings-scroll">
+              <DropdownMenuRadioGroup value={options.aspect} onValueChange={(v) => onOptions({ aspect: v })}>
+                {ASPECTS.map((o) => <DropdownMenuRadioItem key={o.id} value={o.id}
+                  onSelect={(e) => { if (o.id === "custom") e.preventDefault(); }}>{o.label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+              {options.aspect === "custom" && <form className="ratio-input" onKeyDown={stop}
+                onSubmit={(e) => { e.preventDefault(); if (valid) onOptions({ custom: [Number(draft[0]), Number(draft[1])] }); }}>
+                <input aria-label="Ratio width" inputMode="decimal" value={draft[0]} onChange={(e) => setDraft([e.target.value, draft[1]])} />
+                <span>:</span>
+                <input aria-label="Ratio height" inputMode="decimal" value={draft[1]} onChange={(e) => setDraft([draft[0], e.target.value])} />
+                <Button type="submit" size="sm" variant="secondary" disabled={!valid}>Apply</Button>
+              </form>}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Image resolution</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu">
+              <DropdownMenuRadioGroup value={String(options.resolution)} onValueChange={(v) => onOptions({ resolution: Number(v) })}>
+                {RESOLUTIONS.map((o) => <DropdownMenuRadioItem key={o.id} value={String(o.id)}>{o.label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Shadows</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu">
+              <DropdownMenuRadioGroup value={String(options.shadowMode)} onValueChange={(v) => onOptions({ shadowMode: Number(v) })}>
+                {SHADOW_MODES.map((o) => <DropdownMenuRadioItem key={o.id} value={String(o.id)}>{o.label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Shadow quality</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu">
+              <DropdownMenuRadioGroup value={String(options.shadowQuality)} onValueChange={(v) => onOptions({ shadowQuality: Number(v) })}>
+                {SHADOW_QUALITIES.map((o) => <DropdownMenuRadioItem key={o.id} value={String(o.id)}>{o.label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
