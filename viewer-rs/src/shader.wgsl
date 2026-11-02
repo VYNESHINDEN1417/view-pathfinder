@@ -61,7 +61,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   var visibility = shadow;
-  if (any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
+  if (g.screen.w < 0.5 || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // Two cheap, bounded diffuse interactions: sky/ground fill then subtle albedo bounce.
   let bounce_one = 0.22 + 0.08 * max(n.y, 0.0);
   let bounce_two = kd * 0.035 * max(-n.y, 0.0);

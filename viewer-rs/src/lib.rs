@@ -77,6 +77,10 @@ pub struct Viewer {
     shadow_view: wgpu::TextureView,
     shadow_bind: wgpu::BindGroup,
     shadow_dirty: bool,
+    shadow_layout: wgpu::BindGroupLayout,
+    shadow_sampler: wgpu::Sampler,
+    shadow_mode: u32, // 0 off, 1 cached static, 2 real-time
+    twist: f32,
     light_vp: Mat4,
     transition: Option<(Quat, Quat, f64)>,
     bg_pipeline: wgpu::RenderPipeline,
@@ -307,17 +311,8 @@ impl Viewer {
             ],
         });
         let shadow_size = if w < 900 { 512 } else { 1024 };
-        let shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("cached directional shadow"), size: wgpu::Extent3d { width: shadow_size, height: shadow_size, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: DEPTH,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[],
-        });
-        let shadow_view = shadow_texture.create_view(&Default::default());
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor { compare: Some(wgpu::CompareFunction::LessEqual), ..Default::default() });
-        let shadow_bind = device.create_bind_group(&wgpu::BindGroupDescriptor { label: None, layout: &shadow_layout, entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&shadow_view) },
-            wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&shadow_sampler) },
-        ] });
+        let (shadow_texture, shadow_view, shadow_bind) = create_shadow(&device, &shadow_layout, &shadow_sampler, shadow_size);
         let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[&g_layout, &mat_layout], push_constant_ranges: &[] });
         let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("static ship shadow"), layout: Some(&shadow_pipeline_layout),
@@ -481,7 +476,7 @@ impl Viewer {
             queue,
             config,
             pipeline,
-            shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, light_vp, transition: None,
+            shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
             bg_pipeline,
             globals_buf,
             globals_bind,
@@ -596,6 +591,32 @@ impl Viewer {
         self.dirty = true;
     }
 
+    /// Screen-space twist: positive radians turn the model clockwise on screen.
+    pub fn roll(&mut self, angle: f32) {
+        if angle == 0.0 { return; }
+        self.transition = None;
+        self.cam.rot = (self.cam.rot * Quat::from_rotation_z(angle)).normalize();
+        self.dirty = true;
+    }
+
+    /// 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
+    pub fn set_shadow_mode(&mut self, mode: u32) {
+        self.shadow_mode = mode.min(2);
+        self.shadow_dirty = true;
+        self.dirty = true;
+    }
+
+    /// Shadow map resolution in texels (clamped to 256..4096 and GPU limits).
+    pub fn set_shadow_quality(&mut self, size: u32) {
+        let size = size.clamp(256, 4096).min(self.max_dim);
+        if self.shadow_texture.width() == size { return; }
+        let (t, v, b) = create_shadow(&self.device, &self.shadow_layout, &self.shadow_sampler, size);
+        self.shadow_texture.destroy();
+        self.shadow_texture = t; self.shadow_view = v; self.shadow_bind = b;
+        self.shadow_dirty = true;
+        self.dirty = true;
+    }
+
     /// 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
     pub fn set_background(&mut self, mode: u32) {
         self.background = mode.min(3);
@@ -603,9 +624,9 @@ impl Viewer {
     }
 
     /// Capture the same renderer into an offscreen target; never depends on canvas preservation.
-    pub fn capture_png(&mut self) -> js_sys::Promise {
-        let width = self.config.width;
-        let height = self.config.height;
+    pub fn capture_png(&mut self, out_w: u32, out_h: u32) -> js_sys::Promise {
+        let width = if out_w == 0 { self.config.width } else { out_w.clamp(16, self.max_dim) };
+        let height = if out_h == 0 { self.config.height } else { out_h.clamp(16, self.max_dim) };
         let format = self.config.format;
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("PNG capture"),
@@ -614,7 +635,8 @@ impl Viewer {
             format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        self.render_to(&texture.create_view(&Default::default()));
+        let (cm, cd) = make_targets_sized(&self.device, format, width, height);
+        self.render_to(&texture.create_view(&Default::default()), width, height, cm.as_ref(), &cd);
         let row_bytes = width * 4;
         let padded = (row_bytes + 255) & !255;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -739,6 +761,7 @@ impl Viewer {
         } else {
             self.multi = true;
             self.pinch = self.pinch_state();
+            self.twist = self.twist_angle();
         }
     }
 
@@ -754,6 +777,9 @@ impl Viewer {
                 self.zoom(s0 / spread);
             }
             self.pan(cx - cx0, cy - cy0);
+            let angle = self.twist_angle();
+            self.roll(wrap_angle(angle - self.twist));
+            self.twist = angle;
             self.pinch = (spread, cx, cy);
             return;
         }
@@ -784,6 +810,7 @@ impl Viewer {
         if before == 0 || !self.pointers.is_empty() {
             if self.pointers.len() >= 2 {
                 self.pinch = self.pinch_state();
+                self.twist = self.twist_angle();
             }
             return 0;
         }
@@ -828,13 +855,16 @@ impl Viewer {
             }
         };
         self.dirty = false;
-        self.render_to(&frame.texture.create_view(&Default::default()));
+        let (m, d) = (self.msaa.clone(), self.depth.clone());
+        let (w, h) = (self.config.width, self.config.height);
+        self.render_to(&frame.texture.create_view(&Default::default()), w, h, m.as_ref(), &d);
+        if self.shadow_mode == 2 { self.shadow_dirty = true; }
         frame.present();
         true
     }
 
-    fn render_to(&mut self, view: &wgpu::TextureView) {
-        let aspect = self.config.width as f32 / self.config.height as f32;
+    fn render_to(&mut self, view: &wgpu::TextureView, width: u32, height: u32, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView) {
+        let aspect = width as f32 / height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
         let near = if self.orthographic { -self.radius * 3.0 } else {
@@ -846,18 +876,22 @@ impl Viewer {
             Mat4::orthographic_rh(-half_height * aspect, half_height * aspect, -half_height, half_height, near, far)
         } else { Mat4::perspective_rh(FOV_Y, aspect, near, far) };
         let vp = projection * Mat4::look_at_rh(eye, self.cam.target, up);
-        let light = Vec3::new(0.35, 0.8, 0.55).normalize();
+        let light = self.light_dir();
+        if self.shadow_mode == 2 || self.shadow_dirty {
+            let r = self.radius;
+            self.light_vp = Mat4::orthographic_rh(-r, r, -r, r, r * 0.5, r * 3.5) * Mat4::look_at_rh(light * r * 2.0, Vec3::ZERO, if light.y.abs() > 0.99 { Vec3::Z } else { Vec3::Y });
+        }
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
-            screen: [self.config.width as f32, self.config.height as f32, self.background as f32, 0.0],
+            screen: [width as f32, height as f32, self.background as f32, if self.shadow_mode == 0 { 0.0 } else { 1.0 }],
             light_vp: self.light_vp.to_cols_array_2d(),
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         let mut enc = self.device.create_command_encoder(&Default::default());
-        if self.shadow_dirty {
+        if self.shadow_dirty && self.shadow_mode != 0 {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("cached shadow generation"), color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: &self.shadow_view,
@@ -875,7 +909,7 @@ impl Viewer {
             self.shadow_dirty = false;
         }
         {
-            let (target, resolve) = match &self.msaa {
+            let (target, resolve) = match msaa {
                 Some(m) => (m, Some(view)),
                 None => (view, None),
             };
@@ -887,7 +921,7 @@ impl Viewer {
                     ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth,
+                    view: depth,
                     depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Discard }),
                     stencil_ops: None,
                 }),
@@ -952,6 +986,17 @@ impl Viewer {
         self.dirty = true;
     }
 
+    fn twist_angle(&self) -> f32 {
+        if self.pointers.len() < 2 { return 0.0; }
+        let (a, b) = (&self.pointers[0], &self.pointers[1]);
+        (b.y - a.y).atan2(b.x - a.x)
+    }
+
+    fn light_dir(&self) -> Vec3 {
+        let base = Vec3::new(0.35, 0.8, 0.55).normalize();
+        if self.shadow_mode == 2 { (self.cam.rot * Vec3::new(-0.45, 0.75, 0.5)).normalize() } else { base }
+    }
+
     fn pinch_state(&self) -> (f32, f32, f32) {
         if self.pointers.len() < 2 {
             return (0.0, 0.0, 0.0);
@@ -959,6 +1004,25 @@ impl Viewer {
         let (a, b) = (&self.pointers[0], &self.pointers[1]);
         ((a.x - b.x).hypot(a.y - b.y), (a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
     }
+}
+
+fn wrap_angle(a: f32) -> f32 {
+    let tau = std::f32::consts::TAU;
+    (a + std::f32::consts::PI).rem_euclid(tau) - std::f32::consts::PI
+}
+
+fn create_shadow(device: &wgpu::Device, layout: &wgpu::BindGroupLayout, sampler: &wgpu::Sampler, size: u32) -> (wgpu::Texture, wgpu::TextureView, wgpu::BindGroup) {
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("directional shadow"), size: wgpu::Extent3d { width: size, height: size, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: DEPTH,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[],
+    });
+    let view = texture.create_view(&Default::default());
+    let bind = device.create_bind_group(&wgpu::BindGroupDescriptor { label: None, layout, entries: &[
+        wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) },
+        wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(sampler) },
+    ] });
+    (texture, view, bind)
 }
 
 fn make_mat_bind(
@@ -980,7 +1044,11 @@ fn make_mat_bind(
 }
 
 fn make_targets(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> (Option<wgpu::TextureView>, wgpu::TextureView) {
-    let size = wgpu::Extent3d { width: config.width, height: config.height, depth_or_array_layers: 1 };
+    make_targets_sized(device, config.format, config.width, config.height)
+}
+
+fn make_targets_sized(device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32) -> (Option<wgpu::TextureView>, wgpu::TextureView) {
+    let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
     let mk = |format, label| {
         device
             .create_texture(&wgpu::TextureDescriptor {
@@ -995,7 +1063,7 @@ fn make_targets(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> (
             })
             .create_view(&Default::default())
     };
-    (Some(mk(config.format, "msaa")), mk(DEPTH, "depth"))
+    (Some(mk(format, "msaa")), mk(DEPTH, "depth"))
 }
 
 // Yield stage updates to the browser; exact parser internals remain indeterminate.
