@@ -1,6 +1,7 @@
 import { useRef, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { isGizmoDrag } from "@/lib/viewer-loading";
+import { twistDelta } from "@/lib/viewer-settings";
 
 type Direction = [number, number, number];
 const axes: { direction: Direction; label: string; axis: string }[] = [
@@ -18,11 +19,13 @@ function project(v: Direction, q: number[]) {
   return [vx + w * tx - y * tz + z * ty, vy + w * ty - z * tx + x * tz, vz + w * tz - x * ty + y * tx];
 }
 
-export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
-  rotation: number[]; onOrbit: (dx: number, dy: number) => void; onSnap: (direction: Direction) => void;
+export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist }: {
+  rotation: number[]; onOrbit: (dx: number, dy: number) => void; onSnap: (direction: Direction) => void; onTwist: (radians: number) => void;
 }) {
   const gesture = useRef<{ id: number; startX: number; startY: number; x: number; y: number; dragged: boolean } | null>(null);
   const suppressClick = useRef(false);
+  // Two-finger twist: positions per pointer id; while two are down, orbit/snap are suspended.
+  const touches = useRef(new Map<number, [number, number]>());
   const points = [...axes.map((axis) => ({ ...axis, diagonal: false })), ...diagonals.map((direction) => ({ direction, label: "", axis: "diagonal", diagonal: true }))]
     .map((point) => {
       const length = Math.hypot(...point.direction);
@@ -33,13 +36,27 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
   return (
     <div className="viewer-gizmo" role="group" aria-label="XYZ camera navigation"
       onPointerDown={(event) => {
-        if (gesture.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
         event.preventDefault(); event.stopPropagation();
         event.currentTarget.setPointerCapture(event.pointerId);
+        touches.current.set(event.pointerId, [event.clientX, event.clientY]);
+        if (touches.current.size >= 2) { if (gesture.current) gesture.current.dragged = true; return; }
+        if (gesture.current) return;
         suppressClick.current = false;
         gesture.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, dragged: false };
       }}
       onPointerMove={(event) => {
+        const map = touches.current;
+        const prev = map.get(event.pointerId);
+        if (prev && map.size >= 2) {
+          event.preventDefault(); event.stopPropagation();
+          const [aId, bId] = [...map.keys()];
+          const a0 = map.get(aId!)!, b0 = map.get(bId!)!;
+          map.set(event.pointerId, [event.clientX, event.clientY]);
+          onTwist(twistDelta(a0, b0, map.get(aId!)!, map.get(bId!)!));
+          return;
+        }
+        if (prev) map.set(event.pointerId, [event.clientX, event.clientY]);
         const g = gesture.current;
         if (!g || g.id !== event.pointerId) return;
         event.preventDefault(); event.stopPropagation();
@@ -48,6 +65,7 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
         g.x = event.clientX; g.y = event.clientY;
       }}
       onPointerUp={(event) => {
+        touches.current.delete(event.pointerId);
         const g = gesture.current;
         if (!g || g.id !== event.pointerId) return;
         event.preventDefault(); event.stopPropagation();
@@ -59,9 +77,13 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap }: {
         gesture.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
       }}
-      onPointerCancel={() => { gesture.current = null; suppressClick.current = true; }}
-      onLostPointerCapture={() => { gesture.current = null; }}
+      onPointerCancel={(event) => { touches.current.delete(event.pointerId); gesture.current = null; suppressClick.current = true; }}
+      onLostPointerCapture={(event) => { touches.current.delete(event.pointerId); if (gesture.current?.id === event.pointerId) gesture.current = null; }}
       onContextMenu={(event) => event.preventDefault()}>
+      <svg className="gizmo-twist" viewBox="0 0 220 220" aria-hidden="true">
+        <path d="M30 70 Q10 110 30 150" /><path d="M22 140 L30 152 L38 140" />
+        <path d="M190 150 Q210 110 190 70" /><path d="M182 80 L190 68 L198 80" />
+      </svg>
       <svg className="gizmo-lines" viewBox="0 0 220 220" aria-hidden="true">
         {points.filter((p) => !p.diagonal).map((point) => <line key={point.label} x1="110" y1="110" x2={point.x} y2={point.y} className={`axis-${point.axis}`} />)}
       </svg>
