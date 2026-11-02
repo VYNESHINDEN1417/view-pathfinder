@@ -5,7 +5,8 @@ import { ViewerGizmo } from "@/components/viewer-gizmo";
 import { LoadingTracker, downloadAsset, materialTextures, textureCandidates, type LoadingState } from "@/lib/viewer-loading";
 import replacements from "@/assets/texture-replacements.json";
 import { ViewerControls } from "@/components/viewer-controls";
-import { DEFAULT_BRIGHTNESS } from "@/lib/viewer-settings";
+import { ASPECTS, DEFAULT_BRIGHTNESS, captureSize, parseRatio } from "@/lib/viewer-settings";
+import type { ViewerOptions } from "@/components/viewer-controls";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +31,9 @@ function Index() {
   const scheduleRef = useRef<() => void>(() => {});
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const [attempt, setAttempt] = useState(0);
-  const [background, setBackground] = useState(0);
+  const [options, setOptions] = useState<ViewerOptions>({ background: 0, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024 });
+  const background = options.background;
+  const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
   const [orthographic, setOrthographic] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,8 +46,10 @@ function Index() {
     viewer.set_background(background);
     viewer.set_light(brightness);
     viewer.set_orthographic(orthographic);
+    viewer.set_shadow_mode(options.shadowMode);
+    viewer.set_shadow_quality(options.shadowQuality);
     scheduleRef.current();
-  }, [background, brightness, orthographic]);
+  }, [background, brightness, orthographic, options.shadowMode, options.shadowQuality]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -117,6 +122,8 @@ function Index() {
       v.set_background(settingsRef.current.background);
       v.set_light(settingsRef.current.brightness);
       v.set_orthographic(settingsRef.current.orthographic);
+      v.set_shadow_mode(options.shadowMode);
+      v.set_shadow_quality(options.shadowQuality);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
@@ -218,7 +225,10 @@ function Index() {
     setSaving(true); setCaptureError("");
     try {
       // Rust draws only the model and chosen background, never any DOM controls.
-      const png = await viewer.capture_png() as Uint8Array;
+      const canvas = ref.current;
+      const r = ratio || (canvas ? canvas.clientWidth / Math.max(1, canvas.clientHeight) : 1);
+      const size = captureSize(r, options.resolution);
+      const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
       link.href = url; link.download = `VYNESHINDEN-${orthographic ? "orthographic" : "perspective"}.png`;
@@ -230,12 +240,13 @@ function Index() {
   };
 
   return <main className={`ship-viewer background-${background}`} data-scene-ready={loading.ready ? "true" : undefined}>
-    <canvas ref={ref} className="viewer-canvas" aria-label="Interactive Iowa ship" />
+    <canvas ref={ref} className={`viewer-canvas ${ratio ? "framed" : ""}`} style={{ "--frame-ratio": ratio || 1 } as CSSProperties} aria-label="Interactive Iowa ship" />
     {loading.ready && <ViewerGizmo rotation={rotation}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
-      onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }} />}
-    {loading.ready && <ViewerControls background={background} brightness={brightness} orthographic={orthographic}
-      saving={saving} error={captureError} onBackground={setBackground} onBrightness={setBrightness}
+      onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }}
+      onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
+    {loading.ready && <ViewerControls options={options} brightness={brightness} orthographic={orthographic}
+      saving={saving} error={captureError} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
