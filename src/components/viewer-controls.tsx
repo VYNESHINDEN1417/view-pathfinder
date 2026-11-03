@@ -1,21 +1,24 @@
 import { useState } from "react";
-import { Camera, Menu, Box, Sun, LoaderCircle } from "lucide-react";
+import { Camera, Menu, Box, Sun, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
 export type ViewerOptions = {
-  background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number;
+  background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
 };
 
-export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave }: {
+export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave, uploading, customModel, onUpload, onRestore, sunIntensity, onSunIntensity }: {
   options: ViewerOptions; brightness: number; orthographic: boolean; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void;
   onProjection: () => void; onSave: () => void;
+  uploading: boolean; customModel: boolean; onUpload: () => void; onRestore: () => void;
+  sunIntensity: number; onSunIntensity: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
@@ -25,6 +28,23 @@ export function ViewerControls({ options, brightness, orthographic, saving, erro
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button className="viewer-tool" variant="ghost" size="icon" aria-label="Settings" title="Settings"><Menu /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="viewer-settings-menu">
+          <DropdownMenuItem onSelect={onUpload} disabled={uploading}><Upload size={16} />{uploading ? "Opening ZIP…" : "Upload model ZIP"}</DropdownMenuItem>
+          {customModel && <DropdownMenuItem onSelect={onRestore}><RotateCcw size={16} />Restore Iowa</DropdownMenuItem>}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Sun intensity</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu sun-intensity-menu">
+              <Slider aria-label="Sun intensity" min={0} max={2} step={0.05} value={[sunIntensity]}
+                onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu">
+              <DropdownMenuRadioGroup value={String(options.fancyQuality)} onValueChange={(v) => onOptions({ fancyQuality: Number(v) })}>
+                {["Low", "Medium", "High"].map((label, id) => <DropdownMenuRadioItem key={id} value={String(id)}>{label}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Background</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
@@ -80,6 +100,8 @@ export function ViewerControls({ options, brightness, orthographic, saving, erro
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
       aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
+    <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
+      aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
       <Sun size={17} aria-hidden="true" />
