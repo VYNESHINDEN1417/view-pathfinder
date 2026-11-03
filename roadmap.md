@@ -1,6 +1,6 @@
-# Viewer controls and snapshots
-- [ ] Add model-only PNG capture with transparent alpha.
-- [ ] Add Rust orthographic projection toggle.
-- [ ] Add background settings and adjustable brighter lighting.
-- [ ] Alias pale-oak trapdoors to iron trapdoors.
-- [ ] Rebuild WASM, test rules, and verify captures and controls.
+# Viewer upgrades
+- [ ] Custom ZIP model upload with optional textures and local library fallback.
+- [ ] Integrated azimuth/elevation sun tracks around the existing XYZ gizmo.
+- [ ] Optional Fancy Graphics: model-only AO, soft self shadows and material sheen.
+- [ ] Balance contrast/highlights without affecting backgrounds.
+- [ ] Recompile Rust/WASM and verify uploads, controls and PNG exports.
