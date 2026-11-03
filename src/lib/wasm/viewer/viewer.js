@@ -158,7 +158,14 @@ export class Viewer {
         wasm.viewer_set_background(this.__wbg_ptr, mode);
     }
     /**
-     * Adjust total scene exposure, including indirect fill and the gradient.
+     * @param {boolean} enabled
+     * @param {number} quality
+     */
+    set_fancy(enabled, quality) {
+        wasm.viewer_set_fancy(this.__wbg_ptr, enabled, quality);
+    }
+    /**
+     * Adjust model exposure only; backgrounds are invariant.
      * @param {number} intensity
      */
     set_light(intensity) {
@@ -183,6 +190,15 @@ export class Viewer {
      */
     set_shadow_quality(size) {
         wasm.viewer_set_shadow_quality(this.__wbg_ptr, size);
+    }
+    /**
+     * Sun direction in world coordinates; independent of the camera.
+     * @param {number} azimuth
+     * @param {number} elevation
+     * @param {number} intensity
+     */
+    set_sun(azimuth, elevation, intensity) {
+        wasm.viewer_set_sun(this.__wbg_ptr, azimuth, elevation, intensity);
     }
     /**
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
