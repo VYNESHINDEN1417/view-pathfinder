@@ -49,8 +49,9 @@ export class Viewer {
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
      */
     set_background(mode: number): void;
+    set_fancy(enabled: boolean, quality: number): void;
     /**
-     * Adjust total scene exposure, including indirect fill and the gradient.
+     * Adjust model exposure only; backgrounds are invariant.
      */
     set_light(intensity: number): void;
     set_orthographic(enabled: boolean): void;
@@ -62,6 +63,10 @@ export class Viewer {
      * Shadow map resolution in texels (clamped to 256..4096 and GPU limits).
      */
     set_shadow_quality(size: number): void;
+    /**
+     * Sun direction in world coordinates; independent of the camera.
+     */
+    set_sun(azimuth: number, elevation: number, intensity: number): void;
     /**
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
      */
@@ -96,10 +101,12 @@ export interface InitOutput {
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
+    readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
+    readonly viewer_set_sun: (a: number, b: number, c: number, d: number) => void;
     readonly viewer_set_texture: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_texture_names: (a: number) => [number, number];
