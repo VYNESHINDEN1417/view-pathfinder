@@ -11,6 +11,12 @@ const axes: { direction: Direction; label: string; axis: string }[] = [
 ];
 const diagonals: Direction[] = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as Direction)));
 
+export function sunTrackValue(mode: "azimuth" | "elevation", x: number, y: number) {
+  if (mode === "azimuth") return (Math.atan2(x - 110, 110 - y) * 180 / Math.PI + 360) % 360;
+  const angle = Math.atan2(y - 110, Math.max(0, x - 110)) * 180 / Math.PI;
+  return Math.max(0, Math.min(90, 45 - angle));
+}
+
 // Inverse-quaternion projection is display-only; every camera change is handled in Rust.
 function project(v: Direction, q: number[]) {
   const [x = 0, y = 0, z = 0, w = 1] = q;
@@ -19,8 +25,9 @@ function project(v: Direction, q: number[]) {
   return [vx + w * tx - y * tz + z * ty, vy + w * ty - z * tx + x * tz, vz + w * tz - x * ty + y * tx];
 }
 
-export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist }: {
+export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist, sun, onSun }: {
   rotation: number[]; onOrbit: (dx: number, dy: number) => void; onSnap: (direction: Direction) => void; onTwist: (radians: number) => void;
+  sun: { azimuth: number; elevation: number }; onSun: (patch: Partial<{ azimuth: number; elevation: number }>) => void;
 }) {
   const gesture = useRef<{ id: number; startX: number; startY: number; x: number; y: number; dragged: boolean } | null>(null);
   const suppressClick = useRef(false);
@@ -30,9 +37,16 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist }: {
     .map((point) => {
       const length = Math.hypot(...point.direction);
       const projected = project(point.direction.map((v) => v / length) as Direction, rotation);
-      const radius = point.diagonal ? 84 : 57;
+      const radius = point.diagonal ? 60 : 40;
       return { ...point, x: 110 + (projected[0] ?? 0) * radius, y: 110 - (projected[1] ?? 0) * radius, depth: projected[2] ?? 0 };
     }).sort((a, b) => a.depth - b.depth);
+  const moveSun = (event: React.PointerEvent<HTMLElement>, mode: "azimuth" | "elevation") => {
+    const bounds = event.currentTarget.closest(".viewer-gizmo")?.getBoundingClientRect();
+    if (!bounds) return;
+    onSun({ [mode]: sunTrackValue(mode, (event.clientX - bounds.left) * 220 / bounds.width, (event.clientY - bounds.top) * 220 / bounds.height) });
+  };
+  const az = sun.azimuth * Math.PI / 180;
+  const el = (45 - sun.elevation) * Math.PI / 180;
   return (
     <div className="viewer-gizmo" role="group" aria-label="XYZ camera navigation"
       onPointerDown={(event) => {
@@ -51,9 +65,12 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist }: {
         if (prev && map.size >= 2) {
           event.preventDefault(); event.stopPropagation();
           const [aId, bId] = [...map.keys()];
-          const a0 = map.get(aId!)!, b0 = map.get(bId!)!;
+          if (aId === undefined || bId === undefined) return;
+          const a0 = map.get(aId), b0 = map.get(bId);
+          if (!a0 || !b0) return;
           map.set(event.pointerId, [event.clientX, event.clientY]);
-          onTwist(twistDelta(a0, b0, map.get(aId!)!, map.get(bId!)!));
+          const a1 = map.get(aId), b1 = map.get(bId);
+          if (a1 && b1) onTwist(twistDelta(a0, b0, a1, b1));
           return;
         }
         if (prev) map.set(event.pointerId, [event.clientX, event.clientY]);
@@ -80,9 +97,29 @@ export function ViewerGizmo({ rotation, onOrbit, onSnap, onTwist }: {
       onPointerCancel={(event) => { touches.current.delete(event.pointerId); gesture.current = null; suppressClick.current = true; }}
       onLostPointerCapture={(event) => { touches.current.delete(event.pointerId); if (gesture.current?.id === event.pointerId) gesture.current = null; }}
       onContextMenu={(event) => event.preventDefault()}>
+      <svg className="sun-tracks" viewBox="0 0 220 220" aria-hidden="true">
+        <circle cx="110" cy="110" r="90" />
+        <path d="M180.71 39.29 A100 100 0 0 1 180.71 180.71" />
+      </svg>
+      {(["azimuth", "elevation"] as const).map((mode) => <Button key={mode} variant="ghost" size="icon"
+        className="sun-handle" role="slider" aria-label={`Sun ${mode}`} title={`Sun ${mode}`}
+        aria-valuemin={0} aria-valuemax={mode === "azimuth" ? 360 : 90} aria-valuenow={Math.round(sun[mode])}
+        aria-valuetext={`${Math.round(sun[mode])} degrees`}
+        style={{ "--point-x": `${(mode === "azimuth" ? 110 + Math.sin(az) * 90 : 110 + Math.cos(el) * 100) / 220 * 100}%`,
+          "--point-y": `${(mode === "azimuth" ? 110 - Math.cos(az) * 90 : 110 + Math.sin(el) * 100) / 220 * 100}%` } as CSSProperties}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); moveSun(e, mode); }}
+        onPointerMove={(e) => { e.stopPropagation(); if (e.currentTarget.hasPointerCapture(e.pointerId)) moveSun(e, mode); }}
+        onPointerUp={(e) => { e.stopPropagation(); if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); }}
+        onPointerCancel={(e) => e.stopPropagation()} onLostPointerCapture={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(e.key)) {
+          e.preventDefault(); e.stopPropagation(); const max = mode === "azimuth" ? 360 : 90;
+          const value = e.key === "Home" ? 0 : e.key === "End" ? max : sun[mode] + (["ArrowLeft", "ArrowDown"].includes(e.key) ? -2 : 2);
+          onSun({ [mode]: mode === "azimuth" ? (value + 360) % 360 : Math.max(0, Math.min(max, value)) });
+        } }} />)}
       <svg className="gizmo-twist" viewBox="0 0 220 220" aria-hidden="true">
-        <path d="M30 70 Q10 110 30 150" /><path d="M22 140 L30 152 L38 140" />
-        <path d="M190 150 Q210 110 190 70" /><path d="M182 80 L190 68 L198 80" />
+        <path d="M43 76 Q27 110 43 144" /><path d="M35 135 L43 146 L51 135" />
+        <path d="M177 144 Q193 110 177 76" /><path d="M169 85 L177 74 L185 85" />
       </svg>
       <svg className="gizmo-lines" viewBox="0 0 220 220" aria-hidden="true">
         {points.filter((p) => !p.diagonal).map((point) => <line key={point.label} x1="110" y1="110" x2={point.x} y2={point.y} className={`axis-${point.axis}`} />)}

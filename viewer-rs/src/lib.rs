@@ -28,6 +28,8 @@ struct Globals {
     light: [f32; 4],
     screen: [f32; 4],
     light_vp: [[f32; 4]; 4],
+    inverse_vp: [[f32; 4]; 4],
+    effects: [f32; 4], // enabled, quality, sun strength, AO world radius
 }
 
 #[repr(C)]
@@ -84,6 +86,12 @@ pub struct Viewer {
     light_vp: Mat4,
     transition: Option<(Quat, Quat, f64)>,
     bg_pipeline: wgpu::RenderPipeline,
+    ao_pipeline: wgpu::RenderPipeline,
+    ao_layout: wgpu::BindGroupLayout,
+    sun_direction: Vec3,
+    sun_strength: f32,
+    fancy: bool,
+    fancy_quality: u32,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -329,9 +337,26 @@ impl Viewer {
         let light_dir = Vec3::new(0.35, 0.8, 0.55).normalize();
         let light_vp = Mat4::orthographic_rh(-radius, radius, -radius, radius, radius * 0.5, radius * 3.5)
             * Mat4::look_at_rh(light_dir * radius * 2.0, Vec3::ZERO, Vec3::Y);
+        let ao_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("AO depth"), entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0, visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Depth, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false }, count: None,
+            }],
+        });
+        let ao_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("AO model depth prepass"), layout: Some(&shadow_pipeline_layout),
+            vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_main"), compilation_options: Default::default(), buffers: &[wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<Vertex>() as u64, step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+            }] },
+            fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_shadow"), compilation_options: Default::default(), targets: &[] }),
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            depth_stencil: Some(wgpu::DepthStencilState { format: wgpu::TextureFormat::Depth32Float, depth_write_enabled: true, depth_compare: wgpu::CompareFunction::Less, stencil: Default::default(), bias: Default::default() }),
+            multisample: Default::default(), multiview: None, cache: None,
+        });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&g_layout, &mat_layout, &shadow_layout],
+            bind_group_layouts: &[&g_layout, &mat_layout, &shadow_layout, &ao_layout],
             push_constant_ranges: &[],
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -477,7 +502,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline,
+            bg_pipeline, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -580,7 +605,19 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Adjust total scene exposure, including indirect fill and the gradient.
+    /// Sun direction in world coordinates; independent of the camera.
+    pub fn set_sun(&mut self, azimuth: f32, elevation: f32, intensity: f32) {
+        let a = azimuth.to_radians(); let e = elevation.clamp(0.0, 90.0).to_radians();
+        let direction = Vec3::new(a.sin() * e.cos(), e.sin(), a.cos() * e.cos()).normalize();
+        if (direction - self.sun_direction).length_squared() > 1e-8 { self.shadow_dirty = true; }
+        self.sun_direction = direction; self.sun_strength = intensity.clamp(0.0, 2.0); self.dirty = true;
+    }
+
+    pub fn set_fancy(&mut self, enabled: bool, quality: u32) {
+        self.fancy = enabled; self.fancy_quality = quality.min(2); self.dirty = true;
+    }
+
+    /// Adjust model exposure only; backgrounds are invariant.
     pub fn set_light(&mut self, intensity: f32) {
         self.light_intensity = intensity.clamp(0.25, 3.0);
         self.dirty = true;
@@ -887,10 +924,36 @@ impl Viewer {
             light: [light.x, light.y, light.z, self.light_intensity],
             screen: [width as f32, height as f32, self.background as f32, if self.shadow_mode == 0 { 0.0 } else { 1.0 }],
             light_vp: self.light_vp.to_cols_array_2d(),
+            inverse_vp: vp.inverse().to_cols_array_2d(),
+            effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
+        // Depth-only prepass is allocated only at full size when Fancy is enabled.
+        let ao_size = if self.fancy { (width, height) } else { (1, 1) };
+        let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[],
+        });
+        let ao_view = ao_texture.create_view(&Default::default());
+        let ao_bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("AO read"), layout: &self.ao_layout,
+            entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&ao_view) }],
+        });
         let mut enc = self.device.create_command_encoder(&Default::default());
+        if self.fancy {
+            let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("model-only AO depth"), color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: &ao_view,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }), stencil_ops: None }),
+                timestamp_writes: None, occlusion_query_set: None,
+            });
+            pass.set_pipeline(&self.ao_pipeline); pass.set_bind_group(0, &self.globals_bind, &[]);
+            pass.set_vertex_buffer(0, self.vbuf.slice(..)); pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
+            for d in &self.draws { pass.set_bind_group(1, &self.mats[d.material].bind, &[]); pass.draw_indexed(d.start..d.start + d.count, 0, 0..1); }
+        }
         if self.shadow_dirty && self.shadow_mode != 0 {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("cached shadow generation"), color_attachments: &[],
@@ -935,6 +998,7 @@ impl Viewer {
             }
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
+            pass.set_bind_group(3, &ao_bind, &[]);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));
             pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
             for d in &self.draws {
@@ -993,8 +1057,7 @@ impl Viewer {
     }
 
     fn light_dir(&self) -> Vec3 {
-        let base = Vec3::new(0.35, 0.8, 0.55).normalize();
-        if self.shadow_mode == 2 { (self.cam.rot * Vec3::new(-0.45, 0.75, 0.5)).normalize() } else { base }
+        self.sun_direction
     }
 
     fn pinch_state(&self) -> (f32, f32, f32) {

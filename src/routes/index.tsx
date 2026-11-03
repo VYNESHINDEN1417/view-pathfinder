@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { ViewerGizmo } from "@/components/viewer-gizmo";
-import { LoadingTracker, downloadAsset, materialTextures, textureCandidates, type LoadingState } from "@/lib/viewer-loading";
-import replacements from "@/assets/texture-replacements.json";
+import { LoadingTracker, downloadAsset, materialTextures, type LoadingState } from "@/lib/viewer-loading";
+import { localTexture, readModelArchive, type ModelArchive } from "@/lib/model-archive";
 import { ViewerControls } from "@/components/viewer-controls";
 import { ASPECTS, DEFAULT_BRIGHTNESS, captureSize, parseRatio } from "@/lib/viewer-settings";
 import type { ViewerOptions } from "@/components/viewer-controls";
@@ -31,16 +31,21 @@ function Index() {
   const scheduleRef = useRef<() => void>(() => {});
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const [attempt, setAttempt] = useState(0);
-  const [options, setOptions] = useState<ViewerOptions>({ background: 0, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024 });
+  const [model, setModel] = useState<ModelArchive | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [sun, setSun] = useState({ azimuth: 32.47, elevation: 50.81, intensity: 1 });
+  const [options, setOptions] = useState<ViewerOptions>({ background: 0, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
   const [orthographic, setOrthographic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
-  const settingsRef = useRef({ background, brightness, orthographic });
+  const settingsRef = useRef({ background, brightness, orthographic, options, sun });
   useEffect(() => {
-    settingsRef.current = { background, brightness, orthographic };
+    settingsRef.current = { background, brightness, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
     viewer.set_background(background);
@@ -48,8 +53,10 @@ function Index() {
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
+    viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
+    viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
-  }, [background, brightness, orthographic, options.shadowMode, options.shadowQuality]);
+  }, [background, brightness, orthographic, options, sun]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -91,20 +98,29 @@ function Index() {
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
-      const obj = new TextDecoder().decode(await bytes(MODEL_DIR + MODEL, "obj", "Loading model..."));
+      const obj = model?.obj ?? new TextDecoder().decode(await bytes(MODEL_DIR + MODEL, "obj", "Loading model..."));
+      if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
-      const mtl = lib ? new TextDecoder().decode(await bytes(MODEL_DIR + lib.replace(/^\.\//, ""), "mtl", "Loading materials...")) : "";
+      const mtl = model ? model.mtl : lib ? new TextDecoder().decode(await bytes(MODEL_DIR + lib.replace(/^\.\//, ""), "mtl", "Loading materials...")) : "";
+      if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
       tracker.addTextureTasks(names);
       // Download while Rust prepares geometry; decoded uploads begin only after initialization.
       const downloads = new Map(names.map((name) => [name, (async () => {
-        const candidates = textureCandidates(name, replacements, MODEL_DIR);
+        const packed = model?.textures.get(name);
+        if (packed) {
+          tracker.update("download:" + name, 1, 1, "Reading ZIP textures...");
+          return { data: packed, url: "zip" };
+        }
+        const local = localTexture(name);
+        const candidates = model ? (local ? [local] : []) : [...new Set([local, MODEL_DIR + name].filter((url): url is string => Boolean(url)))];
         for (const url of candidates) {
           try { return { data: await bytes(url, "download:" + name, "Loading textures..."), url }; }
           catch (error) { if (controller.signal.aborted) throw error; }
         }
-        throw new Error("A required texture could not be downloaded. Please retry.");
+        tracker.update("download:" + name, 1, 1, "Using material colors...");
+        return null;
       })()]));
       // Observe early rejected downloads until their upload stage is reached.
       for (const task of downloads.values()) void task.catch(() => {});
@@ -122,24 +138,27 @@ function Index() {
       v.set_background(settingsRef.current.background);
       v.set_light(settingsRef.current.brightness);
       v.set_orthographic(settingsRef.current.orthographic);
-      v.set_shadow_mode(options.shadowMode);
-      v.set_shadow_quality(options.shadowQuality);
+      v.set_shadow_mode(settingsRef.current.options.shadowMode);
+      v.set_shadow_quality(settingsRef.current.options.shadowQuality);
+      v.set_sun(settingsRef.current.sun.azimuth, settingsRef.current.sun.elevation, settingsRef.current.sun.intensity);
+      v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
         const result = await pending;
         if (disposed) return;
+        if (!result) { tracker.update("decode:" + name, 1, 1, "Using material colors..."); continue; }
         tracker.update("decode:" + name, 0, 0, "Decoding and uploading textures...");
         // Paint stage state before the synchronous decoder runs; this is not simulated progress.
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         let valid = v.set_texture(name, result.data);
-        const fallback = textureCandidates(name, {}, MODEL_DIR)[0];
+        const fallback = model ? localTexture(name) : MODEL_DIR + name;
         if (!valid && fallback && result.url !== fallback) {
           const original = await bytes(fallback, "download:" + name, "Loading original texture...");
           if (disposed) return;
           valid = v.set_texture(name, original);
         }
-        if (!valid) throw new Error("A texture image is invalid. Please retry with the original assets.");
+        // Unknown custom textures retain MTL diffuse colors.
         tracker.update("decode:" + name, 1, 1, "Preparing viewer...");
       }
       if (disposed) return;
@@ -217,7 +236,16 @@ function Index() {
       viewer?.destroy();
       viewer = null;
     };
-  }, [attempt]);
+  }, [attempt, model]);
+
+  const uploadModel = async (file: File) => {
+    setUploading(true); setUploadError("");
+    try {
+      const archive = await readModelArchive(file, () => {});
+      setAttempt((value) => value + 1); setModel(archive);
+    } catch (error) { setUploadError(error instanceof Error ? error.message : "This model could not be opened."); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
 
   const saveImage = async () => {
     const viewer = viewerRef.current;
@@ -231,7 +259,7 @@ function Index() {
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `VYNESHINDEN-${orthographic ? "orthographic" : "perspective"}.png`;
+      link.href = url; link.download = `${model?.name ?? "VYNESHINDEN"}-${orthographic ? "orthographic" : "perspective"}.png`;
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
@@ -240,20 +268,24 @@ function Index() {
   };
 
   return <main className={`ship-viewer background-${background}`} data-scene-ready={loading.ready ? "true" : undefined}>
-    <canvas ref={ref} className={`viewer-canvas ${ratio ? "framed" : ""}`} style={{ "--frame-ratio": ratio || 1 } as CSSProperties} aria-label="Interactive Iowa ship" />
-    {loading.ready && <ViewerGizmo rotation={rotation}
+    <input ref={fileRef} type="file" accept=".zip,application/zip" hidden aria-label="Upload model ZIP"
+      onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadModel(file); }} />
+    <canvas key={attempt} ref={ref} className={`viewer-canvas ${ratio ? "framed" : ""}`} style={{ "--frame-ratio": ratio || 1 } as CSSProperties} aria-label="Interactive model" />
+    {loading.ready && <ViewerGizmo rotation={rotation} sun={sun} onSun={(patch) => setSun((value) => ({ ...value, ...patch }))}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
       onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }}
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} orthographic={orthographic}
-      saving={saving} error={captureError} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
+      saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity}
+      onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
+      onUpload={() => fileRef.current?.click()} onRestore={() => { setModel(null); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
         aria-label="Loading ship" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading.indeterminate ? undefined : Math.floor(loading.progress * 100)}
         style={{ "--remaining": `${100 - loading.progress * 100}%` } as CSSProperties} />}
       <p>{loading.error ?? loading.status}</p>
-      {loading.error && <Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Retry</Button>}
+      {loading.error && <><Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Retry</Button><Button variant="secondary" onClick={() => { setModel(null); setAttempt((value) => value + 1); }}>Restore Iowa</Button></>}
     </div>
   </main>;
 }
