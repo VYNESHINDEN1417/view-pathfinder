@@ -7,14 +7,15 @@ import { localTexture, readModelArchive, type ModelArchive } from "@/lib/model-a
 import { ViewerControls } from "@/components/viewer-controls";
 import { ASPECTS, DEFAULT_BRIGHTNESS, captureSize, parseRatio } from "@/lib/viewer-settings";
 import type { ViewerOptions } from "@/components/viewer-controls";
+import wisconsinObj from "@/assets/models/wisconsin-obj.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "VYNESHINDEN — 3D Ship Viewer" },
-      { name: "description", content: "Explore the Iowa ship with precise XYZ navigation, crisp Minecraft textures and lightweight shadows." },
+      { name: "description", content: "Explore the Wisconsin and Iowa battleships with precise XYZ navigation, crisp Minecraft textures and lightweight shadows." },
       { property: "og:title", content: "VYNESHINDEN — 3D Ship Viewer" },
-      { property: "og:description", content: "Explore the Iowa ship with precise XYZ navigation, crisp Minecraft textures and lightweight shadows." },
+      { property: "og:description", content: "Explore the Wisconsin and Iowa battleships with precise XYZ navigation, crisp Minecraft textures and lightweight shadows." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -23,7 +24,12 @@ export const Route = createFileRoute("/")({
 });
 
 const MODEL_DIR = "/models/";
-const MODEL = "Iowaaa.obj";
+export const BUILT_IN_MODELS = [
+  { id: "wisconsin", name: "Wisconsin", obj: wisconsinObj.url, mtl: "/models/wisconsin/Wisconsin.mtl", dir: "/models/" },
+  { id: "iowa", name: "Iowa", obj: "/models/Iowaaa.obj", mtl: "", dir: "/models/" },
+] as const;
+type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
+const FALLBACK_TEXTURE = localTexture("stone");
 
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -32,6 +38,7 @@ function Index() {
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const [attempt, setAttempt] = useState(0);
   const [model, setModel] = useState<ModelArchive | null>(null);
+  const [builtInId, setBuiltInId] = useState<BuiltInId>("wisconsin");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -98,10 +105,12 @@ function Index() {
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
-      const obj = model?.obj ?? new TextDecoder().decode(await bytes(MODEL_DIR + MODEL, "obj", "Loading model..."));
+      const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
+      const obj = model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
-      const mtl = model ? model.mtl : lib ? new TextDecoder().decode(await bytes(MODEL_DIR + lib.replace(/^\.\//, ""), "mtl", "Loading materials...")) : "";
+      const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
+      const mtl = model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
       if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
@@ -114,7 +123,8 @@ function Index() {
           return { data: packed, url: "zip" };
         }
         const local = localTexture(name);
-        const candidates = model ? (local ? [local] : []) : [...new Set([local, MODEL_DIR + name].filter((url): url is string => Boolean(url)))];
+        // Unknown blocks use a neutral stone tile rather than untextured white.
+        const candidates = [...new Set([local, model ? undefined : builtIn.dir + name, FALLBACK_TEXTURE].filter((url): url is string => Boolean(url)))];
         for (const url of candidates) {
           try { return { data: await bytes(url, "download:" + name, "Loading textures..."), url }; }
           catch (error) { if (controller.signal.aborted) throw error; }
@@ -236,7 +246,7 @@ function Index() {
       viewer?.destroy();
       viewer = null;
     };
-  }, [attempt, model]);
+  }, [attempt, model, builtInId]);
 
   const uploadModel = async (file: File) => {
     setUploading(true); setUploadError("");
@@ -259,7 +269,7 @@ function Index() {
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `${model?.name ?? "VYNESHINDEN"}-${orthographic ? "orthographic" : "perspective"}.png`;
+      link.href = url; link.download = `${model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN"}-${orthographic ? "orthographic" : "perspective"}.png`;
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
@@ -278,14 +288,15 @@ function Index() {
     {loading.ready && <ViewerControls options={options} brightness={brightness} orthographic={orthographic}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
-      onUpload={() => fileRef.current?.click()} onRestore={() => { setModel(null); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
+      onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
+      onModel={(id) => { setModel(null); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
         aria-label="Loading ship" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading.indeterminate ? undefined : Math.floor(loading.progress * 100)}
         style={{ "--remaining": `${100 - loading.progress * 100}%` } as CSSProperties} />}
       <p>{loading.error ?? loading.status}</p>
-      {loading.error && <><Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Retry</Button><Button variant="secondary" onClick={() => { setModel(null); setAttempt((value) => value + 1); }}>Restore Iowa</Button></>}
+      {loading.error && <><Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Retry</Button><Button variant="secondary" onClick={() => { setModel(null); setBuiltInId("wisconsin"); setAttempt((value) => value + 1); }}>Restore Wisconsin</Button></>}
     </div>
   </main>;
 }

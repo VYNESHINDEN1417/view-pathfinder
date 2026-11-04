@@ -13,11 +13,11 @@ export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
 };
 
-export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave, uploading, customModel, onUpload, onRestore, sunIntensity, onSunIntensity }: {
+export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
   options: ViewerOptions; brightness: number; orthographic: boolean; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void;
   onProjection: () => void; onSave: () => void;
-  uploading: boolean; customModel: boolean; onUpload: () => void; onRestore: () => void;
+  uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
@@ -29,7 +29,7 @@ export function ViewerControls({ options, brightness, orthographic, saving, erro
         <DropdownMenuTrigger asChild><Button className="viewer-tool" variant="ghost" size="icon" aria-label="Settings" title="Settings"><Menu /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="viewer-settings-menu">
           <DropdownMenuItem onSelect={onUpload} disabled={uploading}><Upload size={16} />{uploading ? "Opening ZIP…" : "Upload model ZIP"}</DropdownMenuItem>
-          {customModel && <DropdownMenuItem onSelect={onRestore}><RotateCcw size={16} />Restore Iowa</DropdownMenuItem>}
+          {models.map((m) => <DropdownMenuItem key={m.id} disabled={!customModel && activeModel === m.id} onSelect={() => onModel(m.id)}><RotateCcw size={16} />{m.name}{activeModel === m.id ? " (current)" : ""}</DropdownMenuItem>)}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Sun intensity</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu sun-intensity-menu">
