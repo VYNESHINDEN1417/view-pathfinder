@@ -104,10 +104,12 @@ function Index() {
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
-      const obj = model?.obj ?? new TextDecoder().decode(await bytes(MODEL_DIR + MODEL, "obj", "Loading model..."));
+      const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
+      const obj = model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
-      const mtl = model ? model.mtl : lib ? new TextDecoder().decode(await bytes(MODEL_DIR + lib.replace(/^\.\//, ""), "mtl", "Loading materials...")) : "";
+      const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
+      const mtl = model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
       if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
@@ -120,7 +122,8 @@ function Index() {
           return { data: packed, url: "zip" };
         }
         const local = localTexture(name);
-        const candidates = model ? (local ? [local] : []) : [...new Set([local, MODEL_DIR + name].filter((url): url is string => Boolean(url)))];
+        // Unknown blocks use a neutral stone tile rather than untextured white.
+        const candidates = [...new Set([local, model ? undefined : builtIn.dir + name, FALLBACK_TEXTURE].filter((url): url is string => Boolean(url)))];
         for (const url of candidates) {
           try { return { data: await bytes(url, "download:" + name, "Loading textures..."), url }; }
           catch (error) { if (controller.signal.aborted) throw error; }
