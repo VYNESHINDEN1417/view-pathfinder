@@ -7,6 +7,7 @@ import { localTexture, readModelArchive, type ModelArchive } from "@/lib/model-a
 import { ViewerControls } from "@/components/viewer-controls";
 import { ASPECTS, DEFAULT_BRIGHTNESS, captureSize, parseRatio } from "@/lib/viewer-settings";
 import type { ViewerOptions } from "@/components/viewer-controls";
+import wisconsinObj from "@/assets/models/wisconsin-obj.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,7 +24,12 @@ export const Route = createFileRoute("/")({
 });
 
 const MODEL_DIR = "/models/";
-const MODEL = "Iowaaa.obj";
+export const BUILT_IN_MODELS = [
+  { id: "wisconsin", name: "Wisconsin", obj: wisconsinObj.url, mtl: "/models/wisconsin/Wisconsin.mtl", dir: "/models/" },
+  { id: "iowa", name: "Iowa", obj: "/models/Iowaaa.obj", mtl: "", dir: "/models/" },
+] as const;
+type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
+const FALLBACK_TEXTURE = localTexture("stone");
 
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
