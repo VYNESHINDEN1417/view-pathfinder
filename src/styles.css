@@ -266,3 +266,9 @@ body {
 .sun-handle { position: absolute; left: var(--point-x); top: var(--point-y); transform: translate(-50%, -50%); width: 22px; height: 22px; min-width: 22px; border-radius: 50%; background: var(--viewer-sun); border: 2px solid var(--viewer-tool-bg); padding: 0; z-index: 3; touch-action: none; }
 .sun-handle:hover, .sun-handle:focus-visible { background: var(--viewer-sun); outline: 2px solid var(--viewer-label); }
 .sun-intensity-menu { padding: 18px; width: 180px; }
+.viewer-record { position: absolute; top: max(68px, calc(env(safe-area-inset-top) + 52px)); right: max(16px, env(safe-area-inset-right)); z-index: 4; }
+.video-panel { position: absolute; top: max(120px, calc(env(safe-area-inset-top) + 104px)); right: max(16px, env(safe-area-inset-right)); z-index: 5; width: 240px; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: var(--viewer-tool-bg); color: var(--viewer-label); backdrop-filter: blur(8px); }
+.video-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.video-progress { height: 4px; border-radius: 2px; background: var(--viewer-tool-hover); overflow: hidden; }
+.video-progress > span { display: block; height: 100%; background: var(--viewer-label); }
+.rec-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive); margin-right: 4px; }
