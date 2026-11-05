@@ -29,7 +29,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
     const mime = pickMime();
     const stream = canvas.captureStream(30);
     const quality = canvas.width * canvas.height * 30 * 0.2;
-    const rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: Math.min(40e6, Math.max(8e6, quality)) });
+    const rec = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: Math.min(40e6, Math.max(8e6, quality)) });
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
