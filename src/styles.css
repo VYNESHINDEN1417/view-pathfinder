@@ -272,3 +272,22 @@ body {
 .video-progress { height: 4px; border-radius: 2px; background: var(--viewer-tool-hover); overflow: hidden; }
 .video-progress > span { display: block; height: 100%; background: var(--viewer-label); }
 .rec-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive); margin-right: 4px; }
+
+@layer components {
+  .studio-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none;
+    min-height: 52px; min-width: 52px;
+  }
+  .studio-btn[data-active="true"] { @apply border-primary bg-primary text-primary-foreground; }
+  .studio-btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none border-primary bg-primary text-primary-foreground font-semibold;
+    min-height: 52px; min-width: 52px; }
+  .studio-btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none border-destructive/60 bg-destructive/15 text-destructive;
+    min-height: 52px; min-width: 52px; }
+}
+  .studio-tab {
+    @apply inline-flex flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-medium text-muted-foreground transition active:scale-95;
+    min-height: 56px;
+}
+}
+.studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; max-height: 58dvh; overflow-y: auto; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--card) 94%, transparent); backdrop-filter: blur(12px); color: var(--foreground); }
+@media (min-width: 1024px) { .studio-sheet { inset-inline: auto 0; top: 0; max-height: none; width: 420px; border-top: 0; border-left: 1px solid var(--border); } }
