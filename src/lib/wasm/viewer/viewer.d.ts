@@ -8,6 +8,10 @@ export class Viewer {
     animate(time_ms: number): void;
     animating(): boolean;
     /**
+     * Pose as [tx, ty, tz, qx, qy, qz, qw, dist] for timeline keyframes.
+     */
+    camera_pose(): Float32Array;
+    /**
      * Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
      */
     camera_rotation(): Float32Array;
@@ -49,6 +53,7 @@ export class Viewer {
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
      */
     set_background(mode: number): void;
+    set_camera_pose(p: Float32Array): void;
     set_fancy(enabled: boolean, quality: number): void;
     /**
      * Adjust model exposure only; backgrounds are invariant.
@@ -86,6 +91,7 @@ export interface InitOutput {
     readonly __wbg_viewer_free: (a: number, b: number) => void;
     readonly viewer_animate: (a: number, b: number) => void;
     readonly viewer_animating: (a: number) => number;
+    readonly viewer_camera_pose: (a: number) => [number, number];
     readonly viewer_camera_rotation: (a: number) => [number, number];
     readonly viewer_capture_png: (a: number, b: number, c: number) => any;
     readonly viewer_create: (a: any, b: number, c: number, d: number, e: number, f: any) => any;
@@ -101,6 +107,7 @@ export interface InitOutput {
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
+    readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;

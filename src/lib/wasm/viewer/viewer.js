@@ -31,6 +31,16 @@ export class Viewer {
         return ret !== 0;
     }
     /**
+     * Pose as [tx, ty, tz, qx, qy, qz, qw, dist] for timeline keyframes.
+     * @returns {Float32Array}
+     */
+    camera_pose() {
+        const ret = wasm.viewer_camera_pose(this.__wbg_ptr);
+        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
      * @returns {Float32Array}
      */
@@ -156,6 +166,14 @@ export class Viewer {
      */
     set_background(mode) {
         wasm.viewer_set_background(this.__wbg_ptr, mode);
+    }
+    /**
+     * @param {Float32Array} p
+     */
+    set_camera_pose(p) {
+        const ptr0 = passArrayF32ToWasm0(p, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.viewer_set_camera_pose(this.__wbg_ptr, ptr0, len0);
     }
     /**
      * @param {boolean} enabled
@@ -2521,6 +2539,13 @@ function makeMutClosure(arg0, arg1, f) {
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
