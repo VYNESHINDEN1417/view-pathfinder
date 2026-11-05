@@ -750,6 +750,19 @@ impl Viewer {
 
     /// Camera orientation is computed only in Rust; browser projects the gizmo from this quaternion.
     pub fn camera_rotation(&self) -> Vec<f32> { self.cam.rot.to_array().to_vec() }
+    /// Pose as [tx, ty, tz, qx, qy, qz, qw, dist] for timeline keyframes.
+    pub fn camera_pose(&self) -> Vec<f32> {
+        let t = self.cam.target; let q = self.cam.rot;
+        vec![t.x, t.y, t.z, q.x, q.y, q.z, q.w, self.cam.dist]
+    }
+    pub fn set_camera_pose(&mut self, p: Vec<f32>) {
+        if p.len() < 8 { return; }
+        self.transition = None;
+        self.cam.target = Vec3::new(p[0], p[1], p[2]);
+        self.cam.rot = Quat::from_xyzw(p[3], p[4], p[5], p[6]).normalize();
+        self.cam.dist = p[7].max(1e-4);
+        self.dirty = true;
+    }
     pub fn orbit_drag(&mut self, dx: f32, dy: f32) {
         self.transition = None;
         let s = 0.012;
