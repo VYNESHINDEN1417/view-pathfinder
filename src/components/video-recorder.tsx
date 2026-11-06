@@ -3,7 +3,7 @@ import { Clapperboard, Diamond, Download, Film, Pause, Play, RotateCcw, Settings
 import { Button } from "@/components/ui/button";
 import { Timeline } from "@/components/studio/Timeline";
 import { SettingsPanel } from "@/components/studio/SettingsPanel";
-import { defaultSettings, outputSize, bitrateBps, type StudioSettings } from "@/components/studio/settings";
+import { defaultSettings, outputSize, studioAspect, bitrateBps, type StudioSettings } from "@/components/studio/settings";
 import { sampleCamera, sortKeys, totalFrames, formatEta, uid, type Keyframe } from "@/lib/studio/keyframes";
 import type { Viewer } from "@/lib/wasm/viewer/viewer";
 
@@ -11,8 +11,9 @@ type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, onLayout }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
+  onLayout: (layout: { open: boolean; ratio: number }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
@@ -28,6 +29,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
   const ctrl = useRef({ paused: false, cancel: false });
   const keysRef = useRef(keys); keysRef.current = keys;
   const locked = rs === "rendering" || rs === "paused";
+  const ratio = studioAspect(settings);
+  useEffect(() => { onLayout({ open, ratio }); }, [open, ratio, onLayout]);
   useEffect(() => () => { ctrl.current.cancel = true; }, []);
 
   const pose = () => Array.from(getViewer()?.camera_pose() ?? []);
@@ -118,7 +121,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
       while (ctrl.current.paused && !ctrl.current.cancel) { await new Promise((r) => setTimeout(r, 100)); last = performance.now(); }
       if (ctrl.current.cancel) break;
       const t = f / settings.fps;
-      v.set_camera_pose(new Float32Array(sampleCamera(keysRef.current, t, settings.smoothing)!));
+      const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
+      if (!sampled) break;
+      v.set_camera_pose(new Float32Array(sampled));
       v.frame();
       const vf = new VideoFrame(canvas, { timestamp: Math.round(f * us), duration: Math.round(us) });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
@@ -201,10 +206,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
   return <>
     <Button className="viewer-tool viewer-record" variant="ghost" size="icon" aria-label="Video studio" aria-pressed={open}
       title="Video studio" onClick={() => setOpen((v) => !v)}><Video /></Button>
-    {open && !locked && <p className="dark pointer-events-none fixed inset-x-4 top-[max(120px,env(safe-area-inset-top))] z-30 text-center text-xs text-muted-foreground">Drag · Pinch · Two-finger pan — frame your shot, then add a keyframe</p>}
     {open && <aside className="studio-sheet dark" aria-label="Video studio">
       <header className="safe-x flex items-center justify-between gap-3 border-b border-border py-2">
-        <h2 className="truncate text-lg font-bold tracking-tight">Orbit<span className="text-primary">Studio</span></h2>
+        <h2 className="truncate text-lg font-bold">Orbit<span className="text-primary">Studio</span></h2>
         <div className="flex items-center gap-2">
           {locked && <span className="rounded-full bg-primary/15 px-3 py-1 font-mono text-sm text-primary">● REC {pct}%</span>}
           <Button variant="ghost" size="icon" aria-label="Close studio" disabled={locked} onClick={() => { setPreviewing(false); setOpen(false); }}><X /></Button>
