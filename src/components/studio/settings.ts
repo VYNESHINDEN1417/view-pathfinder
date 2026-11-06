@@ -1,5 +1,5 @@
 export interface StudioSettings {
-  resolution: "1080p" | "1080p" | "1440p" | "2160p";
+  resolution: "720p" | "1080p" | "1440p" | "2160p";
   aspect: "9:16" | "16:9" | "1:1";
   fps: 24 | 30 | 60;
   duration: number;
