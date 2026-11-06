@@ -1,5 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import type { StudioSettings } from "./settings";
 
 type Set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => void;
@@ -15,10 +16,10 @@ function Choice<T extends string | number>({ label, desc, value, options, onChan
       </div>
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length > 4 ? 3 : options.length}, minmax(0,1fr))` }} role="radiogroup" aria-label={label}>
         {options.map((o) => (
-          <button key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} disabled={disabled}
+          <Button variant="ghost" key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} disabled={disabled}
             data-active={value === o.v} className="studio-btn" onClick={() => onChange(o.v)}>
             {o.l}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -43,8 +44,13 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
       <>
         <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
           options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
-        <Choice label="Aspect ratio" desc="9:16 suits phone stories and reels." value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
-          options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }]} />
+        <Choice label="Aspect ratio" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
+          options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }, { v: "custom", l: "Custom" }]} />
+        {s.aspect === "custom" && <div className="ratio-input">
+          <input type="number" aria-label="Aspect width" min="1" disabled={locked} value={s.customAspect[0]} onChange={(e) => set("customAspect", [Number(e.target.value), s.customAspect[1]])} />
+          <span>:</span>
+          <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
+        </div>}
         <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
           options={[{ v: 24, l: "24 fps" }, { v: 30, l: "30 fps" }, { v: 60, l: "60 fps" }]} />
       </>

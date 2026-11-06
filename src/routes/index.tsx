@@ -49,6 +49,7 @@ function Index() {
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
   const [orthographic, setOrthographic] = useState(false);
+  const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
   const settingsRef = useRef({ background, brightness, orthographic, options, sun });
@@ -265,7 +266,7 @@ function Index() {
     try {
       // Rust draws only the model and chosen background, never any DOM controls.
       const canvas = ref.current;
-      const r = ratio || (canvas ? canvas.clientWidth / Math.max(1, canvas.clientHeight) : 1);
+      const r = studioLayout.open ? studioLayout.ratio : ratio || (canvas ? canvas.clientWidth / Math.max(1, canvas.clientHeight) : 1);
       const size = captureSize(r, options.resolution);
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
@@ -278,10 +279,13 @@ function Index() {
     } finally { setSaving(false); }
   };
 
-  return <main className={`ship-viewer background-${background}`} data-scene-ready={loading.ready ? "true" : undefined}>
+  const frameRatio = studioLayout.open ? studioLayout.ratio : ratio;
+  return <main className={`ship-viewer background-${background} ${studioLayout.open ? "studio-open" : ""}`} data-scene-ready={loading.ready ? "true" : undefined}>
     <input ref={fileRef} type="file" accept=".zip,application/zip" hidden aria-label="Upload model ZIP"
       onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadModel(file); }} />
-    <canvas key={attempt} ref={ref} className={`viewer-canvas ${ratio ? "framed" : ""}`} style={{ "--frame-ratio": ratio || 1 } as CSSProperties} aria-label="Interactive model" />
+    <div className="viewer-stage" aria-label="Scene viewport">
+      <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
+    </div>
     {loading.ready && <ViewerGizmo rotation={rotation} sun={sun} onSun={(patch) => setSun((value) => ({ ...value, ...patch }))}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
       onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }}
@@ -293,6 +297,7 @@ function Index() {
       onModel={(id) => { setModel(null); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
+      onLayout={setStudioLayout}
       name={model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN"} />}
     <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
