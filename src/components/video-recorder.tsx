@@ -64,13 +64,17 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
     if (!previewing) return;
     let raf = 0;
     const start = performance.now() - time * 1000;
+    let lastUi = 0;
     const tick = (now: number) => {
       let t = (now - start) / 1000;
       if (t > settings.duration) {
         if (settings.loop) t %= settings.duration;
         else { seek(settings.duration); setPreviewing(false); return; }
       }
-      seek(t); raf = requestAnimationFrame(tick);
+      // Move the camera every frame but refresh the panel only ~10x/s to keep heavy shading smooth.
+      apply(sampleCamera(keysRef.current, t, settings.smoothing));
+      if (now - lastUi > 100) { lastUi = now; setTime(t); }
+      raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -197,7 +201,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name }: {
   return <>
     <Button className="viewer-tool viewer-record" variant="ghost" size="icon" aria-label="Video studio" aria-pressed={open}
       title="Video studio" onClick={() => setOpen((v) => !v)}><Video /></Button>
-    {open && <aside className="studio-sheet" aria-label="Video studio">
+    {open && !locked && <p className="dark pointer-events-none fixed inset-x-4 top-[max(120px,env(safe-area-inset-top))] z-30 text-center text-xs text-muted-foreground">Drag · Pinch · Two-finger pan — frame your shot, then add a keyframe</p>}
+    {open && <aside className="studio-sheet dark" aria-label="Video studio">
       <header className="safe-x flex items-center justify-between gap-3 border-b border-border py-2">
         <h2 className="truncate text-lg font-bold tracking-tight">Orbit<span className="text-primary">Studio</span></h2>
         <div className="flex items-center gap-2">
