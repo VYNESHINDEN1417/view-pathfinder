@@ -287,6 +287,10 @@ body {
     @apply inline-flex flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-medium text-muted-foreground transition active:scale-95;
     min-height: 56px;
   }
+  .studio-tab[data-active="true"] { @apply bg-primary/15 text-primary; }
+  .safe-x { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+  .safe-b { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+  .safe-t { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; max-height: 58dvh; overflow-y: auto; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--card) 94%, transparent); backdrop-filter: blur(12px); color: var(--foreground); }
 @media (min-width: 1024px) { .studio-sheet { inset-inline: auto 0; top: 0; max-height: none; width: 420px; border-top: 0; border-left: 1px solid var(--border); } }
