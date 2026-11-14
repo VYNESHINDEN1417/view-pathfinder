@@ -452,11 +452,17 @@ impl Viewer {
             layout: &g_layout,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: globals_buf.as_entire_binding() }],
         });
+        // Shared model sampler: smooth magnification, trilinear minification,
+        // and high anisotropy for ship decks viewed at shallow angles.
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
+            // Keep Minecraft texels crisp when magnifying; use linear
+            // filtering only for minification and transitions between mip levels.
             mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            anisotropy_clamp: 1,
             ..Default::default()
         });
         let white_tex = device.create_texture_with_data(
@@ -579,21 +585,43 @@ impl Viewer {
         };
         let (w, h) = img.dimensions();
         if w > self.max_dim || h > self.max_dim { log("texture exceeds GPU limits; original retained"); return false; }
-        let tex = self.device.create_texture_with_data(
-            &self.queue,
-            &wgpu::TextureDescriptor {
-                label: Some(name),
-                size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            },
-            Default::default(),
-            img.as_raw(),
-        );
+        // Build a complete mip chain with sRGB-correct, alpha-aware box filtering.
+        // This preserves average appearance while removing sub-pixel grain that causes Moire.
+        let mut mip_images = vec![img];
+        while mip_images.last().is_some_and(|level| level.width() > 1 || level.height() > 1) {
+            let next = downsample_srgb(mip_images.last().expect("base mip exists"));
+            mip_images.push(next);
+        }
+        let mip_level_count = mip_images.len() as u32;
+        let tex = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(name),
+            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            mip_level_count,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        for (level, mip) in mip_images.iter().enumerate() {
+            let mip_w = mip.width();
+            let mip_h = mip.height();
+            self.queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &tex,
+                    mip_level: level as u32,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                mip.as_raw(),
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(mip_w * 4),
+                    rows_per_image: Some(mip_h),
+                },
+                wgpu::Extent3d { width: mip_w, height: mip_h, depth_or_array_layers: 1 },
+            );
+        }
         let view = tex.create_view(&Default::default());
         for m in &mut self.mats {
             if m.texture_name.as_deref() == Some(name) {
@@ -1123,6 +1151,54 @@ impl Viewer {
         let (a, b) = (&self.pointers[0], &self.pointers[1]);
         ((a.x - b.x).hypot(a.y - b.y), (a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
     }
+}
+
+// Downsample in linear-light RGB and premultiplied-alpha space. This avoids
+// dark fringes and preserves perceived brightness in sRGB Minecraft textures.
+fn srgb_to_linear(v: f32) -> f32 {
+    if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+}
+
+fn linear_to_srgb(v: f32) -> f32 {
+    let v = v.clamp(0.0, 1.0);
+    if v <= 0.0031308 { v * 12.92 } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 }
+}
+
+fn downsample_srgb(src: &image::RgbaImage) -> image::RgbaImage {
+    let (sw, sh) = src.dimensions();
+    let (dw, dh) = ((sw / 2).max(1), (sh / 2).max(1));
+    let mut dst = image::RgbaImage::new(dw, dh);
+    for y in 0..dh {
+        let y0 = y * sh / dh;
+        let y1 = ((y + 1) * sh / dh).max(y0 + 1).min(sh);
+        for x in 0..dw {
+            let x0 = x * sw / dw;
+            let x1 = ((x + 1) * sw / dw).max(x0 + 1).min(sw);
+            let mut rgb_premul = [0.0f32; 3];
+            let mut alpha_sum = 0.0f32;
+            let mut samples = 0.0f32;
+            for sy in y0..y1 {
+                for sx in x0..x1 {
+                    let p = src.get_pixel(sx, sy).0;
+                    let a = p[3] as f32 / 255.0;
+                    alpha_sum += a;
+                    for c in 0..3 {
+                        rgb_premul[c] += srgb_to_linear(p[c] as f32 / 255.0) * a;
+                    }
+                    samples += 1.0;
+                }
+            }
+            let alpha = alpha_sum / samples;
+            let mut out = [0u8; 4];
+            for c in 0..3 {
+                let linear = if alpha_sum > 1e-8 { rgb_premul[c] / alpha_sum } else { 0.0 };
+                out[c] = (linear_to_srgb(linear) * 255.0).round() as u8;
+            }
+            out[3] = (alpha * 255.0).round() as u8;
+            dst.put_pixel(x, y, image::Rgba(out));
+        }
+    }
+    dst
 }
 
 fn wrap_angle(a: f32) -> f32 {
