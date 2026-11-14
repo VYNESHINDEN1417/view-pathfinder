@@ -161,11 +161,22 @@ export class Viewer {
         wasm.viewer_roll(this.__wbg_ptr, angle);
     }
     /**
-     * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
+     * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      * @param {number} mode
      */
     set_background(mode) {
         wasm.viewer_set_background(this.__wbg_ptr, mode);
+    }
+    /**
+     * Uploads a background image directly into the GPU renderer, independent of canvas alpha support.
+     * @param {Uint8Array} bytes
+     * @returns {boolean}
+     */
+    set_background_image(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.viewer_set_background_image(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
     }
     /**
      * @param {Float32Array} p

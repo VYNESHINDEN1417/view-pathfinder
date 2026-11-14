@@ -50,10 +50,12 @@ export class Viewer {
      */
     roll(angle: number): void;
     /**
-     * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
+     * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      */
     set_background(mode: number): void;
-    /** Uploads a background image directly into the GPU renderer. */
+    /**
+     * Uploads a background image directly into the GPU renderer, independent of canvas alpha support.
+     */
     set_background_image(bytes: Uint8Array): boolean;
     set_camera_pose(p: Float32Array): void;
     set_fancy(enabled: boolean, quality: number): void;
@@ -109,6 +111,7 @@ export interface InitOutput {
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
+    readonly viewer_set_background_image: (a: number, b: number, c: number) => number;
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
