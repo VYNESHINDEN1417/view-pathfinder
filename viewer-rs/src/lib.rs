@@ -457,10 +457,12 @@ impl Viewer {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Linear,
+            // Keep Minecraft texels crisp when magnifying; use linear
+            // filtering only for minification and transitions between mip levels.
+            mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            anisotropy_clamp: 16,
+            anisotropy_clamp: 1,
             ..Default::default()
         });
         let white_tex = device.create_texture_with_data(
