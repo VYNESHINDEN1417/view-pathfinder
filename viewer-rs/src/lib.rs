@@ -100,6 +100,7 @@ pub struct Viewer {
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
+    anisotropic_sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     textures: HashMap<String, (wgpu::Texture, wgpu::TextureView)>,
     vbuf: wgpu::Buffer,
@@ -312,6 +313,12 @@ impl Viewer {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
             ],
         });
         let shadow_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -454,15 +461,24 @@ impl Viewer {
         });
         // Shared model sampler: smooth magnification, trilinear minification,
         // and high anisotropy for ship decks viewed at shallow angles.
+        // Crisp baseline sampler: nearest magnification preserves Minecraft texels.
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
-            // Keep Minecraft texels crisp when magnifying; use linear
-            // filtering only for minification and transitions between mip levels.
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
             anisotropy_clamp: 1,
+            ..Default::default()
+        });
+        // Used only for strongly oblique, minified surfaces such as long ship decks.
+        let anisotropic_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            anisotropy_clamp: 8,
             ..Default::default()
         });
         let white_tex = device.create_texture_with_data(
@@ -513,7 +529,7 @@ impl Viewer {
                     contents: bytemuck::bytes_of(&u),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
-                let bind = make_mat_bind(&device, &mat_layout, &buffer, &white, &sampler);
+                let bind = make_mat_bind(&device, &mat_layout, &buffer, &white, &sampler, &anisotropic_sampler);
                 Mat { uniform: u, buffer, texture_name, bind }
             })
             .collect();
@@ -532,6 +548,7 @@ impl Viewer {
             globals_bind,
             mat_layout,
             sampler,
+            anisotropic_sampler,
             white,
             textures: HashMap::new(),
             vbuf,
@@ -627,7 +644,7 @@ impl Viewer {
             if m.texture_name.as_deref() == Some(name) {
                 m.uniform.flags[0] = 1.0;
                 self.queue.write_buffer(&m.buffer, 0, bytemuck::bytes_of(&m.uniform));
-                m.bind = make_mat_bind(&self.device, &self.mat_layout, &m.buffer, &view, &self.sampler);
+                m.bind = make_mat_bind(&self.device, &self.mat_layout, &m.buffer, &view, &self.sampler, &self.anisotropic_sampler);
             }
         }
         if let Some((old, _)) = self.textures.insert(name.to_string(), (tex, view)) { old.destroy(); }
@@ -1226,6 +1243,7 @@ fn make_mat_bind(
     buf: &wgpu::Buffer,
     view: &wgpu::TextureView,
     sampler: &wgpu::Sampler,
+    anisotropic_sampler: &wgpu::Sampler,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
@@ -1234,6 +1252,7 @@ fn make_mat_bind(
             wgpu::BindGroupEntry { binding: 0, resource: buf.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(view) },
             wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(sampler) },
+            wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::Sampler(anisotropic_sampler) },
         ],
     })
 }

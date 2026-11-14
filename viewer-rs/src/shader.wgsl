@@ -21,6 +21,7 @@ struct Material {
 @group(1) @binding(0) var<uniform> m: Material;
 @group(1) @binding(1) var tex: texture_2d<f32>;
 @group(1) @binding(2) var samp: sampler;
+@group(1) @binding(3) var samp_aniso: sampler;
 @group(2) @binding(0) var shadow_tex: texture_depth_2d;
 @group(2) @binding(1) var shadow_samp: sampler_comparison;
 @group(3) @binding(0) var scene_depth: texture_depth_2d;
@@ -76,7 +77,23 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let v = normalize(g.eye.xyz - in.world);
   if (dot(n, v) < 0.0) { n = -n; }
   let l = normalize(g.light.xyz);
-  let t = textureSample(tex, samp, in.uv);
+  // Select anisotropic filtering only when the UV footprint is both minified
+  // and strongly stretched. This targets distant deck planks without softening
+  // close-up Minecraft texels or ordinary front-facing surfaces.
+  let uv_dx = dpdx(in.uv);
+  let uv_dy = dpdy(in.uv);
+  let tex_size = vec2<f32>(textureDimensions(tex));
+  let dx_size = length(uv_dx * tex_size);
+  let dy_size = length(uv_dy * tex_size);
+  let major_footprint = max(dx_size, dy_size);
+  let minor_footprint = max(min(dx_size, dy_size), 0.0001);
+  let footprint_ratio = major_footprint / minor_footprint;
+  var t: vec4<f32>;
+  if (major_footprint > 1.0 && footprint_ratio > 1.5) {
+    t = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
+  } else {
+    t = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
+  }
   var kd = m.diffuse.rgb;
   if (m.flags.x > 0.5) {
     // Compress RGB deviations around mid-grey for plank textures only.
