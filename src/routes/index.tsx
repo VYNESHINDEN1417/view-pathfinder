@@ -56,7 +56,7 @@ function Index() {
     settingsRef.current = { background, brightness, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.set_background(background);
+    viewer.set_background(background === 4 ? 3 : background);
     viewer.set_light(brightness);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
@@ -146,7 +146,7 @@ function Index() {
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
       v.reset();
-      v.set_background(settingsRef.current.background);
+      v.set_background(settingsRef.current.background === 4 ? 3 : settingsRef.current.background);
       v.set_light(settingsRef.current.brightness);
       v.set_orthographic(settingsRef.current.orthographic);
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
