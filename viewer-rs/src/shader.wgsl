@@ -96,12 +96,15 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let major_footprint = sqrt(max(0.5 * (trace + discriminant), 0.0));
   let minor_footprint = sqrt(max(0.5 * (trace - discriminant), 0.00000001));
   let footprint_ratio = major_footprint / minor_footprint;
-  var t: vec4<f32>;
-  if (major_footprint > 1.0 && footprint_ratio > 1.5) {
-    t = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
-  } else {
-    t = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
-  }
+  // Blend filtering modes gradually instead of switching at a hard threshold.
+  // The weight stays exactly zero for magnified/near-isotropic footprints, so
+  // close-up Minecraft texels retain the crisp baseline sampler.
+  let minification_weight = smoothstep(1.0, 1.6, major_footprint);
+  let anisotropy_weight = smoothstep(1.25, 2.5, footprint_ratio);
+  let filter_weight = minification_weight * anisotropy_weight;
+  let crisp_sample = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
+  let aniso_sample = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
+  let t = mix(crisp_sample, aniso_sample, filter_weight);
   var kd = m.diffuse.rgb;
   if (m.flags.x > 0.5) {
     // Compress RGB deviations around mid-grey for plank textures only.
