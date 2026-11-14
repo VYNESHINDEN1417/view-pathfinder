@@ -4,6 +4,7 @@ export const BACKGROUNDS = [
   { id: 1, label: "Pure white", swatch: "white" },
   { id: 2, label: "Pure green", swatch: "green" },
   { id: 3, label: "Transparent", swatch: "transparent" },
+  { id: 4, label: "Warm", swatch: "warm" },
 ] as const;
 
 /** ratio = width / height; "fill" follows the screen, "custom" uses the user's input. */
