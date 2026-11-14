@@ -1,5 +1,6 @@
 name: Build Pathfinder WASM
 
+# Rebuild the checked-in browser runtime whenever renderer sources change.
 on:
   push:
     branches: [main]
