@@ -86,6 +86,10 @@ pub struct Viewer {
     light_vp: Mat4,
     transition: Option<(Quat, Quat, f64)>,
     bg_pipeline: wgpu::RenderPipeline,
+    bg_image_layout: wgpu::BindGroupLayout,
+    bg_image_sampler: wgpu::Sampler,
+    bg_image_texture: Option<wgpu::Texture>,
+    bg_image_bind: wgpu::BindGroup,
     ao_pipeline: wgpu::RenderPipeline,
     ao_layout: wgpu::BindGroupLayout,
     sun_direction: Vec3,
@@ -390,9 +394,23 @@ impl Viewer {
             multiview: None,
             cache: None,
         });
+        let bg_image_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("background image"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false }, count: None },
+                wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
+            ],
+        });
+        let bg_image_sampler = device.create_sampler(&wgpu::SamplerDescriptor { mag_filter: wgpu::FilterMode::Linear, min_filter: wgpu::FilterMode::Linear, ..Default::default() });
+        let bg_fallback = device.create_texture_with_data(&queue, &wgpu::TextureDescriptor { label: Some("background fallback"), size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: wgpu::TextureFormat::Rgba8UnormSrgb, usage: wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[] }, Default::default(), &[16, 21, 27, 255]);
+        let bg_fallback_view = bg_fallback.create_view(&Default::default());
+        let bg_image_bind = device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("background image bind"), layout: &bg_image_layout, entries: &[
+            wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&bg_fallback_view) },
+            wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&bg_image_sampler) },
+        ] });
         let bg_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&g_layout],
+            bind_group_layouts: &[&g_layout, &bg_image_layout],
             push_constant_ranges: &[],
         });
         let bg_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -502,7 +520,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -654,10 +672,33 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
+    /// 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
     pub fn set_background(&mut self, mode: u32) {
-        self.background = mode.min(3);
+        self.background = mode.min(4);
         self.dirty = true;
+    }
+
+    /// Uploads a background image directly into the GPU renderer, independent of canvas alpha support.
+    pub fn set_background_image(&mut self, bytes: &[u8]) -> bool {
+        let img = match image::load_from_memory(bytes) {
+            Ok(i) => i.to_rgba8(),
+            Err(e) => { log(&format!("background image could not be decoded: {e}")); return false; }
+        };
+        let (w, h) = img.dimensions();
+        if w == 0 || h == 0 || w > self.max_dim || h > self.max_dim { log("background image exceeds GPU limits"); return false; }
+        let texture = self.device.create_texture_with_data(&self.queue, &wgpu::TextureDescriptor {
+            label: Some("viewer background image"), size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb, usage: wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[],
+        }, Default::default(), img.as_raw());
+        let view = texture.create_view(&Default::default());
+        self.bg_image_bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("uploaded background image bind"), layout: &self.bg_image_layout, entries: &[
+            wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) },
+            wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.bg_image_sampler) },
+        ] });
+        self.bg_image_texture = Some(texture);
+        self.background = 4;
+        self.dirty = true;
+        true
     }
 
     /// Capture the same renderer into an offscreen target; never depends on canvas preservation.
@@ -1007,6 +1048,7 @@ impl Viewer {
             pass.set_bind_group(0, &self.globals_bind, &[]);
             if self.background != 3 {
                 pass.set_pipeline(&self.bg_pipeline);
+                pass.set_bind_group(1, &self.bg_image_bind, &[]);
                 pass.draw(0..3, 0..1);
             }
             pass.set_pipeline(&self.pipeline);
