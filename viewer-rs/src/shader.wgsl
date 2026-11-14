@@ -109,13 +109,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.flags.x > 0.5) {
     var texture_color = t.rgb;
     if (m.flags.y > 0.5) {
-      // As plank texels become sub-pixel, gently compress RGB contrast
-      // around middle gray. Unlike desaturation, this suppresses bright/dark
-      // seam energy while retaining the wood's hue and color variation.
-      // Keep the full-strength correction modest so close and medium views
-      // retain the existing Minecraft texture character.
-      let lod_fade = clamp((major_footprint - 1.0) / 3.0, 0.0, 1.0);
-      let contrast = 1.0 - lod_fade * 0.18;
+      // Suppress sub-pixel plank seam contrast before it can form
+      // distance-dependent beat bands (Moiré). Keep the correction tied to
+      // the actual texel footprint so close-up Minecraft texels stay crisp.
+      // A stronger attenuation is intentional: the previous 18% reduction
+      // was too subtle to suppress high-frequency deck patterns at distance.
+      let lod_fade = smoothstep(1.15, 3.0, major_footprint);
+      let contrast = 1.0 - lod_fade * 0.42;
       texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
     }
     kd = kd * texture_color;
