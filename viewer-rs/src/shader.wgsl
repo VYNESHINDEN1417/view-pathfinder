@@ -96,19 +96,25 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let major_footprint = sqrt(max(0.5 * (trace + discriminant), 0.0));
   let minor_footprint = sqrt(max(0.5 * (trace - discriminant), 0.00000001));
   let footprint_ratio = major_footprint / minor_footprint;
-  // Blend filtering modes gradually instead of switching at a hard threshold.
-  // The weight stays exactly zero for magnified/near-isotropic footprints, so
-  // close-up Minecraft texels retain the crisp baseline sampler.
-  let minification_weight = smoothstep(1.0, 1.6, major_footprint);
-  let anisotropy_weight = smoothstep(1.25, 2.5, footprint_ratio);
+  // Keep the crisp nearest-magnification path for close views, then transition
+  // continuously to the linear, high-anisotropy sampler as the texel footprint
+  // becomes minified. The ratio term increases filtering for grazing angles.
+  let minification_weight = smoothstep(1.0, 1.35, major_footprint);
+  let anisotropy_weight = smoothstep(1.0, 1.8, footprint_ratio);
   let filter_weight = minification_weight * anisotropy_weight;
   let crisp_sample = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
   let aniso_sample = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
   let t = mix(crisp_sample, aniso_sample, filter_weight);
   var kd = m.diffuse.rgb;
   if (m.flags.x > 0.5) {
-    // Compress RGB deviations around mid-grey for plank textures only.
-    let texture_color = select(t.rgb, vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * 0.82, m.flags.y > 0.5);
+    var texture_color = t.rgb;
+    if (m.flags.y > 0.5) {
+      // As plank texels become sub-pixel, roll their high-frequency contrast
+      // toward a neutral luminance so dark seams cannot form strong beat bands.
+      let lod_fade = clamp((major_footprint - 1.0) / 3.0, 0.0, 1.0);
+      let luminance = dot(t.rgb, vec3<f32>(0.299, 0.587, 0.114));
+      texture_color = mix(t.rgb, vec3<f32>(luminance), lod_fade * 0.45);
+    }
     kd = kd * texture_color;
   }
   let diff = max(dot(n, l), 0.0);
