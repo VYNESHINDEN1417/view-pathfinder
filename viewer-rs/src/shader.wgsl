@@ -78,7 +78,11 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let l = normalize(g.light.xyz);
   let t = textureSample(tex, samp, in.uv);
   var kd = m.diffuse.rgb;
-  if (m.flags.x > 0.5) { kd = kd * t.rgb; }
+  if (m.flags.x > 0.5) {
+    // Compress RGB deviations around mid-grey for plank textures only.
+    let texture_color = select(t.rgb, vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * 0.82, m.flags.y > 0.5);
+    kd = kd * texture_color;
+  }
   let diff = max(dot(n, l), 0.0);
   let lp = g.light_vp * vec4<f32>(in.world, 1.0);
   let ndc = lp.xyz / lp.w;
