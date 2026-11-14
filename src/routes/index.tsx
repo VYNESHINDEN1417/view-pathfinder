@@ -8,7 +8,6 @@ import { localTexture, readModelArchive, type ModelArchive } from "@/lib/model-a
 import { ViewerControls } from "@/components/viewer-controls";
 import { ASPECTS, DEFAULT_BRIGHTNESS, captureSize, parseRatio } from "@/lib/viewer-settings";
 import type { ViewerOptions } from "@/components/viewer-controls";
-import wisconsinObj from "@/assets/models/wisconsin-obj.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,7 +25,7 @@ export const Route = createFileRoute("/")({
 
 const MODEL_DIR = "/models/";
 export const BUILT_IN_MODELS = [
-  { id: "wisconsin", name: "Wisconsin", obj: wisconsinObj.url, mtl: "/models/wisconsin/Wisconsin.mtl", dir: "/models/" },
+  { id: "wisconsin", name: "Wisconsin", obj: "/models/wisconsin/Wisconsin.obj", mtl: "/models/wisconsin/Wisconsin.mtl", dir: "/models/" },
   { id: "iowa", name: "Iowa", obj: "/models/Iowaaa.obj", mtl: "", dir: "/models/" },
 ] as const;
 type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
