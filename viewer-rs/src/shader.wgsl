@@ -109,11 +109,14 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.flags.x > 0.5) {
     var texture_color = t.rgb;
     if (m.flags.y > 0.5) {
-      // As plank texels become sub-pixel, roll their high-frequency contrast
-      // toward a neutral luminance so dark seams cannot form strong beat bands.
+      // As plank texels become sub-pixel, gently compress RGB contrast
+      // around middle gray. Unlike desaturation, this suppresses bright/dark
+      // seam energy while retaining the wood's hue and color variation.
+      // Keep the full-strength correction modest so close and medium views
+      // retain the existing Minecraft texture character.
       let lod_fade = clamp((major_footprint - 1.0) / 3.0, 0.0, 1.0);
-      let luminance = dot(t.rgb, vec3<f32>(0.299, 0.587, 0.114));
-      texture_color = mix(t.rgb, vec3<f32>(luminance), lod_fade * 0.45);
+      let contrast = 1.0 - lod_fade * 0.18;
+      texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
     }
     kd = kd * texture_color;
   }
