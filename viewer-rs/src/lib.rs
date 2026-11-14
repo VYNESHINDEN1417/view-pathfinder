@@ -488,7 +488,8 @@ impl Viewer {
                         ambient: [a[0], a[1], a[2], 1.0],
                         diffuse: [d[0], d[1], d[2], m.dissolve.unwrap_or(1.0)],
                         specular: [s[0], s[1], s[2], m.shininess.unwrap_or(32.0)],
-                        flags: [0.0; 4],
+                        // Reduce texture contrast only for wooden plank materials.
+                        flags: [0.0, if tex.as_deref().is_some_and(|name| name.to_ascii_lowercase().contains("planks")) { 1.0 } else { 0.0 }, 0.0, 0.0],
                     },
                     tex,
                 )
