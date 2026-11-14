@@ -83,10 +83,18 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let uv_dx = dpdx(in.uv);
   let uv_dy = dpdy(in.uv);
   let tex_size = vec2<f32>(textureDimensions(tex));
-  let dx_size = length(uv_dx * tex_size);
-  let dy_size = length(uv_dy * tex_size);
-  let major_footprint = max(dx_size, dy_size);
-  let minor_footprint = max(min(dx_size, dy_size), 0.0001);
+  // Build the screen-to-texel Jacobian. Comparing |dUV/dx| and |dUV/dy|
+  // misses stretched footprints when the UV axes are rotated or skewed.
+  let dx_tex = uv_dx * tex_size;
+  let dy_tex = uv_dy * tex_size;
+  let j00 = dot(dx_tex, dx_tex);
+  let j01 = dot(dx_tex, dy_tex);
+  let j11 = dot(dy_tex, dy_tex);
+  let trace = j00 + j11;
+  let determinant = max(j00 * j11 - j01 * j01, 0.0);
+  let discriminant = sqrt(max(trace * trace - 4.0 * determinant, 0.0));
+  let major_footprint = sqrt(max(0.5 * (trace + discriminant), 0.0));
+  let minor_footprint = sqrt(max(0.5 * (trace - discriminant), 0.00000001));
   let footprint_ratio = major_footprint / minor_footprint;
   var t: vec4<f32>;
   if (major_footprint > 1.0 && footprint_ratio > 1.5) {
