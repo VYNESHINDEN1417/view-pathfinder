@@ -3,7 +3,7 @@ name: Build Pathfinder WASM
 # Rebuild the checked-in browser runtime whenever renderer sources change.
 on:
   push:
-    branches: [main]
+    branches: ['**']
     paths:
       - "viewer-rs/**"
       - ".github/workflows/build-wasm.yml"
@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
