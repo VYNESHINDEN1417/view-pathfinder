@@ -118,9 +118,9 @@ export interface InitOutput {
     readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_texture_names: (a: number) => [number, number];
     readonly viewer_wheel: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h765f1adb7f4ebff7: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h81ff7aff3d0eddb9: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h696ca7ed7a36dadc: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_9166586de1fbd2e8___convert__closures_____invoke___js_sys_492968074b373c85___Function_fn_wasm_bindgen_9166586de1fbd2e8___JsValue_____wasm_bindgen_9166586de1fbd2e8___sys__Undefined___js_sys_492968074b373c85___Function_fn_wasm_bindgen_9166586de1fbd2e8___JsValue_____wasm_bindgen_9166586de1fbd2e8___sys__Undefined_______true_: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen_9166586de1fbd2e8___convert__closures_____invoke___wasm_bindgen_9166586de1fbd2e8___JsValue__core_d941ad8722425d2e___result__Result_____wasm_bindgen_9166586de1fbd2e8___JsError___true_: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen_9166586de1fbd2e8___convert__closures_____invoke___wasm_bindgen_9166586de1fbd2e8___JsValue______true_: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
