@@ -4,6 +4,7 @@ name: Build Pathfinder WASM
 # Preview sampler adjustments are compiled through this same release pipeline.
 # Re-triggered after the crisp-magnification sampler update.
 # Rebuild after the plank-only contrast attenuation shader correction.
+# Rebuild after matching the portfolio wooden-plank contrast setting at 18%.
 on:
   push:
     branches: ['**']
