@@ -31,7 +31,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let center = g.view_proj * vec4<f32>(world, 1.0);
   let radius_px = clamp(abs(projected.x / projected.w - center.x / center.w) * size.x * 0.5, 3.0, 28.0);
   var blocked = 0.0;
-  let count = 4u + u32(g.effects.y) * 4u;
+  let count = 3u + u32(g.effects.y) * 4u;
   for (var i = 0u; i < 12u; i++) {
     if (i >= count) { break; }
     let angle = f32(i) * 2.399963;
