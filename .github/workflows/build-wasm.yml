@@ -1,6 +1,7 @@
 name: Build Pathfinder WASM
 
 # Rebuild the checked-in browser runtime whenever renderer sources change.
+# Preview sampler adjustments are compiled through this same release pipeline.
 on:
   push:
     branches: ['**']
