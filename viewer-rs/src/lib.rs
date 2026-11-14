@@ -478,7 +478,7 @@ impl Viewer {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            anisotropy_clamp: 8,
+            anisotropy_clamp: 16,
             ..Default::default()
         });
         let white_tex = device.create_texture_with_data(
@@ -1185,30 +1185,35 @@ fn downsample_srgb(src: &image::RgbaImage) -> image::RgbaImage {
     let (sw, sh) = src.dimensions();
     let (dw, dh) = ((sw / 2).max(1), (sh / 2).max(1));
     let mut dst = image::RgbaImage::new(dw, dh);
+    // Separable 4-tap binomial/Gaussian kernel [1, 3, 3, 1].
+    // Sampling around each destination texel center avoids a fixed 2x2
+    // even/odd phase and attenuates the one-pixel plank seams before mipmapping.
+    const KERNEL: [f32; 4] = [1.0, 3.0, 3.0, 1.0];
     for y in 0..dh {
-        let y0 = y * sh / dh;
-        let y1 = ((y + 1) * sh / dh).max(y0 + 1).min(sh);
+        let cy = (y as f32 + 0.5) * sh as f32 / dh as f32 - 0.5;
         for x in 0..dw {
-            let x0 = x * sw / dw;
-            let x1 = ((x + 1) * sw / dw).max(x0 + 1).min(sw);
+            let cx = (x as f32 + 0.5) * sw as f32 / dw as f32 - 0.5;
             let mut rgb_premul = [0.0f32; 3];
-            let mut alpha_sum = 0.0f32;
-            let mut samples = 0.0f32;
-            for sy in y0..y1 {
-                for sx in x0..x1 {
+            let mut alpha_weight = 0.0f32;
+            let mut total_weight = 0.0f32;
+            for ky in 0..4 {
+                let sy = (cy.floor() as i32 + ky as i32 - 1).clamp(0, sh as i32 - 1) as u32;
+                for kx in 0..4 {
+                    let sx = (cx.floor() as i32 + kx as i32 - 1).clamp(0, sw as i32 - 1) as u32;
+                    let weight = KERNEL[kx] * KERNEL[ky];
                     let p = src.get_pixel(sx, sy).0;
                     let a = p[3] as f32 / 255.0;
-                    alpha_sum += a;
+                    alpha_weight += a * weight;
                     for c in 0..3 {
-                        rgb_premul[c] += srgb_to_linear(p[c] as f32 / 255.0) * a;
+                        rgb_premul[c] += srgb_to_linear(p[c] as f32 / 255.0) * a * weight;
                     }
-                    samples += 1.0;
+                    total_weight += weight;
                 }
             }
-            let alpha = alpha_sum / samples;
+            let alpha = alpha_weight / total_weight;
             let mut out = [0u8; 4];
             for c in 0..3 {
-                let linear = if alpha_sum > 1e-8 { rgb_premul[c] / alpha_sum } else { 0.0 };
+                let linear = if alpha_weight > 1e-8 { rgb_premul[c] / alpha_weight } else { 0.0 };
                 out[c] = (linear_to_srgb(linear) * 255.0).round() as u8;
             }
             out[3] = (alpha * 255.0).round() as u8;
