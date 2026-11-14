@@ -53,6 +53,8 @@ export class Viewer {
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent.
      */
     set_background(mode: number): void;
+    /** Uploads a background image directly into the GPU renderer. */
+    set_background_image(bytes: Uint8Array): boolean;
     set_camera_pose(p: Float32Array): void;
     set_fancy(enabled: boolean, quality: number): void;
     /**
