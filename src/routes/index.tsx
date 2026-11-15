@@ -133,7 +133,7 @@ function Index() {
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
-      const obj = emptyScene ? "o __pathfinder_empty__\\nv -0.001 -0.001 0\\nv 0.001 -0.001 0\\nv 0 0.001 0\\nf 1 2 3\\n" : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
+      const obj = emptyScene ? "o __pathfinder_empty__\nv -0.001 -0.001 0\nv 0.001 -0.001 0\nv 0 0.001 0\nf 1 2 3\n" : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
