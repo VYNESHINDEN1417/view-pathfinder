@@ -1,4 +1,5 @@
 import { VideoRecorder } from "@/components/video-recorder";
+import { BASIC_SCENE_MTL, BASIC_SCENE_OBJ } from "@/lib/basic-scene";
 import { exportFilename } from "@/lib/export-filename";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -133,26 +134,11 @@ function Index() {
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
-      const basicCubeObj = [
-        "mtllib basic-scene.mtl",
-        "o Basic_scene_cube",
-        "v -0.5 -0.5 0.5", "v 0.5 -0.5 0.5", "v 0.5 0.5 0.5", "v -0.5 0.5 0.5",
-        "v 0.5 -0.5 -0.5", "v -0.5 -0.5 -0.5", "v -0.5 0.5 -0.5", "v 0.5 0.5 -0.5",
-        "v -0.5 -0.5 -0.5", "v -0.5 -0.5 0.5", "v -0.5 0.5 0.5", "v -0.5 0.5 -0.5",
-        "v 0.5 -0.5 0.5", "v 0.5 -0.5 -0.5", "v 0.5 0.5 -0.5", "v 0.5 0.5 0.5",
-        "v -0.5 0.5 0.5", "v 0.5 0.5 0.5", "v 0.5 0.5 -0.5", "v -0.5 0.5 -0.5",
-        "v -0.5 -0.5 -0.5", "v 0.5 -0.5 -0.5", "v 0.5 -0.5 0.5", "v -0.5 -0.5 0.5",
-        ...Array.from({ length: 6 }, () => ["vt 0 0", "vt 1 0", "vt 1 1", "vt 0 1"]).flat(),
-        "usemtl dirt",
-        "f 1/1 2/2 3/3 4/4", "f 5/5 6/6 7/7 8/8",
-        "f 9/9 10/10 11/11 12/12", "f 13/13 14/14 15/15 16/16",
-        "f 17/17 18/18 19/19 20/20", "f 21/21 22/22 23/23 24/24",
-      ].join("\n") + "\n";
-      const obj = emptyScene ? basicCubeObj : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
+      const obj = emptyScene ? BASIC_SCENE_OBJ : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
-      const mtl = emptyScene ? "newmtl dirt\nKd 1 1 1\nmap_Kd dirt.png\n" : model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
+      const mtl = emptyScene ? BASIC_SCENE_MTL : model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
       if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
