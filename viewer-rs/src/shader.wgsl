@@ -122,7 +122,10 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let uv = ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
   // Four fixed comparison taps provide inexpensive PCF without blurring block textures.
   // All implicit-derivative samples occur before the alpha discard.
-  let step = vec2<f32>(select(0.5, 1.5 + g.effects.y, g.effects.x > 0.5)) / vec2<f32>(textureDimensions(shadow_tex));
+  // Keep PCF tightly clustered. The previous 1.5–3.5 texel radius blurred
+  // even 2048/4096 maps enough to make High look like Low. Resolution now
+  // controls world-space edge precision; filtering stays sub-texel.
+  let step = vec2<f32>(select(0.5, 0.75, g.effects.x > 0.5)) / vec2<f32>(textureDimensions(shadow_tex));
   let depth = ndc.z - 0.0015;
   let shadow = 0.25 * (
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x, -step.y), depth) +
@@ -176,9 +179,19 @@ fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 
 @fragment
 fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  if (g.screen.z > 3.5) {
+  if (g.screen.z > 4.5) {
     let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
     return textureSample(bg_tex, bg_samp, uv);
+  }
+  // Warm is a built-in, image-like studio backdrop. It is rendered directly
+  // in the background pass, so it cannot be affected by model lighting.
+  if (g.screen.z > 3.5 && g.screen.z < 4.5) {
+    let t = clamp(1.0 - pos.y / max(g.screen.y, 1.0), 0.0, 1.0);
+    let top = vec3<f32>(0.96, 0.78, 0.57);
+    let middle = vec3<f32>(0.78, 0.48, 0.30);
+    let bottom = vec3<f32>(0.22, 0.12, 0.10);
+    let warm = mix(bottom, middle, smoothstep(0.0, 0.62, t));
+    return vec4<f32>(mix(warm, top, smoothstep(0.62, 1.0, t)), 1.0);
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
