@@ -51,11 +51,11 @@ export const BASIC_SCENE_OBJ = objLines.join("\n") + "\n";
 export const BASIC_SCENE_MTL = [
   "newmtl grass_side",
   // Slightly soften the baked texture without changing the dirt/grass layout.
-  "Kd 0.94 0.94 0.94",
+  "Kd 0.72 0.80 0.66",
   "map_Kd grass_side_carried.png",
   "newmtl grass_top",
   // Vanilla grass_top.png is a grayscale biome mask; use a gentler plains tint.
-  "Kd 0.62 0.66 0.54",
+  "Kd 0.30 0.68 0.18",
   "map_Kd grass_top.png",
   "newmtl dirt",
   "Kd 1 1 1",
