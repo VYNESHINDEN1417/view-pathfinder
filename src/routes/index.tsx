@@ -1,4 +1,5 @@
 import { VideoRecorder } from "@/components/video-recorder";
+import { exportFilename } from "@/lib/export-filename";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
@@ -302,7 +303,7 @@ function Index() {
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `${model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN"}-${orthographic ? "orthographic" : "perspective"}.png`;
+      link.href = url; link.download = `${exportFilename(model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN", "img")}.png`;
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {

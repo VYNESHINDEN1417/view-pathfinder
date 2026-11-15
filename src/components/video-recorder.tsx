@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Clapperboard, Diamond, Download, Film, Pause, Play, RotateCcw, Settings2, Square, Video, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { exportFilename } from "@/lib/export-filename";
 import { Timeline } from "@/components/studio/Timeline";
 import { SettingsPanel } from "@/components/studio/SettingsPanel";
 import { defaultSettings, outputSize, studioAspect, bitrateBps, type StudioSettings } from "@/components/studio/settings";
@@ -173,7 +174,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, onLayout }
         <button className="studio-btn-primary h-16 w-full text-lg" onClick={() => void startRender()} disabled={keys.length < 2}><Clapperboard className="size-6" />Start Rendering</button>
         {videoUrl && <div className="space-y-3">
           <video src={videoUrl} controls playsInline className="max-h-80 w-full rounded-xl bg-muted" />
-          <a href={videoUrl} download={`${name}-video.mp4`} className="studio-btn w-full"><Download className="size-5" />Download video</a>
+          <a href={videoUrl} download={`${exportFilename(name, "vid")}.mp4`} className="studio-btn w-full"><Download className="size-5" />Download video</a>
         </div>}
       </> : (
         <div className="space-y-4 rounded-xl border border-primary/50 bg-card p-4" aria-live="polite">
