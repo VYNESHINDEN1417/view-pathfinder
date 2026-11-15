@@ -56,7 +56,7 @@ function Index() {
     settingsRef.current = { background, brightness, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.set_background(background === 4 ? 3 : background);
+    viewer.set_background(background);
     viewer.set_light(brightness);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
