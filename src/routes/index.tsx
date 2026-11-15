@@ -45,40 +45,6 @@ async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").
   if (!viewer.set_background_image(bytes)) throw new Error("Warm background image could not be decoded.");
 }
 
-/**
- * The showcase lighting belongs only to the generated Basic Scene.
- * Uploaded and built-in models always keep the viewer's normal user settings.
- */
-const BASIC_SCENE_LOOK = {
-  brightness: 2.25,
-  shadowMode: 1,
-  shadowQuality: 1024,
-  sun: { azimuth: 32.47, elevation: 50.81, intensity: 1 },
-  fancy: true,
-  fancyQuality: 1,
-} as const;
-
-function applySceneLook(
-  viewer: import("@/lib/wasm/viewer/viewer").Viewer,
-  isBasicScene: boolean,
-  settings: { brightness: number; orthographic: boolean; options: ViewerOptions; sun: { azimuth: number; elevation: number; intensity: number } },
-) {
-  const look = isBasicScene ? BASIC_SCENE_LOOK : {
-    brightness: settings.brightness,
-    shadowMode: settings.options.shadowMode,
-    shadowQuality: settings.options.shadowQuality,
-    sun: settings.sun,
-    fancy: settings.options.fancy,
-    fancyQuality: settings.options.fancyQuality,
-  };
-  viewer.set_light(look.brightness);
-  viewer.set_orthographic(settings.orthographic);
-  viewer.set_shadow_mode(look.shadowMode);
-  viewer.set_shadow_quality(look.shadowQuality);
-  viewer.set_sun(look.sun.azimuth, look.sun.elevation, look.sun.intensity);
-  viewer.set_fancy(look.fancy, look.fancyQuality);
-}
-
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<import("@/lib/wasm/viewer/viewer").Viewer | null>(null);
@@ -117,9 +83,14 @@ function Index() {
     } else {
       viewer.set_background(background);
     }
-    applySceneLook(viewer, emptyScene, { brightness, orthographic, options, sun });
+    viewer.set_light(brightness);
+    viewer.set_orthographic(orthographic);
+    viewer.set_shadow_mode(options.shadowMode);
+    viewer.set_shadow_quality(options.shadowQuality);
+    viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
+    viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
-  }, [background, brightness, orthographic, options, sun, emptyScene]);
+  }, [background, brightness, orthographic, options, sun]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -206,7 +177,12 @@ function Index() {
         console.warn("Background setup failed:", error);
         v.set_background(0);
       });
-      applySceneLook(v, emptyScene, settingsRef.current);
+      v.set_light(settingsRef.current.brightness);
+      v.set_orthographic(settingsRef.current.orthographic);
+      v.set_shadow_mode(settingsRef.current.options.shadowMode);
+      v.set_shadow_quality(settingsRef.current.options.shadowQuality);
+      v.set_sun(settingsRef.current.sun.azimuth, settingsRef.current.sun.elevation, settingsRef.current.sun.intensity);
+      v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
