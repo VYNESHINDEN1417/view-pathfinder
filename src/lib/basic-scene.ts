@@ -53,7 +53,8 @@ export const BASIC_SCENE_MTL = [
   "Kd 1 1 1",
   "map_Kd grass_side_carried.png",
   "newmtl grass_top",
-  "Kd 1 1 1",
+  // Vanilla grass_top.png is a grayscale biome mask; tint it green for the plains look.
+  "Kd 0.48 0.74 0.34",
   "map_Kd grass_top.png",
   "newmtl dirt",
   "Kd 1 1 1",
