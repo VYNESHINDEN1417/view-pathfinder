@@ -133,11 +133,26 @@ function Index() {
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
-      const obj = emptyScene ? "o __pathfinder_empty__\nv -0.001 -0.001 0\nv 0.001 -0.001 0\nv 0 0.001 0\nf 1 2 3\n" : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
+      const basicCubeObj = [
+        "mtllib basic-scene.mtl",
+        "o Basic_scene_cube",
+        "v -0.5 -0.5 0.5", "v 0.5 -0.5 0.5", "v 0.5 0.5 0.5", "v -0.5 0.5 0.5",
+        "v 0.5 -0.5 -0.5", "v -0.5 -0.5 -0.5", "v -0.5 0.5 -0.5", "v 0.5 0.5 -0.5",
+        "v -0.5 -0.5 -0.5", "v -0.5 -0.5 0.5", "v -0.5 0.5 0.5", "v -0.5 0.5 -0.5",
+        "v 0.5 -0.5 0.5", "v 0.5 -0.5 -0.5", "v 0.5 0.5 -0.5", "v 0.5 0.5 0.5",
+        "v -0.5 0.5 0.5", "v 0.5 0.5 0.5", "v 0.5 0.5 -0.5", "v -0.5 0.5 -0.5",
+        "v -0.5 -0.5 -0.5", "v 0.5 -0.5 -0.5", "v 0.5 -0.5 0.5", "v -0.5 -0.5 0.5",
+        ...Array.from({ length: 6 }, () => ["vt 0 0", "vt 1 0", "vt 1 1", "vt 0 1"]).flat(),
+        "usemtl dirt",
+        "f 1/1 2/2 3/3 4/4", "f 5/5 6/6 7/7 8/8",
+        "f 9/9 10/10 11/11 12/12", "f 13/13 14/14 15/15 16/16",
+        "f 17/17 18/18 19/19 20/20", "f 21/21 22/22 23/23 24/24",
+      ].join("\n") + "\n";
+      const obj = emptyScene ? basicCubeObj : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
-      const mtl = emptyScene ? "" : model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
+      const mtl = emptyScene ? "newmtl dirt\\nKd 1 1 1\\nmap_Kd dirt.png\\n" : model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
       if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
@@ -171,15 +186,7 @@ function Index() {
       const v = created;
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
-      if (emptyScene) {
-        // A microscopic valid primitive lets the WASM OBJ parser initialize;
-        // the distant camera keeps the workspace visually empty.
-        const pose = v.camera_pose();
-        pose[7] = Math.max(pose[7], 10000);
-        v.set_camera_pose(pose);
-      } else {
-        v.reset();
-      }
+      v.reset();
       await applyViewerBackground(v, settingsRef.current.background).catch((error) => {
         console.warn("Background setup failed:", error);
         v.set_background(0);
@@ -314,7 +321,7 @@ function Index() {
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `${exportFilename(model?.name ?? (emptyScene ? "Empty scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN", "img")}.png`;
+      link.href = url; link.download = `${exportFilename(model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN", "img")}.png`;
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
@@ -343,7 +350,7 @@ function Index() {
             <span className="scene-picker-option-icon">I</span><span><strong>Iowa</strong><small>USS Iowa · BB-61</small></span>
           </Button>
           <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
-            <span className="scene-picker-option-icon">＋</span><span><strong>Empty scene</strong><small>Open the viewer without a model</small></span>
+            <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A dirt-textured cube in a clean workspace</small></span>
           </Button>
         </div>
         {uploadError && <p className="scene-picker-error" role="alert">{uploadError}</p>}
@@ -364,7 +371,7 @@ function Index() {
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       onLayout={setStudioLayout}
-      name={model?.name ?? (emptyScene ? "Empty scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
+      name={model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
     {sceneSelected && <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
         aria-label="Loading ship" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading.indeterminate ? undefined : Math.floor(loading.progress * 100)}
