@@ -353,7 +353,7 @@ function Index() {
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
-      onModel={(id) => { setModel(null); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
+      onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       onLayout={setStudioLayout}
