@@ -1,4 +1,4 @@
-export const DEFAULT_BRIGHTNESS = 1.5;
+export const DEFAULT_BRIGHTNESS = 2.25;
 export const BACKGROUNDS = [
   { id: 0, label: "Dark grey", swatch: "grey" },
   { id: 1, label: "Pure white", swatch: "white" },
