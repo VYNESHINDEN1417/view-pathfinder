@@ -602,11 +602,21 @@ impl Viewer {
         };
         let (w, h) = img.dimensions();
         if w > self.max_dim || h > self.max_dim { log("texture exceeds GPU limits; original retained"); return false; }
-        // Build a complete mip chain with sRGB-correct, alpha-aware box filtering.
-        // This preserves average appearance while removing sub-pixel grain that causes Moire.
+        // Keep the existing sRGB-correct, alpha-aware mip filtering for every texture.
+        // Wooden planks receive a very small per-level contrast compensation only;
+        // the low-pass filter remains intact, so this restores tonal separation without
+        // reintroducing high-frequency detail or changing any other material/system.
+        let plank_contrast_center = if name.to_ascii_lowercase().contains("planks") {
+            Some(linear_rgb_mean(&img))
+        } else {
+            None
+        };
         let mut mip_images = vec![img];
         while mip_images.last().is_some_and(|level| level.width() > 1 || level.height() > 1) {
-            let next = downsample_srgb(mip_images.last().expect("base mip exists"));
+            let next = downsample_srgb(
+                mip_images.last().expect("base mip exists"),
+                plank_contrast_center,
+            );
             mip_images.push(next);
         }
         let mip_level_count = mip_images.len() as u32;
@@ -1181,7 +1191,24 @@ fn linear_to_srgb(v: f32) -> f32 {
     if v <= 0.0031308 { v * 12.92 } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 }
 }
 
-fn downsample_srgb(src: &image::RgbaImage) -> image::RgbaImage {
+fn linear_rgb_mean(src: &image::RgbaImage) -> [f32; 3] {
+    let mut sum = [0.0f32; 3];
+    let mut weight = 0.0f32;
+    for pixel in src.pixels() {
+        let alpha = pixel[3] as f32 / 255.0;
+        weight += alpha;
+        for channel in 0..3 {
+            sum[channel] += srgb_to_linear(pixel[channel] as f32 / 255.0) * alpha;
+        }
+    }
+    if weight > 1e-8 {
+        [sum[0] / weight, sum[1] / weight, sum[2] / weight]
+    } else {
+        [0.0, 0.0, 0.0]
+    }
+}
+
+fn downsample_srgb(src: &image::RgbaImage, contrast_center: Option<[f32; 3]>) -> image::RgbaImage {
     let (sw, sh) = src.dimensions();
     let (dw, dh) = ((sw / 2).max(1), (sh / 2).max(1));
     let mut dst = image::RgbaImage::new(dw, dh);
@@ -1213,7 +1240,12 @@ fn downsample_srgb(src: &image::RgbaImage) -> image::RgbaImage {
             let alpha = alpha_weight / total_weight;
             let mut out = [0u8; 4];
             for c in 0..3 {
-                let linear = if alpha_weight > 1e-8 { rgb_premul[c] / alpha_weight } else { 0.0 };
+                let mut linear = if alpha_weight > 1e-8 { rgb_premul[c] / alpha_weight } else { 0.0 };
+                // A restrained 2.5% gain per mip level counteracts distance-only
+                // loss of plank tonal separation. It never sharpens or adds detail.
+                if let Some(center) = contrast_center {
+                    linear = (center[c] + (linear - center[c]) * 1.025).clamp(0.0, 1.0);
+                }
                 out[c] = (linear_to_srgb(linear) * 255.0).round() as u8;
             }
             out[3] = (alpha * 255.0).round() as u8;
