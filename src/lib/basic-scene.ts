@@ -50,7 +50,7 @@ for (const face of objFaces) {
   uvIndex += 4;
 }
 
-export const BASIC_SCENE_OBJ = objLines.join("\\n") + "\\n";
+export const BASIC_SCENE_OBJ = objLines.join("\n") + "\n";
 
 export const BASIC_SCENE_MTL = [
   "newmtl grass_side",
@@ -63,4 +63,4 @@ export const BASIC_SCENE_MTL = [
   "Kd 1 1 1",
   "map_Kd dirt.png",
   "",
-].join("\\n");
+].join("\n");
