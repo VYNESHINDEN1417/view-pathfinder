@@ -336,7 +336,7 @@ function Index() {
             <span className="scene-picker-option-icon">I</span><span><strong>Iowa</strong><small>USS Iowa · BB-61</small></span>
           </Button>
           <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
-            <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A dirt-textured cube in a clean workspace</small></span>
+            <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A classic Minecraft grass block in a clean workspace</small></span>
           </Button>
         </div>
         {uploadError && <p className="scene-picker-error" role="alert">{uploadError}</p>}
