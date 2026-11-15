@@ -296,7 +296,7 @@ body {
 }
 .viewer-stage { position: absolute; inset: 0; }
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
-.studio-open .viewer-stage { top: max(120px, calc(env(safe-area-inset-top) + 120px)); bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
+.studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
