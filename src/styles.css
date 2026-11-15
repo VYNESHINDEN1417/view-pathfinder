@@ -248,8 +248,8 @@ body {
 .swatch-green { background: var(--viewer-green); }
 .swatch-transparent, .background-3 { background-color: var(--viewer-white); background-image: conic-gradient(var(--viewer-checker) 25%, var(--viewer-white) 0 50%, var(--viewer-checker) 0 75%, var(--viewer-white) 0); background-size: 20px 20px; }
 .background-3 .viewer-canvas, .background-4 .viewer-canvas { background: transparent; }
-.background-4 { background-color: #2b211b; background-image: url("https://raw.githubusercontent.com/VYNESHINDEN1417/view-pathfinder/main/3untitled.png"); background-position: center; background-repeat: no-repeat; background-size: cover; }
-.swatch-warm { background-color: #8b6249; background-image: url("https://raw.githubusercontent.com/VYNESHINDEN1417/view-pathfinder/main/3untitled.png"); background-position: center; background-size: cover; }
+.background-4 { background-color: transparent; background-image: url("/backgrounds/warm.jpg"); background-position: center; background-repeat: no-repeat; background-size: cover; }
+.swatch-warm { background-color: transparent; background-image: url("/backgrounds/warm.jpg"); background-position: center; background-size: cover; }
 @media (max-width: 360px), (max-height: 500px) {
   .viewer-gizmo { width: 180px; height: 180px; }
   .viewer-brightness { left: calc(50% - 133px); bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px)); }

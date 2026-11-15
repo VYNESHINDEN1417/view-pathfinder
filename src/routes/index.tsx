@@ -31,6 +31,18 @@ export const BUILT_IN_MODELS = [
 type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
 const FALLBACK_TEXTURE = localTexture("stone");
 
+let warmBackgroundCache: Promise<Uint8Array> | null = null;
+async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").Viewer, mode: number) {
+  if (mode !== 4) { viewer.set_background(mode); return; }
+  warmBackgroundCache ??= (async () => {
+    const response = await fetch("/backgrounds/warm.jpg");
+    if (!response.ok) throw new Error("Warm background image could not be loaded.");
+    return new Uint8Array(await response.arrayBuffer());
+  })();
+  const bytes = await warmBackgroundCache;
+  if (!viewer.set_background_image(bytes)) throw new Error("Warm background image could not be decoded.");
+}
+
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<import("@/lib/wasm/viewer/viewer").Viewer | null>(null);
@@ -56,7 +68,17 @@ function Index() {
     settingsRef.current = { background, brightness, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.set_background(background);
+    if (background === 4) {
+      const target = viewer;
+      void applyViewerBackground(target, background).then(() => {
+        if (viewerRef.current === target) scheduleRef.current();
+      }).catch((error) => {
+        console.warn("Warm background failed:", error);
+        if (viewerRef.current === target) { target.set_background(0); scheduleRef.current(); }
+      });
+    } else {
+      viewer.set_background(background);
+    }
     viewer.set_light(brightness);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
@@ -146,7 +168,10 @@ function Index() {
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
       v.reset();
-      v.set_background(settingsRef.current.background === 4 ? 3 : settingsRef.current.background);
+      await applyViewerBackground(v, settingsRef.current.background).catch((error) => {
+        console.warn("Background setup failed:", error);
+        v.set_background(0);
+      });
       v.set_light(settingsRef.current.brightness);
       v.set_orthographic(settingsRef.current.orthographic);
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
