@@ -133,8 +133,7 @@ function Index() {
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
-      const obj = emptyScene ? "# Empty scene\
-" : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
+      const obj = emptyScene ? "o __pathfinder_empty__\\nv -0.001 -0.001 0\\nv 0.001 -0.001 0\\nv 0 0.001 0\\nf 1 2 3\\n" : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
@@ -172,7 +171,15 @@ function Index() {
       const v = created;
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
-      v.reset();
+      if (emptyScene) {
+        // A microscopic valid primitive lets the WASM OBJ parser initialize;
+        // the distant camera keeps the workspace visually empty.
+        const pose = v.camera_pose();
+        pose[7] = Math.max(pose[7], 10000);
+        v.set_camera_pose(pose);
+      } else {
+        v.reset();
+      }
       await applyViewerBackground(v, settingsRef.current.background).catch((error) => {
         console.warn("Background setup failed:", error);
         v.set_background(0);
