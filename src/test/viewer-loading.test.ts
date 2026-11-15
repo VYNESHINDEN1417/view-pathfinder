@@ -34,4 +34,14 @@ describe("Viewer upgrade rules", () => {
     }, "/models/")).toEqual(["/iron.png", "/models/tex/iron_trapdoor.png"]);
     expect(textureCandidates("tex/pale_oak_trapdoor.png", {}, "/models/")).toEqual(["/models/tex/iron_trapdoor.png"]);
   });
+
+  it("builds the empty starter scene as one six-sided dirt block", async () => {
+    const { BASIC_SCENE_MTL, BASIC_SCENE_OBJ } = await import("@/lib/basic-scene");
+    expect(BASIC_SCENE_OBJ.match(/^v /gm)).toHaveLength(24);
+    expect(BASIC_SCENE_OBJ.match(/^vt /gm)).toHaveLength(24);
+    expect(BASIC_SCENE_OBJ.match(/^f /gm)).toHaveLength(6);
+    expect(materialTextures(BASIC_SCENE_MTL)).toEqual(["dirt.png"]);
+    const { localTexture } = await import("@/lib/model-archive");
+    expect(localTexture("dirt.png")).toBe("/textures/blocks/dirt.png");
+  });
 });
