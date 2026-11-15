@@ -1,4 +1,5 @@
 import { VideoRecorder } from "@/components/video-recorder";
+import { BASIC_SCENE_MTL, BASIC_SCENE_OBJ } from "@/lib/basic-scene";
 import { exportFilename } from "@/lib/export-filename";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -52,6 +53,8 @@ function Index() {
   const [attempt, setAttempt] = useState(0);
   const [model, setModel] = useState<ModelArchive | null>(null);
   const [builtInId, setBuiltInId] = useState<BuiltInId>("wisconsin");
+  const [sceneSelected, setSceneSelected] = useState(false);
+  const [emptyScene, setEmptyScene] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -91,6 +94,7 @@ function Index() {
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
+    if (!sceneSelected) return;
     const canvas = ref.current;
     if (!canvas) return;
     const controller = new AbortController();
@@ -130,11 +134,11 @@ function Index() {
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
       const builtIn = BUILT_IN_MODELS.find((m) => m.id === builtInId) ?? BUILT_IN_MODELS[0];
-      const obj = model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
+      const obj = emptyScene ? BASIC_SCENE_OBJ : model?.obj ?? new TextDecoder().decode(await bytes(builtIn.obj, "obj", "Loading model..."));
       if (model) tracker.update("obj", 1, 1, "Reading model...");
       const lib = /^mtllib\s+(.+)$/m.exec(obj)?.[1]?.trim();
       const mtlUrl = builtIn.mtl || (lib ? MODEL_DIR + lib.replace(/^\.\//, "") : "");
-      const mtl = model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
+      const mtl = emptyScene ? BASIC_SCENE_MTL : model ? model.mtl : mtlUrl ? new TextDecoder().decode(await bytes(mtlUrl, "mtl", "Loading materials...")) : "";
       if (model) tracker.update("mtl", 1, 1, "Reading materials...");
       const names = materialTextures(mtl);
       if (!lib) tracker.update("mtl", 1, 1, "Preparing viewer...");
@@ -280,13 +284,13 @@ function Index() {
       viewer?.destroy();
       viewer = null;
     };
-  }, [attempt, model, builtInId]);
+  }, [attempt, model, builtInId, sceneSelected, emptyScene]);
 
   const uploadModel = async (file: File) => {
     setUploading(true); setUploadError("");
     try {
       const archive = await readModelArchive(file, () => {});
-      setAttempt((value) => value + 1); setModel(archive);
+      setAttempt((value) => value + 1); setModel(archive); setEmptyScene(false); setSceneSelected(true);
     } catch (error) { setUploadError(error instanceof Error ? error.message : "This model could not be opened."); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
@@ -303,7 +307,7 @@ function Index() {
       const png = await viewer.capture_png(size.width, size.height) as Uint8Array;
       const url = URL.createObjectURL(new Blob([new Uint8Array(png)], { type: "image/png" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `${exportFilename(model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN", "img")}.png`;
+      link.href = url; link.download = `${exportFilename(model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN", "img")}.png`;
       document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
@@ -315,6 +319,29 @@ function Index() {
   return <main className={`ship-viewer background-${background} ${studioLayout.open ? "studio-open" : ""}`} data-scene-ready={loading.ready ? "true" : undefined}>
     <input ref={fileRef} type="file" accept=".zip,application/zip" hidden aria-label="Upload model ZIP"
       onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadModel(file); }} />
+    {!sceneSelected && <div className="scene-picker-overlay" role="dialog" aria-modal="true" aria-labelledby="scene-picker-title">
+      <div className="scene-picker">
+        <div className="scene-picker-mark">V</div>
+        <p className="scene-picker-eyebrow">PATHFINDER 3D VIEWER</p>
+        <h1 id="scene-picker-title">Choose your scene</h1>
+        <p className="scene-picker-description">Start with a ship, bring your own model, or open an empty workspace.</p>
+        <div className="scene-picker-options">
+          <Button className="scene-picker-option scene-picker-upload" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <span className="scene-picker-option-icon">↑</span><span><strong>{uploading ? "Preparing model..." : "Add your own model"}</strong><small>Upload a model ZIP with its textures</small></span>
+          </Button>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("wisconsin"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+            <span className="scene-picker-option-icon">W</span><span><strong>Wisconsin</strong><small>USS Wisconsin · BB-64</small></span>
+          </Button>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("iowa"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+            <span className="scene-picker-option-icon">I</span><span><strong>Iowa</strong><small>USS Iowa · BB-61</small></span>
+          </Button>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+            <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A classic Minecraft grass block in a clean workspace</small></span>
+          </Button>
+        </div>
+        {uploadError && <p className="scene-picker-error" role="alert">{uploadError}</p>}
+      </div>
+    </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
       <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
     </div>
@@ -330,13 +357,13 @@ function Index() {
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       onLayout={setStudioLayout}
-      name={model?.name ?? BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name ?? "VYNESHINDEN"} />}
-    <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
+      name={model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
+    {sceneSelected && <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
       {!loading.error && <div className={`loader ${loading.indeterminate ? "loader-indeterminate" : ""}`} role="progressbar"
         aria-label="Loading ship" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading.indeterminate ? undefined : Math.floor(loading.progress * 100)}
         style={{ "--remaining": `${100 - loading.progress * 100}%` } as CSSProperties} />}
       <p>{loading.error ?? loading.status}</p>
       {loading.error && <><Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Retry</Button><Button variant="secondary" onClick={() => { setModel(null); setBuiltInId("wisconsin"); setAttempt((value) => value + 1); }}>Restore Wisconsin</Button></>}
-    </div>
+    </div>}
   </main>;
 }
