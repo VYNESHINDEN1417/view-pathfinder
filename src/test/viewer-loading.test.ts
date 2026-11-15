@@ -35,13 +35,18 @@ describe("Viewer upgrade rules", () => {
     expect(textureCandidates("tex/pale_oak_trapdoor.png", {}, "/models/")).toEqual(["/models/tex/iron_trapdoor.png"]);
   });
 
-  it("builds the empty starter scene as one six-sided dirt block", async () => {
+  it("builds the empty starter scene as one six-sided Minecraft grass block", async () => {
     const { BASIC_SCENE_MTL, BASIC_SCENE_OBJ } = await import("@/lib/basic-scene");
     expect(BASIC_SCENE_OBJ.match(/^v /gm)).toHaveLength(24);
     expect(BASIC_SCENE_OBJ.match(/^vt /gm)).toHaveLength(24);
     expect(BASIC_SCENE_OBJ.match(/^f /gm)).toHaveLength(6);
-    expect(materialTextures(BASIC_SCENE_MTL)).toEqual(["dirt.png"]);
+    expect(BASIC_SCENE_OBJ.match(/usemtl grass_side/g)).toHaveLength(1);
+    expect(BASIC_SCENE_OBJ.match(/usemtl grass_top/g)).toHaveLength(1);
+    expect(BASIC_SCENE_OBJ.match(/usemtl dirt/g)).toHaveLength(1);
+    expect(materialTextures(BASIC_SCENE_MTL)).toEqual(["dirt.png", "grass_side.png", "grass_top.png"]);
     const { localTexture } = await import("@/lib/model-archive");
     expect(localTexture("dirt.png")).toBe("/textures/blocks/dirt.png");
+    expect(localTexture("grass_side.png")).toBe("/textures/blocks/grass_side.png");
+    expect(localTexture("grass_top.png")).toBe("/textures/blocks/grass_top.png");
   });
 });
