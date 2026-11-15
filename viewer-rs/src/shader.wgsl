@@ -179,19 +179,9 @@ fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 
 @fragment
 fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  if (g.screen.z > 4.5) {
+  if (g.screen.z > 3.5) {
     let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
     return textureSample(bg_tex, bg_samp, uv);
-  }
-  // Warm is a built-in, image-like studio backdrop. It is rendered directly
-  // in the background pass, so it cannot be affected by model lighting.
-  if (g.screen.z > 3.5 && g.screen.z < 4.5) {
-    let t = clamp(1.0 - pos.y / max(g.screen.y, 1.0), 0.0, 1.0);
-    let top = vec3<f32>(0.96, 0.78, 0.57);
-    let middle = vec3<f32>(0.78, 0.48, 0.30);
-    let bottom = vec3<f32>(0.22, 0.12, 0.10);
-    let warm = mix(bottom, middle, smoothstep(0.0, 0.62, t));
-    return vec4<f32>(mix(warm, top, smoothstep(0.62, 1.0, t)), 1.0);
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
