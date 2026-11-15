@@ -170,7 +170,7 @@ fn fs_shadow(in: VsOut) {
   if (m.flags.x > 0.5 && alpha * m.diffuse.a < 0.3) { discard; }
 }
 
-// Fullscreen background: vertical gradient, lighter grey at top fading to black at bottom.
+// Fullscreen background: mode 4 samples the uploaded Warm image texture.
 @vertex
 fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
   let p = vec2<f32>(f32((i << 1u) & 2u), f32(i & 2u));
