@@ -61,7 +61,7 @@ const BASIC_SCENE_LOOK = {
 function applySceneLook(
   viewer: import("@/lib/wasm/viewer/viewer").Viewer,
   isBasicScene: boolean,
-  settings: { brightness: number; orthographic: boolean; options: ViewerOptions; sun: typeof BASIC_SCENE_LOOK.sun },
+  settings: { brightness: number; orthographic: boolean; options: ViewerOptions; sun: { azimuth: number; elevation: number; intensity: number } },
 ) {
   const look = isBasicScene ? BASIC_SCENE_LOOK : {
     brightness: settings.brightness,
