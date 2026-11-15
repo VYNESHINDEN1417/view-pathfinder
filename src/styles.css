@@ -225,8 +225,8 @@ body {
 .loader-indeterminate { border-style: dashed; }
 @media (max-height: 500px) { .viewer-gizmo { width: 180px; height: 180px; } }
 
-.viewer-tool { width: 44px; height: 44px; color: var(--viewer-label); background: var(--viewer-tool-bg); border: 1px solid var(--viewer-tool-border); border-radius: 6px; }
-.viewer-tool:hover, .viewer-tool:focus-visible { background: var(--viewer-tool-hover); color: var(--viewer-label); }
+.viewer-tool { width: 44px; height: 44px; color: #FFB36B; background: rgb(255 115 0 / 15%); border: 1px solid rgb(255 115 0 / 42%); border-radius: 10px; backdrop-filter: blur(14px) saturate(145%); -webkit-backdrop-filter: blur(14px) saturate(145%); box-shadow: 0 4px 18px rgb(255 115 0 / 10%), inset 0 1px 0 rgb(255 255 255 / 12%); }
+.viewer-tool:hover, .viewer-tool:focus-visible { background: rgb(255 115 0 / 25%); border-color: rgb(255 145 55 / 72%); color: #FFD0A6; }
 .viewer-tool[aria-pressed="true"] { border-color: var(--viewer-y); color: var(--viewer-y); }
 .viewer-tool svg { width: 21px; height: 21px; }
 .viewer-settings, .viewer-save { position: absolute; top: max(16px, env(safe-area-inset-top)); z-index: 4; }
