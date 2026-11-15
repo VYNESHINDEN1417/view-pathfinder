@@ -1,25 +1,21 @@
 /**
- * A compact, watertight Minecraft-style grass block for Pathfinder's Empty Scene.
- * Side walls are split into a green turf band and a dirt body so biome tinting
- * does not recolor the dirt. Every quad is explicitly triangulated for the WASM OBJ parser.
+ * A compact, watertight Minecraft grass block for Pathfinder's Empty Scene.
+ * Each side uses the repository's complete grass_side_carried texture:
+ * a 16x16 dirt face with the green grass edge already baked into the image.
+ * The side is one full quad; no separate grass strip or alpha overlay.
  */
 type FaceMaterial = "grass_side" | "grass_top" | "dirt";
 type Point3 = [number, number, number];
 
 const objFaces: Array<{ material: FaceMaterial; points: [Point3, Point3, Point3, Point3] }> = [];
 const addSide = (bottomA: Point3, bottomB: Point3, topB: Point3, topA: Point3) => {
-  const bandY = 0.375;
-  const lowerA: Point3 = [bottomA[0], -0.5, bottomA[2]];
-  const lowerB: Point3 = [bottomB[0], -0.5, bottomB[2]];
-  const upperA: Point3 = [topA[0], bandY, topA[2]];
-  const upperB: Point3 = [topB[0], bandY, topB[2]];
-  objFaces.push(
-    { material: "dirt", points: [lowerA, lowerB, upperB, upperA] },
-    { material: "grass_side", points: [upperA, upperB, topB, topA] },
-  );
+  objFaces.push({
+    material: "grass_side",
+    points: [bottomA, bottomB, topB, topA],
+  });
 };
 
-// Four outward-facing walls, each continuous from the bottom to the turf cap.
+// Four complete outward-facing side walls, each using the baked dirt-and-grass texture.
 addSide([-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]);
 addSide([0.5, -0.5, -0.5], [-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5]);
 addSide([-0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, 0.5, -0.5]);
@@ -54,10 +50,10 @@ export const BASIC_SCENE_OBJ = objLines.join("\n") + "\n";
 
 export const BASIC_SCENE_MTL = [
   "newmtl grass_side",
-  "Kd 0.38 0.78 0.24",
-  "map_Kd grass_top.png",
+  "Kd 1 1 1",
+  "map_Kd grass_side_carried.png",
   "newmtl grass_top",
-  "Kd 0.38 0.78 0.24",
+  "Kd 1 1 1",
   "map_Kd grass_top.png",
   "newmtl dirt",
   "Kd 1 1 1",
