@@ -294,7 +294,7 @@ body {
   .safe-b { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
   .safe-t { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
-.viewer-stage { position: absolute; inset: 0; }
+.viewer-stage { position: absolute; inset: 0; touch-action: none; }
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
 .studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }

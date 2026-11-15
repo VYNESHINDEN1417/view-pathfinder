@@ -203,17 +203,22 @@ function Index() {
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
 
+      // The stage covers the full preview area, including letterbox bars around the
+      // aspect-ratio canvas. Route gestures through it so those bars remain draggable.
+      const inputSurface = canvas.parentElement ?? canvas;
+      const tapOrigins = new Map<number, boolean>();
       const on = <K extends keyof HTMLElementEventMap>(
         t: K,
         f: (e: HTMLElementEventMap[K]) => void,
         o?: AddEventListenerOptions,
       ) => {
-        canvas.addEventListener(t, f as EventListener, o);
-        cleanups.push(() => canvas.removeEventListener(t, f as EventListener, o));
+        inputSurface.addEventListener(t, f as EventListener, o);
+        cleanups.push(() => inputSurface.removeEventListener(t, f as EventListener, o));
       };
       on("pointerdown", (e) => {
         e.preventDefault();
-        canvas.setPointerCapture(e.pointerId);
+        tapOrigins.set(e.pointerId, e.target === canvas);
+        inputSurface.setPointerCapture(e.pointerId);
         v.pointer_down(e.pointerId, e.clientX, e.clientY, e.pointerType === "mouse" ? e.button : 0);
       });
       on("pointermove", (e) => {
@@ -221,8 +226,10 @@ function Index() {
         if (v.needs_redraw()) schedule();
       });
       on("pointerup", (e) => {
+        const startedOnCanvas = tapOrigins.get(e.pointerId) === true;
+        tapOrigins.delete(e.pointerId);
         const r = v.pointer_up(e.pointerId, e.clientX, e.clientY, performance.now());
-        if (r === 1 && !document.fullscreenElement) {
+        if (r === 1 && startedOnCanvas && !document.fullscreenElement) {
           const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
           try {
             const p = el.requestFullscreen?.({ navigationUI: "hide" }) ?? el.webkitRequestFullscreen?.();
@@ -233,7 +240,7 @@ function Index() {
         }
         schedule();
       });
-      on("pointercancel", (e) => v.pointer_cancel(e.pointerId));
+      on("pointercancel", (e) => { tapOrigins.delete(e.pointerId); v.pointer_cancel(e.pointerId); });
       on("wheel", (e) => {
         e.preventDefault();
         const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
