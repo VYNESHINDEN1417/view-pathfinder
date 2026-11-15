@@ -35,7 +35,7 @@ let warmBackgroundCache: Promise<Uint8Array> | null = null;
 async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").Viewer, mode: number) {
   if (mode !== 4) { viewer.set_background(mode); return; }
   warmBackgroundCache ??= (async () => {
-    const response = await fetch("/backgrounds/warm.jpg");
+    const response = await fetch("/backgrounds/3untitled.png");
     if (!response.ok) throw new Error("Warm background image could not be loaded.");
     return new Uint8Array(await response.arrayBuffer());
   })();
