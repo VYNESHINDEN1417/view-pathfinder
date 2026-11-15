@@ -109,11 +109,10 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.flags.x > 0.5) {
     var texture_color = t.rgb;
     if (m.flags.y > 0.5) {
-      // Match the portfolio viewer's 18% wooden-plank contrast reduction.
-      // Fade it in with minification so close-up Minecraft texels stay crisp.
-      let lod_fade = smoothstep(1.15, 3.0, major_footprint);
-      let contrast = 1.0 - lod_fade * 0.18;
-      texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
+      // Preserve consistent wooden-plank contrast at every viewing distance.
+      // Mipmapping and anisotropic filtering already handle minification and moire;
+      // do not add a second distance-based contrast fade on top of that filtering.
+      texture_color = t.rgb;
     }
     kd = kd * texture_color;
   }
