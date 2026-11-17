@@ -1102,11 +1102,12 @@ impl Viewer {
                 occlusion_query_set: None,
             });
             pass.set_bind_group(0, &self.globals_bind, &[]);
-            if self.background != 3 {
-                pass.set_pipeline(&self.bg_pipeline);
-                pass.set_bind_group(1, &self.bg_image_bind, &[]);
-                pass.draw(0..3, 0..1);
-            }
+            // Always draw the background pass. In transparent mode fs_bg outputs
+            // alpha 0; skipping this pass leaves the opaque black render-pass clear
+            // color visible and hides the CSS background image.
+            pass.set_pipeline(&self.bg_pipeline);
+            pass.set_bind_group(1, &self.bg_image_bind, &[]);
+            pass.draw(0..3, 0..1);
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
             pass.set_bind_group(3, &ao_bind, &[]);
