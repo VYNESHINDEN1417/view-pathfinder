@@ -105,17 +105,11 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let crisp_sample = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
   let aniso_sample = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
   let t = mix(crisp_sample, aniso_sample, filter_weight);
+  // Textured materials use the source texture RGB directly. MTL Kd is often
+  // an exporter default (commonly 0.7) and must not tint/darken real textures.
+  // Untextured materials continue to use their authored diffuse color.
   var kd = m.diffuse.rgb;
-  if (m.flags.x > 0.5) {
-    var texture_color = t.rgb;
-    if (m.flags.y > 0.5) {
-      // Preserve consistent wooden-plank contrast at every viewing distance.
-      // Mipmapping and anisotropic filtering already handle minification and moire;
-      // do not add a second distance-based contrast fade on top of that filtering.
-      texture_color = t.rgb;
-    }
-    kd = kd * texture_color;
-  }
+  if (m.flags.x > 0.5) { kd = t.rgb; }
   let diff = max(dot(n, l), 0.0);
   let lp = g.light_vp * vec4<f32>(in.world, 1.0);
   let ndc = lp.xyz / lp.w;
@@ -138,9 +132,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
   let ao = ambient_occlusion(in.pos.xy, in.world, n);
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
-  let fill = 0.06 * max(dot(n, v), 0.0);
-  var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
+  // Keep texture albedo close to its authored color. Ambient light is the
+  // neutral baseline; sun and shadows add restrained shape instead of
+  // dramatically changing the block's palette.
+  let ao_factor = mix(1.0, ao, 0.35);
+  let ambient = (0.72 + 0.06 * max(n.y, 0.0)) * ao_factor;
+  let fill = 0.02 * max(dot(n, v), 0.0);
+  var color = kd * (ambient + fill + diff * visibility * 0.26 * g.effects.z);
   if (g.effects.x > 0.5) {
     let half_vector = normalize(l + v);
     let highlight = pow(max(dot(n, half_vector), 0.0), clamp(m.specular.w, 8.0, 96.0));
@@ -149,9 +147,6 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao;
   }
   color *= g.light.w;
-  // Soft highlight shoulder: unchanged below 0.7, asymptotically approaches 1 instead of clipping.
-  let above = max(color - vec3<f32>(0.7), vec3<f32>(0.0));
-  color = min(color, vec3<f32>(0.7)) + above / (vec3<f32>(1.0) + above / 0.3);
   return vec4<f32>(color, 1.0);
 }
 
