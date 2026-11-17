@@ -602,20 +602,14 @@ impl Viewer {
         };
         let (w, h) = img.dimensions();
         if w > self.max_dim || h > self.max_dim { log("texture exceeds GPU limits; original retained"); return false; }
-        // Keep the existing sRGB-correct, alpha-aware mip filtering for every texture.
-        // Wooden planks receive a very small per-level contrast compensation only;
-        // the low-pass filter remains intact, so this restores tonal separation without
-        // reintroducing high-frequency detail or changing any other material/system.
-        let plank_contrast_center = if name.to_ascii_lowercase().contains("planks") {
-            Some(linear_rgb_mean(&img))
-        } else {
-            None
-        };
+        // Match the portfolio viewer's original sRGB-correct, alpha-aware mip
+        // filtering. Distant plank tonal softening is handled once in the shader,
+        // avoiding stacked contrast corrections across mip levels and screen LOD.
         let mut mip_images = vec![img];
         while mip_images.last().is_some_and(|level| level.width() > 1 || level.height() > 1) {
             let next = downsample_srgb(
                 mip_images.last().expect("base mip exists"),
-                plank_contrast_center,
+                None,
             );
             mip_images.push(next);
         }
