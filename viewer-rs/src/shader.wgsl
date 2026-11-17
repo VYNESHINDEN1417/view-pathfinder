@@ -185,7 +185,7 @@ fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // and crop the excess dimension instead of stretching the image to the canvas.
     var uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
     let viewport_aspect = g.screen.x / max(g.screen.y, 1.0);
-    let image_size = vec2<f32>(textureDimensions(bg_tex));
+    let image_size = vec2<f32>(textureDimensions(bg_tex, 0));
     let image_aspect = image_size.x / max(image_size.y, 1.0);
     if (viewport_aspect > image_aspect) {
       uv.y = (uv.y - 0.5) * (image_aspect / viewport_aspect) + 0.5;
