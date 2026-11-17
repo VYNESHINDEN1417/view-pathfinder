@@ -134,7 +134,8 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   var visibility = shadow;
-  if (g.screen.w < 0.5 || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
+  let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
+  if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
   let ao = ambient_occlusion(in.pos.xy, in.world, n);
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
@@ -170,7 +171,7 @@ fn fs_shadow(in: VsOut) {
   if (m.flags.x > 0.5 && alpha * m.diffuse.a < 0.3) { discard; }
 }
 
-// Fullscreen background: mode 4 samples the uploaded Warm image texture.
+// Fullscreen background: mode 4 samples the uploaded image texture.
 @vertex
 fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
   let p = vec2<f32>(f32((i << 1u) & 2u), f32(i & 2u));
@@ -181,7 +182,11 @@ fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   if (g.screen.z > 3.5) {
     let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
-    return textureSample(bg_tex, bg_samp, uv);
+    let color = textureSample(bg_tex, bg_samp, uv);
+    // The canvas prefers premultiplied alpha. Preserve translucent PNG colors
+    // by premultiplying only when the configured surface expects it.
+    if (g.screen.w > 1.5) { return vec4<f32>(color.rgb * color.a, color.a); }
+    return color;
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
