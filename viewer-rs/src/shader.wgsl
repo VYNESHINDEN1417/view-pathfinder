@@ -109,11 +109,9 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.flags.x > 0.5) {
     var texture_color = t.rgb;
     if (m.flags.y > 0.5) {
-      // Match the portfolio viewer's proven distant-plank appearance: as plank
-      // texels become sub-pixel, gently compress contrast around middle gray.
-      // The wood hue remains intact; only distance-driven tonal extremes soften.
-      let lod_fade = clamp((major_footprint - 1.0) / 3.0, 0.0, 1.0);
-      let contrast = 1.0 - lod_fade * 0.18;
+      // Keep the portfolio-matched wooden-plank coloring at every camera
+      // distance, including close-ups. Compress contrast uniformly around gray.
+      let contrast = 0.82;
       texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
     }
     kd = kd * texture_color;
