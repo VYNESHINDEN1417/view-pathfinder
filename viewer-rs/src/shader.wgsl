@@ -181,14 +181,23 @@ fn vs_bg(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
 @fragment
 fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   if (g.screen.z > 3.5) {
-    let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
+    // Match CSS background-size: cover: preserve the source image aspect ratio
+    // and crop the excess dimension instead of stretching the image to the canvas.
+    var uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
+    let viewport_aspect = g.screen.x / max(g.screen.y, 1.0);
+    let image_size = vec2<f32>(textureDimensions(bg_tex));
+    let image_aspect = image_size.x / max(image_size.y, 1.0);
+    if (viewport_aspect > image_aspect) {
+      uv.y = (uv.y - 0.5) * (image_aspect / viewport_aspect) + 0.5;
+    } else {
+      uv.x = (uv.x - 0.5) * (viewport_aspect / image_aspect) + 0.5;
+    }
+    // The source texture and render target use sRGB formats, so sampling and
+    // writing perform the matching transfer functions without an artificial lift.
     let color = textureSample(bg_tex, bg_samp, uv);
-    // A stronger shadow and midtone lift counteracts the dark presentation while retaining highlight detail.
-    let lifted = color.rgb;
-    // The canvas prefers premultiplied alpha. Preserve translucent PNG colors
-    // by premultiplying only when the configured surface expects it.
-    if (g.screen.w > 1.5) { return vec4<f32>(lifted * color.a, color.a); }
-    return vec4<f32>(lifted, color.a);
+    // Preserve alpha according to the canvas surface's configured compositing mode.
+    if (g.screen.w > 1.5) { return vec4<f32>(color.rgb * color.a, color.a); }
+    return color;
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
