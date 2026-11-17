@@ -69,7 +69,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         // Every AO scale must respect the current sun direction. Leaving contact
         // samples unweighted creates a fixed screen-space shadow that survives sun
         // movement and can read as a translucent box beneath large overhangs.
-        let sun_alignment = max(dot(delta / distance, normalize(g.light.xyz)), 0.0);
+        let sun_alignment = max(dot(-delta / distance, normalize(g.light.xyz)), 0.0);
         // No fixed ambient floor: broad occlusion disappears when the blocker is
         // outside the sun-facing direction. Squaring tightens the response and
         // prevents a camera-space halo from lingering as a translucent box.
