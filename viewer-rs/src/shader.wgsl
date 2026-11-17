@@ -54,6 +54,23 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   return clamp(1.0 - blocked * 1.8 / f32(count), 0.65, 1.0);
 }
 
+// Low-cost, deterministic world-space value noise for gentle material variation.
+// This changes rendered surface color only; source textures remain untouched.
+fn variation_hash(p: vec3<f32>) -> f32 {
+  return fract(sin(dot(p, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453);
+}
+
+fn surface_value_noise(p: vec3<f32>) -> f32 {
+  let cell = floor(p);
+  let local = fract(p);
+  let blend = local * local * (vec3<f32>(3.0) - 2.0 * local);
+  let x00 = mix(variation_hash(cell + vec3<f32>(0.0, 0.0, 0.0)), variation_hash(cell + vec3<f32>(1.0, 0.0, 0.0)), blend.x);
+  let x10 = mix(variation_hash(cell + vec3<f32>(0.0, 1.0, 0.0)), variation_hash(cell + vec3<f32>(1.0, 1.0, 0.0)), blend.x);
+  let x01 = mix(variation_hash(cell + vec3<f32>(0.0, 0.0, 1.0)), variation_hash(cell + vec3<f32>(1.0, 0.0, 1.0)), blend.x);
+  let x11 = mix(variation_hash(cell + vec3<f32>(0.0, 1.0, 1.0)), variation_hash(cell + vec3<f32>(1.0, 1.0, 1.0)), blend.x);
+  return mix(mix(x00, x10, blend.y), mix(x01, x11, blend.y), blend.z);
+}
+
 struct VsOut {
   @builtin(position) pos: vec4<f32>,
   @location(0) world: vec3<f32>,
@@ -116,6 +133,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     }
     kd = kd * texture_color;
   }
+  // Start at 30% strength: only a very small, smooth color drift across
+  // world space, so nearby stone surfaces are not locked to one flat hex value.
+  // This is deterministic and does not modify or randomize source texture pixels.
+  let surface_noise = surface_value_noise(in.world * 0.85) - 0.5;
+  let variation = surface_noise * 0.06;
+  kd *= vec3<f32>(1.0 + variation * 0.8, 1.0 + variation * 0.35, 1.0 - variation * 0.5);
+
   let diff = max(dot(n, l), 0.0);
   let lp = g.light_vp * vec4<f32>(in.world, 1.0);
   let ndc = lp.xyz / lp.w;
