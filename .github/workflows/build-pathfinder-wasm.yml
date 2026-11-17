@@ -3,7 +3,7 @@ name: Build Pathfinder WASM
 on:
   push:
     branches:
-      - experiment/stone-segment-color-variation
+      - experiment/deep-shade
     paths-ignore:
       - public/wasm/viewer_bg.wasm
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Check out experiment branch
         uses: actions/checkout@v4
         with:
-          ref: experiment/stone-segment-color-variation
+          ref: experiment/deep-shade
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust and WebAssembly target
@@ -47,4 +47,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/wasm/viewer_bg.wasm
           git commit -m "Build Pathfinder WASM for stone segment color variation"
-          git push origin HEAD:experiment/stone-segment-color-variation
+          git push origin HEAD:experiment/deep-shade
