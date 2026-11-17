@@ -135,6 +135,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
       // Very restrained warm/cool shifts across broad, softly blended stone regions.
       // This is a render-time tint only; source texture pixels remain untouched.
       let segment_scale = max(g.effects.w * 5.0, 0.65);
+      // 15% stronger than the first pass, while keeping the same broad spatial scale.
       let variation = (stone_segment_noise(in.world / segment_scale) - 0.5) * 0.06325;
       let tint = vec3<f32>(1.0 + variation * 0.55, 1.0 + variation * 0.10, 1.0 - variation * 0.45);
       texture_color = texture_color * tint;
