@@ -66,7 +66,13 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, 0.70, is_contact);
-        blocked += facing * fade * scale_weight;
+        // Contact creases remain stable ambient detail. Broad occlusion is strongest
+        // when the blocker sits between this surface and the current sun direction,
+        // so overhang shading responds as the sun moves instead of staying fixed.
+        let sun_alignment = max(dot(delta / distance, normalize(g.light.xyz)), 0.0);
+        let broad_sun_weight = 0.20 + 0.80 * sun_alignment;
+        let directional_weight = select(broad_sun_weight, 1.0, is_contact);
+        blocked += facing * fade * scale_weight * directional_weight;
       }
     }
   }
