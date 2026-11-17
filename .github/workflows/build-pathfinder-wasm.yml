@@ -1,0 +1,50 @@
+name: Build Pathfinder WASM
+
+on:
+  push:
+    branches:
+      - experiment/stone-segment-color-variation
+    paths-ignore:
+      - public/wasm/viewer_bg.wasm
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out experiment branch
+        uses: actions/checkout@v4
+        with:
+          ref: experiment/stone-segment-color-variation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust and WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: viewer-rs
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Compile Pathfinder renderer
+        working-directory: viewer-rs
+        run: wasm-pack build --target web --release --out-dir pkg --out-name viewer
+
+      - name: Replace deployed renderer binary
+        run: cp viewer-rs/pkg/viewer_bg.wasm public/wasm/viewer_bg.wasm
+
+      - name: Commit compiled renderer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/wasm/viewer_bg.wasm
+          git commit -m "Build Pathfinder WASM for stone segment color variation"
+          git push origin HEAD:experiment/stone-segment-color-variation
