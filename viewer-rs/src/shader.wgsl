@@ -183,10 +183,13 @@ fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   if (g.screen.z > 3.5) {
     let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
     let color = textureSample(bg_tex, bg_samp, uv);
+    // A very gentle midtone lift compensates for the viewer's GPU presentation
+    // without flattening the original image or pushing highlights aggressively.
+    let lifted = pow(color.rgb, vec3<f32>(0.92));
     // The canvas prefers premultiplied alpha. Preserve translucent PNG colors
     // by premultiplying only when the configured surface expects it.
-    if (g.screen.w > 1.5) { return vec4<f32>(color.rgb * color.a, color.a); }
-    return color;
+    if (g.screen.w > 1.5) { return vec4<f32>(lifted * color.a, color.a); }
+    return vec4<f32>(lifted, color.a);
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
