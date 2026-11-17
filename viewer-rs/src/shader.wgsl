@@ -105,17 +105,12 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let crisp_sample = textureSampleGrad(tex, samp, in.uv, uv_dx, uv_dy);
   let aniso_sample = textureSampleGrad(tex, samp_aniso, in.uv, uv_dx, uv_dy);
   let t = mix(crisp_sample, aniso_sample, filter_weight);
-  // Preserve source texture brightness while retaining intentional MTL color
-  // tints. Minecraft grass-top textures are often grayscale masks whose green
-  // color is supplied by MTL Kd; ignoring Kd turns the top face gray. Normalize
-  // the tint by its brightest channel so neutral exporter defaults (e.g. 0.7)
-  // do not darken every textured material.
+  // Keep the MTL diffuse color multiplied into the texture. Some Minecraft
+  // block textures (notably grass tops) are grayscale masks and rely on the
+  // material diffuse color to supply their green tint. Using texture RGB alone
+  // strips that tint and renders the grass face gray.
   var kd = m.diffuse.rgb;
-  if (m.flags.x > 0.5) {
-    let tint_peak = max(m.diffuse.r, max(m.diffuse.g, m.diffuse.b));
-    let normalized_tint = m.diffuse.rgb / max(tint_peak, 0.001);
-    kd = t.rgb * normalized_tint;
-  }
+  if (m.flags.x > 0.5) { kd = t.rgb * m.diffuse.rgb; }
   let diff = max(dot(n, l), 0.0);
   let lp = g.light_vp * vec4<f32>(in.world, 1.0);
   let ndc = lp.xyz / lp.w;
