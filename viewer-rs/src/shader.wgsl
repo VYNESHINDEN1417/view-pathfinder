@@ -190,6 +190,8 @@ fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
+  // Mode 3 is a genuinely transparent canvas so CSS image backgrounds remain visible.
+  if (g.screen.z > 2.5 && g.screen.z < 3.5) { return vec4<f32>(0.0); }
   let t = clamp(1.0 - pos.y / max(g.screen.y, 1.0), 0.0, 1.0);
   let top = vec3<f32>(0.16, 0.16, 0.18);
   let bottom = vec3<f32>(0.0, 0.0, 0.0);
