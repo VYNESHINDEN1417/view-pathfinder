@@ -605,15 +605,10 @@ impl Viewer {
         // Match the portfolio viewer's original sRGB-correct, alpha-aware mip
         // filtering. Distant plank tonal softening is handled once in the shader,
         // avoiding stacked contrast corrections across mip levels and screen LOD.
-        let mut mip_images = vec![img];
-        while mip_images.last().is_some_and(|level| level.width() > 1 || level.height() > 1) {
-            let next = downsample_srgb(
-                mip_images.last().expect("base mip exists"),
-                None,
-            );
-            mip_images.push(next);
-        }
-        let mip_level_count = mip_images.len() as u32;
+        // Calculate the full mip count up front, then generate and upload one
+        // level at a time. Keeping every mip in a Vec nearly doubles temporary
+        // decoded-image memory for large ship textures.
+        let mip_level_count = u32::BITS - w.max(h).leading_zeros();
         let tex = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(name),
             size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
@@ -624,13 +619,14 @@ impl Viewer {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
-        for (level, mip) in mip_images.iter().enumerate() {
+        let mut mip = img;
+        for level in 0..mip_level_count {
             let mip_w = mip.width();
             let mip_h = mip.height();
             self.queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &tex,
-                    mip_level: level as u32,
+                    mip_level: level,
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
@@ -642,6 +638,9 @@ impl Viewer {
                 },
                 wgpu::Extent3d { width: mip_w, height: mip_h, depth_or_array_layers: 1 },
             );
+            if level + 1 < mip_level_count {
+                mip = downsample_srgb(&mip, None);
+            }
         }
         let view = tex.create_view(&Default::default());
         for m in &mut self.mats {
