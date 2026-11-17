@@ -34,16 +34,16 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   // Two screen-space scales share the existing depth prepass:
   // short-range contact occlusion catches joins and tight crevices;
   // broad-range occlusion adds soft shade beneath larger overhangs.
-  let contact_reach = reach * 0.45;
-  let broad_reach = reach * 1.8;
+  let contact_reach = reach * 0.50;
+  let broad_reach = reach * 2.0;
   let center = g.view_proj * vec4<f32>(world, 1.0);
   let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
   let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let contact_radius_px = clamp(abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5, 2.0, 16.0);
-  let broad_radius_px = clamp(abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5, 4.0, 36.0);
+  let contact_radius_px = clamp(abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5, 2.0, 18.0);
+  let broad_radius_px = clamp(abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5, 4.0, 40.0);
 
   var blocked = 0.0;
-  let count = 3u + u32(g.effects.y) * 4u;
+  let count = 4u + u32(g.effects.y) * 4u;
   let contact_samples = (count + 1u) / 2u;
   for (var i = 0u; i < 12u; i++) {
     if (i >= count) { break; }
@@ -60,18 +60,18 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      let max_distance = sample_reach * select(2.2, 1.8, is_contact);
+      let max_distance = sample_reach * select(2.4, 2.0, is_contact);
       let fade_start = sample_reach * select(0.35, 0.22, is_contact);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
-        let scale_weight = select(0.78, 1.18, is_contact);
+        let scale_weight = select(0.86, 1.30, is_contact);
         blocked += facing * fade * scale_weight;
       }
     }
   }
   // A lower floor permits stronger local shade without dimming exposed surfaces.
-  return clamp(1.0 - blocked * 2.0 / f32(count), 0.52, 1.0);
+  return clamp(1.0 - blocked * 4.0 / f32(count), 0.04, 1.0);
 }
 
 struct VsOut {
