@@ -45,6 +45,11 @@ async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").
   const image = BACKGROUND_IMAGES[mode];
   if (!image) { viewer.set_background(mode); return; }
 
+  // RUSTY is rendered as a native CSS background on the viewer container.
+  // Keep the WebGPU canvas transparent so the browser displays the PNG directly,
+  // without shader sampling, texture color-space conversion, or alpha processing.
+  if (mode === 5) { viewer.set_background(3); return; }
+
   // Keep the canvas transparent while the selected image loads, avoiding a flash
   // of the previously selected image when switching between image backgrounds.
   viewer.set_background(3);
