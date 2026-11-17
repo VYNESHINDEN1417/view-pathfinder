@@ -564,7 +564,7 @@ impl Viewer {
             radius,
             cam: home,
             home,
-            light_intensity: 1.5,
+            light_intensity: 1.0,
             orthographic: false,
             background: 0,
             dirty: true,
