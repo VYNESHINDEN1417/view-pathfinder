@@ -30,15 +30,29 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   if (g.effects.x < 0.5) { return 1.0; }
   let size = vec2<f32>(textureDimensions(scene_depth));
   let reach = g.effects.w;
-  let projected = g.view_proj * vec4<f32>(world + vec3<f32>(reach, 0.0, 0.0), 1.0);
+
+  // Two screen-space scales share the existing depth prepass:
+  // short-range contact occlusion catches joins and tight crevices;
+  // broad-range occlusion adds soft shade beneath larger overhangs.
+  let contact_reach = reach * 0.42;
+  let broad_reach = reach * 2.0;
   let center = g.view_proj * vec4<f32>(world, 1.0);
-  let radius_px = clamp(abs(projected.x / projected.w - center.x / center.w) * size.x * 0.5, 3.0, 28.0);
+  let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
+  let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
+  let contact_radius_px = clamp(abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5, 2.0, 15.0);
+  let broad_radius_px = clamp(abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5, 4.0, 40.0);
+
   var blocked = 0.0;
-  let count = 3u + u32(g.effects.y) * 4u;
+  let count = 4u + u32(g.effects.y) * 4u;
+  let contact_samples = (count + 1u) / 2u;
   for (var i = 0u; i < 12u; i++) {
     if (i >= count) { break; }
+    let is_contact = i < contact_samples;
+    let sample_reach = select(broad_reach, contact_reach, is_contact);
+    let sample_radius_px = select(broad_radius_px, contact_radius_px, is_contact);
     let angle = f32(i) * 2.399963;
-    let offset = vec2<f32>(cos(angle), sin(angle)) * radius_px * (0.35 + 0.65 * f32(i + 1u) / f32(count));
+    let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
+    let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
     let coord = vec2<i32>(clamp(pixel + offset, vec2<f32>(0.0), size - 1.0));
     let depth = textureLoad(scene_depth, coord, 0);
     if (depth < 0.99999) {
@@ -46,12 +60,18 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      if (distance > reach * 0.04 && distance < reach * 2.0) {
-        blocked += max(dot(normal, delta / distance) - 0.12, 0.0) * (1.0 - smoothstep(reach * 0.3, reach * 2.0, distance));
+      let max_distance = sample_reach * select(2.4, 1.7, is_contact);
+      let fade_start = sample_reach * select(0.35, 0.28, is_contact);
+      if (distance > sample_reach * 0.035 && distance < max_distance) {
+        let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
+        let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
+        let scale_weight = select(0.86, 0.70, is_contact);
+        blocked += facing * fade * scale_weight;
       }
     }
   }
-  return clamp(1.0 - blocked * 1.8 / f32(count), 0.65, 1.0);
+  // A lower floor permits stronger local shade without dimming exposed surfaces.
+  return clamp(1.0 - blocked * 4.0 / f32(count), 0.04, 1.0);
 }
 
 struct VsOut {
@@ -69,6 +89,23 @@ fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @locatio
   o.normal = normal;
   o.uv = uv;
   return o;
+}
+
+fn stone_segment_hash(p: vec3<f32>) -> f32 {
+  return fract(sin(dot(p, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453);
+}
+
+// Smooth, low-frequency 3D value noise creates broad color regions in model space.
+// Because it uses world coordinates, the pattern stays fixed while the camera moves.
+fn stone_segment_noise(p: vec3<f32>) -> f32 {
+  let cell = floor(p);
+  let f = fract(p);
+  let u = f * f * (vec3<f32>(3.0) - 2.0 * f);
+  let x00 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 0.0, 0.0)), stone_segment_hash(cell + vec3<f32>(1.0, 0.0, 0.0)), u.x);
+  let x10 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 1.0, 0.0)), stone_segment_hash(cell + vec3<f32>(1.0, 1.0, 0.0)), u.x);
+  let x01 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 0.0, 1.0)), stone_segment_hash(cell + vec3<f32>(1.0, 0.0, 1.0)), u.x);
+  let x11 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 1.0, 1.0)), stone_segment_hash(cell + vec3<f32>(1.0, 1.0, 1.0)), u.x);
+  return mix(mix(x00, x10, u.y), mix(x01, x11, u.y), u.z);
 }
 
 @fragment
@@ -113,6 +150,15 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
       // distance, including close-ups. Compress contrast uniformly around gray.
       let contrast = 0.82;
       texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
+    }
+    if (m.flags.z > 0.5) {
+      // Very restrained warm/cool shifts across broad, softly blended stone regions.
+      // This is a render-time tint only; source texture pixels remain untouched.
+      let segment_scale = max(g.effects.w * 5.0, 0.65);
+      // 15% stronger than the first pass, while keeping the same broad spatial scale.
+      let variation = (stone_segment_noise(in.world / segment_scale) - 0.5) * 0.06325;
+      let tint = vec3<f32>(1.0 + variation * 0.55, 1.0 + variation * 0.10, 1.0 - variation * 0.45);
+      texture_color = texture_color * tint;
     }
     kd = kd * texture_color;
   }
