@@ -183,10 +183,10 @@ fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   if (g.screen.z > 3.5) {
     let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
     let color = textureSample(bg_tex, bg_samp, uv);
-    // Treat selected background images as opaque. This preserves the uploaded
-    // RGB image exactly instead of letting PNG transparency premultiply and
-    // darken the picture against the viewer's canvas.
-    return vec4<f32>(color.rgb, 1.0);
+    // The canvas prefers premultiplied alpha. Preserve translucent PNG colors
+    // by premultiplying only when the configured surface expects it.
+    if (g.screen.w > 1.5) { return vec4<f32>(color.rgb * color.a, color.a); }
+    return color;
   }
   if (g.screen.z > 0.5 && g.screen.z < 1.5) { return vec4<f32>(1.0); }
   if (g.screen.z > 1.5 && g.screen.z < 2.5) { return vec4<f32>(0.0, 1.0, 0.0, 1.0); }
