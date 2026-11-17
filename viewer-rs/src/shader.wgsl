@@ -70,7 +70,10 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         // when the blocker sits between this surface and the current sun direction,
         // so overhang shading responds as the sun moves instead of staying fixed.
         let sun_alignment = max(dot(delta / distance, normalize(g.light.xyz)), 0.0);
-        let broad_sun_weight = 0.20 + 0.80 * sun_alignment;
+        // No fixed ambient floor: broad occlusion disappears when the blocker is
+        // outside the sun-facing direction. Squaring tightens the response and
+        // prevents a camera-space halo from lingering as a translucent box.
+        let broad_sun_weight = sun_alignment * sun_alignment;
         let directional_weight = select(broad_sun_weight, 1.0, is_contact);
         blocked += facing * fade * scale_weight * directional_weight;
       }
