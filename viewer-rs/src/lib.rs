@@ -1032,7 +1032,7 @@ impl Viewer {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
-            screen: [width as f32, height as f32, self.background as f32, if self.shadow_mode == 0 { 0.0 } else { 1.0 }],
+            screen: [width as f32, height as f32, self.background as f32, (if self.shadow_mode == 0 { 0.0 } else { 1.0 }) + (if self.config.alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied { 2.0 } else { 0.0 })],
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
@@ -1102,11 +1102,12 @@ impl Viewer {
                 occlusion_query_set: None,
             });
             pass.set_bind_group(0, &self.globals_bind, &[]);
-            if self.background != 3 {
-                pass.set_pipeline(&self.bg_pipeline);
-                pass.set_bind_group(1, &self.bg_image_bind, &[]);
-                pass.draw(0..3, 0..1);
-            }
+            // Always draw the background pass. In transparent mode fs_bg outputs
+            // alpha 0; skipping this pass leaves the opaque black render-pass clear
+            // color visible and hides the CSS background image.
+            pass.set_pipeline(&self.bg_pipeline);
+            pass.set_bind_group(1, &self.bg_image_bind, &[]);
+            pass.draw(0..3, 0..1);
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
             pass.set_bind_group(3, &ao_bind, &[]);
