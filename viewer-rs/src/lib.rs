@@ -1032,7 +1032,7 @@ impl Viewer {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
             light: [light.x, light.y, light.z, self.light_intensity],
-            screen: [width as f32, height as f32, self.background as f32, if self.shadow_mode == 0 { 0.0 } else { 1.0 }],
+            screen: [width as f32, height as f32, self.background as f32, (if self.shadow_mode == 0 { 0.0 } else { 1.0 }) + (if self.config.alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied { 2.0 } else { 0.0 })],
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
