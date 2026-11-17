@@ -35,13 +35,15 @@ const FALLBACK_TEXTURE = localTexture("stone");
 
 const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
   4: { url: "/backgrounds/3untitled.png", name: "Warm" },
-  5: { url: "/backgrounds/IMG_20261117_190830_478.png", name: "RUSTY" },
 };
 const backgroundImageCache = new Map<number, Promise<Uint8Array>>();
 let backgroundRequest = 0;
 
 async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").Viewer, mode: number) {
   const request = ++backgroundRequest;
+  // RUSTY is rendered as a native CSS background from the exact repository asset.
+  // This bypasses GPU alpha/color conversion so the uploaded image keeps its original appearance.
+  if (mode === 5) { viewer.set_background(3); return; }
   const image = BACKGROUND_IMAGES[mode];
   if (!image) { viewer.set_background(mode); return; }
 
