@@ -109,10 +109,10 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.flags.x > 0.5) {
     var texture_color = t.rgb;
     if (m.flags.y > 0.5) {
-      // Preserve consistent wooden-plank contrast at every viewing distance.
-      // Mipmapping and anisotropic filtering already handle minification and moire;
-      // do not add a second distance-based contrast fade on top of that filtering.
-      texture_color = t.rgb;
+      // Keep the portfolio-matched wooden-plank coloring at every camera
+      // distance, including close-ups. Compress contrast uniformly around gray.
+      let contrast = 0.82;
+      texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
     }
     kd = kd * texture_color;
   }
