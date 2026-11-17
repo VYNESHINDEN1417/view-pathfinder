@@ -33,16 +33,35 @@ export const BUILT_IN_MODELS = [
 type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
 const FALLBACK_TEXTURE = localTexture("stone");
 
-let warmBackgroundCache: Promise<Uint8Array> | null = null;
+const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
+  4: { url: "/backgrounds/3untitled.png", name: "Warm" },
+  5: { url: "/backgrounds/IMG_20261117_190830_478.png", name: "RUSTY" },
+};
+const backgroundImageCache = new Map<number, Promise<Uint8Array>>();
+let backgroundRequest = 0;
+
 async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").Viewer, mode: number) {
-  if (mode !== 4) { viewer.set_background(mode); return; }
-  warmBackgroundCache ??= (async () => {
-    const response = await fetch("/backgrounds/3untitled.png");
-    if (!response.ok) throw new Error("Warm background image could not be loaded.");
-    return new Uint8Array(await response.arrayBuffer());
-  })();
-  const bytes = await warmBackgroundCache;
-  if (!viewer.set_background_image(bytes)) throw new Error("Warm background image could not be decoded.");
+  const request = ++backgroundRequest;
+  const image = BACKGROUND_IMAGES[mode];
+  if (!image) { viewer.set_background(mode); return; }
+
+  // Keep the canvas transparent while the selected image loads, avoiding a flash
+  // of the previously selected image when switching between image backgrounds.
+  viewer.set_background(3);
+  let cached = backgroundImageCache.get(mode);
+  if (!cached) {
+    cached = (async () => {
+      const response = await fetch(image.url);
+      if (!response.ok) throw new Error(`${image.name} background image could not be loaded.`);
+      return new Uint8Array(await response.arrayBuffer());
+    })();
+    backgroundImageCache.set(mode, cached);
+  }
+
+  const bytes = await cached;
+  if (request !== backgroundRequest) return;
+  if (!viewer.set_background_image(bytes)) throw new Error(`${image.name} background image could not be decoded.`);
+  viewer.set_background(4);
 }
 
 function Index() {
@@ -72,17 +91,13 @@ function Index() {
     settingsRef.current = { background, brightness, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
-    if (background === 4) {
-      const target = viewer;
-      void applyViewerBackground(target, background).then(() => {
-        if (viewerRef.current === target) scheduleRef.current();
-      }).catch((error) => {
-        console.warn("Warm background failed:", error);
-        if (viewerRef.current === target) { target.set_background(0); scheduleRef.current(); }
-      });
-    } else {
-      viewer.set_background(background);
-    }
+    const target = viewer;
+    void applyViewerBackground(target, background).then(() => {
+      if (viewerRef.current === target) scheduleRef.current();
+    }).catch((error) => {
+      console.warn("Background image failed:", error);
+      if (viewerRef.current === target) { target.set_background(0); scheduleRef.current(); }
+    });
     viewer.set_light(brightness);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
