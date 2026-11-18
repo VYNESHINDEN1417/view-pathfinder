@@ -381,45 +381,81 @@ body {
 .shadow-settings-trigger:disabled { cursor: not-allowed; opacity: .5; }
 .shadow-settings-backdrop {
   position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
-  padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
-  background: rgb(0 0 0 / 68%); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: rgb(0 0 0 / 34%); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .shadow-settings-panel {
-  width: min(560px, 100%); max-height: min(84dvh, 760px); display: flex; flex-direction: column;
-  overflow: hidden; border: 1px solid rgb(148 177 204 / 32%); border-radius: 16px;
-  background: linear-gradient(155deg, rgb(23 31 41 / 98%), rgb(10 14 20 / 99%) 72%);
-  color: #edf4fb; box-shadow: 0 24px 80px rgb(0 0 0 / 58%), inset 0 1px 0 rgb(255 255 255 / 7%);
+  position: relative; width: min(560px, 100%); max-height: min(78dvh, 680px); display: flex; flex-direction: column;
+  overflow: hidden; border: 0; border-radius: 0; background: transparent; color: #f5f9ff; box-shadow: none;
 }
-.shadow-settings-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 12px; }
-.shadow-settings-eyebrow { color: #9ab8d6; font-size: 9px; font-weight: 750; letter-spacing: .2em; }
-.shadow-settings-header h2 { margin: 5px 0 0; color: #fff; font-size: 18px; line-height: 1.2; letter-spacing: .08em; font-weight: 750; }
+.shadow-settings-header { position: absolute; top: 0; right: 0; z-index: 2; display: flex; justify-content: flex-end; padding: 0; }
 .shadow-settings-close {
-  display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 9px; background: rgb(255 255 255 / 6%); color: #dce8f4; cursor: pointer;
+  display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%; background: rgb(5 10 16 / 38%); color: #fff; cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 95%));
 }
-.shadow-settings-close:hover { background: rgb(255 255 255 / 13%); color: #fff; }
-.shadow-settings-intro { margin: 0; padding: 0 20px 16px; color: #9eacbb; font-size: 12px; line-height: 1.5; }
-.shadow-settings-list { overflow-y: auto; overscroll-behavior: contain; padding: 0 20px; }
-.shadow-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 42%); align-items: center; gap: 18px; padding: 15px 0; border-top: 1px solid rgb(255 255 255 / 9%); }
-.shadow-setting-copy { display: grid; gap: 5px; min-width: 0; }
-.shadow-setting-copy strong { color: #eaf2fa; font-size: 13px; font-weight: 650; }
-.shadow-setting-copy span { color: #91a0b0; font-size: 11px; line-height: 1.45; }
-.shadow-setting-control { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding-top: 16px; }
-.shadow-setting-control .viewer-value-readout { position: static; transform: none; flex: 0 0 48px; min-width: 48px; border: 1px solid rgb(156 190 222 / 24%); background: rgb(120 160 198 / 12%); color: #dceeff; }
-.shadow-setting-control .viewer-value-input { position: static; transform: none; flex: 0 0 58px; width: 58px; }
-.shadow-setting-control [data-orientation="horizontal"] { flex: 1; min-width: 0; height: 30px; touch-action: pan-y; }
-.shadow-setting-control [data-orientation="horizontal"] > span:first-child { height: 5px; background: rgb(145 177 207 / 24%); }
-.shadow-setting-control [data-orientation="horizontal"] > span:first-child > span { background: linear-gradient(90deg, #6e9bc5, #c4e0f8); }
-.shadow-setting-control [role="slider"] { width: 17px; height: 17px; border: 1px solid #91b9dc; background: #e5f3ff; box-shadow: 0 1px 6px rgb(0 0 0 / 35%); }
-.shadow-settings-disabled-note { margin: 8px 20px 0; padding: 10px 12px; border-radius: 8px; background: rgb(255 255 255 / 5%); color: #b3c0cd; font-size: 11px; }
-.shadow-settings-footer { display: flex; justify-content: space-between; gap: 8px; padding: 13px 20px max(15px, env(safe-area-inset-bottom)); border-top: 1px solid rgb(255 255 255 / 9%); color: #75889b; font-size: 9px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.shadow-settings-close:hover { background: rgb(5 10 16 / 65%); color: #fff; }
+.shadow-settings-list {
+  overflow-y: auto; overscroll-behavior: contain; padding: 0 40px 0 4px;
+  scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 25%) transparent;
+}
+.shadow-setting-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 42%); align-items: center; gap: 16px;
+  padding: 10px 0; border-top: 1px solid rgb(255 255 255 / 15%);
+}
+.shadow-setting-row:first-child { border-top: 0; }
+.shadow-setting-copy { display: grid; gap: 3px; min-width: 0; }
+.shadow-setting-copy strong {
+  color: #fff; font-size: 13px; font-weight: 700;
+  text-shadow: 0 2px 4px #000, 0 3px 12px rgb(0 0 0 / 95%);
+}
+.shadow-setting-copy span {
+  color: #f0f5fb; font-size: 10px; line-height: 1.35;
+  text-shadow: 0 1px 3px #000, 0 2px 9px rgb(0 0 0 / 100%);
+}
+.shadow-setting-control {
+  position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding-top: 11px;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 95%));
+}
+.shadow-setting-control .viewer-value-readout {
+  position: static; transform: none; flex: 0 0 44px; min-width: 44px; border: 1px solid rgb(230 241 255 / 45%);
+  background: rgb(5 10 16 / 38%); color: #fff; text-shadow: 0 1px 3px #000;
+}
+.shadow-setting-control .viewer-value-input { position: static; transform: none; flex: 0 0 54px; width: 54px; }
+.shadow-setting-control [data-orientation="horizontal"] { flex: 1; min-width: 0; height: 26px; touch-action: pan-y; }
+.shadow-setting-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 255 255 / 40%); box-shadow: 0 1px 4px #000; }
+.shadow-setting-control [data-orientation="horizontal"] > span:first-child > span { background: #e6f2ff; }
+.shadow-setting-control [role="slider"] {
+  width: 15px; height: 15px; border: 1px solid #fff; background: #fff;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 90%);
+}
+.shadow-settings-disabled-note {
+  margin: 5px 4px 0; padding: 7px 9px; background: rgb(0 0 0 / 35%); color: #fff;
+  font-size: 10px; text-shadow: 0 1px 3px #000;
+}
+.shadow-settings-footer {
+  display: flex; justify-content: space-between; gap: 8px; padding: 8px 4px 0;
+  color: #fff; font-size: 8px; font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  text-shadow: 0 1px 4px #000, 0 2px 8px #000;
+}
 @media (max-width: 520px) {
-  .shadow-settings-backdrop { align-items: flex-end; padding: 10px 10px max(10px, env(safe-area-inset-bottom)); }
-  .shadow-settings-panel { width: 100%; max-height: 88dvh; border-radius: 16px 16px 12px 12px; }
-  .shadow-settings-header { padding: 17px 16px 10px; }
-  .shadow-settings-intro { padding: 0 16px 12px; font-size: 11px; }
-  .shadow-settings-list { padding: 0 16px; }
-  .shadow-setting-row { grid-template-columns: 1fr; gap: 8px; padding: 13px 0 15px; }
-  .shadow-setting-control { padding-top: 13px; }
-  .shadow-settings-footer { padding-inline: 16px; font-size: 8px; }
+  .shadow-settings-backdrop {
+    align-items: center; padding: 12px 10px max(12px, env(safe-area-inset-bottom));
+    background: rgb(0 0 0 / 28%);
+  }
+  .shadow-settings-panel { width: 100%; max-height: 76dvh; }
+  .shadow-settings-list { padding: 0 38px 0 2px; }
+  .shadow-setting-row {
+    grid-template-columns: minmax(0, 1fr) minmax(116px, 40%);
+    gap: 9px; padding: 8px 0;
+  }
+  .shadow-setting-copy { gap: 2px; }
+  .shadow-setting-copy strong { font-size: 11px; }
+  .shadow-setting-copy span { font-size: 9px; line-height: 1.25; }
+  .shadow-setting-control { gap: 5px; padding-top: 9px; }
+  .shadow-setting-control .viewer-value-readout { flex-basis: 40px; min-width: 40px; font-size: 10px; }
+  .shadow-setting-control .viewer-value-input { flex-basis: 48px; width: 48px; }
+  .shadow-setting-control [data-orientation="horizontal"] { height: 22px; }
+  .shadow-setting-control [role="slider"] { width: 14px; height: 14px; }
+  .shadow-settings-footer { padding-top: 6px; font-size: 7px; }
 }
