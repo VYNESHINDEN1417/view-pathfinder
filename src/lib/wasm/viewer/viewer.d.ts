@@ -64,6 +64,8 @@ export class Viewer {
      */
     set_light(intensity: number): void;
     set_orthographic(enabled: boolean): void;
+    /** Configure the localized point light: azimuth degrees, brightness, intensity, RGB channels, and range multiplier. */
+    set_point_light(azimuth: number, brightness: number, intensity: number, red: number, green: number, blue: number, range: number): void;
     /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
      */
