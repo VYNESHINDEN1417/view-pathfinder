@@ -59,7 +59,7 @@ function hueToRgb(hue: number): [number, number, number] {
   const h = ((hue % 360) + 360) % 360 / 60;
   const x = 1 - Math.abs((h % 2) - 1);
   const rgb: [number, number, number] = h < 1 ? [1, x, 0] : h < 2 ? [x, 1, 0] : h < 3 ? [0, 1, x] : h < 4 ? [0, x, 1] : h < 5 ? [x, 0, 1] : [1, 0, x];
-  return rgb.map((value) => value * 0.5) as [number, number, number];
+  return rgb;
 }
 
 function isIronTrapdoorTexture(name: string) {
