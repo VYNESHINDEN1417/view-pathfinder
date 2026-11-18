@@ -83,7 +83,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let max_distance = sample_reach * select(2.4, select(edge_max_distance, 1.7, is_contact), is_edge || is_contact);
       let fade_start = sample_reach * select(0.35, select(0.20, 0.28, is_contact), is_edge || is_contact);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing_bias = select(0.06, 0.12, is_edge);
+        let facing_bias = select(0.06, 0.08, is_edge);
         let facing = max(dot(normal, delta / distance) - facing_bias, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
