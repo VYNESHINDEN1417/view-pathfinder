@@ -698,7 +698,7 @@ impl Viewer {
         self.fancy = enabled; self.fancy_quality = quality.min(2); self.dirty = true;
     }
 
-    /// Set the shared strength of directional and ambient-occlusion shadows.
+    /// Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
     pub fn set_shadow_strength(&mut self, strength: f32) {
         self.shadow_strength = strength.clamp(0.0, 2.0);
         self.dirty = true;
