@@ -30,7 +30,8 @@ struct Globals {
     light_vp: [[f32; 4]; 4],
     inverse_vp: [[f32; 4]; 4],
     effects: [f32; 4], // enabled, quality, sun strength, AO world radius
-    shadow: [f32; 4], // global shadow strength, applied to directional and ambient occlusion shadows
+    shadow: [f32; 4], // master, directional, contact, overhang strengths
+    shadow_detail: [f32; 4], // block-edge, ambient-occlusion, reserved, reserved
 }
 
 #[repr(C)]
@@ -98,6 +99,7 @@ pub struct Viewer {
     fancy: bool,
     fancy_quality: u32,
     shadow_strength: f32,
+    shadow_components: [f32; 5], // directional, contact, overhang, block edge, ambient occlusion
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -578,6 +580,7 @@ impl Viewer {
             home,
             light_intensity: 1.5,
             shadow_strength: 1.0,
+            shadow_components: [1.0; 5],
             orthographic: false,
             background: 0,
             dirty: true,
@@ -701,6 +704,12 @@ impl Viewer {
     /// Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
     pub fn set_shadow_strength(&mut self, strength: f32) {
         self.shadow_strength = strength.clamp(0.0, 2.0);
+        self.dirty = true;
+    }
+
+    /// Set independent shadow-family strengths. Values are clamped to 0.0..2.0.
+    pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32) {
+        self.shadow_components = [directional, contact, overhang, edge, ambient].map(|value| value.clamp(0.0, 2.0));
         self.dirty = true;
     }
 
@@ -1049,7 +1058,8 @@ impl Viewer {
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
-            shadow: [self.shadow_strength, 0.0, 0.0, 0.0],
+            shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
+            shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
