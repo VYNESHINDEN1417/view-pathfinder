@@ -73,6 +73,10 @@ export class Viewer {
      */
     set_shadow_quality(size: number): void;
     /**
+     * Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
+     */
+    set_shadow_strength(strength: number): void;
+    /**
      * Sun direction in world coordinates; independent of the camera.
      */
     set_sun(azimuth: number, elevation: number, intensity: number): void;
@@ -118,6 +122,7 @@ export interface InitOutput {
     readonly viewer_set_orthographic: (a: number, b: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
+    readonly viewer_set_shadow_strength: (a: number, b: number) => void;
     readonly viewer_set_sun: (a: number, b: number, c: number, d: number) => void;
     readonly viewer_set_texture: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;

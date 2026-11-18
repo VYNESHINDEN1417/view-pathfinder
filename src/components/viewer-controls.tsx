@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Camera, Menu, Box, Sun, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -13,9 +13,33 @@ export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
 };
 
-export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
-  options: ViewerOptions; brightness: number; orthographic: boolean; saving: boolean; error: string;
-  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void;
+function SliderValueReadout({ value, min, max, step, label, disabled, onApply }: {
+  value: number; min: number; max: number; step: number; label: string; disabled?: boolean; onApply: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value.toFixed(2));
+  useEffect(() => { if (!editing) setDraft(value.toFixed(2)); }, [value, editing]);
+  const commit = () => {
+    const parsed = Number(draft);
+    if (Number.isFinite(parsed) && draft.trim() !== "") {
+      const clamped = Math.min(max, Math.max(min, parsed));
+      const snapped = Math.min(max, Math.max(min, min + Math.round((clamped - min) / step) * step));
+      onApply(Number(snapped.toFixed(4)));
+    }
+    setEditing(false);
+  };
+  if (editing) return <input className="viewer-value-input" type="number" inputMode="decimal" min={min} max={max} step={step}
+    aria-label={`Set ${label}`} value={draft} autoFocus
+    onChange={(event) => setDraft(event.target.value)} onBlur={commit}
+    onKeyDown={(event) => { event.stopPropagation(); if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditing(false); }} />;
+  return <button type="button" className="viewer-value-readout" aria-label={`Edit ${label}, current value ${value.toFixed(2)}`}
+    title={`Tap to enter ${label}`} disabled={disabled}
+    onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}>{value.toFixed(2)}×</button>;
+}
+
+export function ViewerControls({ options, brightness, shadowStrength, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
+  options: ViewerOptions; brightness: number; shadowStrength: number; orthographic: boolean; saving: boolean; error: string;
+  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
@@ -104,10 +128,19 @@ export function ViewerControls({ options, brightness, orthographic, saving, erro
       aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
+      <SliderValueReadout value={brightness} min={0.25} max={3} step={0.05} label="brightness" onApply={onBrightness} />
       <Sun size={17} aria-hidden="true" />
       <Slider orientation="vertical" className="brightness-slider" min={0.25} max={3} step={0.05}
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
+    </div>
+    <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
+      <Moon size={17} aria-hidden="true" />
+      <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
+        value={[shadowStrength]} disabled={!options.fancy}
+        onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
+        aria-label="Shadow strength" />
     </div>
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>

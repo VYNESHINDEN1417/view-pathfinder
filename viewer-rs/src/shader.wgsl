@@ -6,6 +6,7 @@ struct Globals {
   light_vp: mat4x4<f32>,
   inverse_vp: mat4x4<f32>,
   effects: vec4<f32>,
+  shadow: vec4<f32>,
 };
 
 struct Material {
@@ -71,7 +72,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     }
   }
   // A lower floor permits stronger local shade without dimming exposed surfaces.
-  return clamp(1.0 - blocked * 4.0 / f32(count), 0.04, 1.0);
+  let ao = clamp(1.0 - blocked * 4.0 / f32(count), 0.04, 1.0);
+  let strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  return clamp(1.0 - (1.0 - ao) * strength, 0.0, 1.0);
 }
 
 struct VsOut {
@@ -179,7 +182,8 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
-  var visibility = shadow;
+  let shadow_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  var visibility = clamp(1.0 - (1.0 - shadow) * shadow_strength, 0.0, 1.0);
   let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
