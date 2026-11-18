@@ -492,6 +492,10 @@ body {
 .blue-light-panel button, .blue-light-panel [role="slider"], .blue-light-panel input {
   pointer-events: auto;
 }
+.blue-light-panel .blue-light-compass,
+.blue-light-panel [data-orientation="horizontal"] {
+  pointer-events: auto;
+}
 .blue-light-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-right: 2px; }
 .blue-light-header > div { display: grid; gap: 3px; }
 .blue-light-header strong { color: #c7e1ff; font-size: 13px; letter-spacing: .14em; }
