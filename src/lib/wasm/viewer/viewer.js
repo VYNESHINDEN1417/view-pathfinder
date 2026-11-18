@@ -207,6 +207,17 @@ export class Viewer {
         wasm.viewer_set_orthographic(this.__wbg_ptr, enabled);
     }
     /**
+     * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
+     * @param {number} directional
+     * @param {number} contact
+     * @param {number} overhang
+     * @param {number} edge
+     * @param {number} ambient
+     */
+    set_shadow_components(directional, contact, overhang, edge, ambient) {
+        wasm.viewer_set_shadow_components(this.__wbg_ptr, directional, contact, overhang, edge, ambient);
+    }
+    /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
      * @param {number} mode
      */
