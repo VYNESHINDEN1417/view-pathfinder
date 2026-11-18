@@ -40,8 +40,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let center = g.view_proj * vec4<f32>(world, 1.0);
   let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
   let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let contact_radius_px = clamp(abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5, 2.0, 15.0);
-  let broad_radius_px = clamp(abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5, 4.0, 40.0);
+  // Keep AO sampling tied to its world-space reach. Pixel-radius floors make
+  // block-edge lines grow relative to the model as the camera moves away;
+  // hard ceilings distort the same relationship during close-ups.
+  let contact_radius_px = abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5;
+  let broad_radius_px = abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5;
 
   var blocked = 0.0;
   let count = 4u + u32(g.effects.y) * 4u;
