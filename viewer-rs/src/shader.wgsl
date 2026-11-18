@@ -98,7 +98,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
   let local_occlusion = (
-    (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
+    0.0 // DIAGNOSTIC: disable edge AO only; preserve contact and overhang AO
     + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
     + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
   ) / f32(count);
