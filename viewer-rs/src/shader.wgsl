@@ -216,7 +216,9 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let point_facing = max(dot(n, point_direction), 0.0);
   let point_falloff = 1.0 - smoothstep(g.point_light.w * 0.10, g.point_light.w, point_distance);
   let point_attenuation = point_falloff * point_falloff;
-  let blue_contribution = point_facing * point_attenuation * g.point_color.w;
+  // Keep the source bright enough to register on nearby hull surfaces while
+  // retaining a directional component so the whole ship is not blue-washed.
+  let blue_contribution = (0.28 + 0.72 * point_facing) * point_attenuation * g.point_color.w;
   color += kd * g.point_color.rgb * blue_contribution;
   if (g.effects.x > 0.5) {
     let half_vector = normalize(l + v);
