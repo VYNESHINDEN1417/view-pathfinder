@@ -221,6 +221,13 @@ export class Viewer {
         wasm.viewer_set_shadow_quality(this.__wbg_ptr, size);
     }
     /**
+     * Set the shared strength of directional and ambient-occlusion shadows.
+     * @param {number} strength
+     */
+    set_shadow_strength(strength) {
+        wasm.viewer_set_shadow_strength(this.__wbg_ptr, strength);
+    }
+    /**
      * Sun direction in world coordinates; independent of the camera.
      * @param {number} azimuth
      * @param {number} elevation
