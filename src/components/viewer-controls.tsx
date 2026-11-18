@@ -73,7 +73,18 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
     <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next } as Partial<BlueLightSettings>); }} aria-label={title} />
   </div>;
   return <div className="blue-light-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="blue-light-panel" role="group" aria-label="Blue light settings">
+    <section className="blue-light-panel" role="group" aria-label="Blue light settings"
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
+      onPointerCancel={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+      onTouchMove={(event) => event.stopPropagation()}
+      onTouchEnd={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseMove={(event) => event.stopPropagation()}
+      onMouseUp={(event) => event.stopPropagation()}
+      onWheel={(event) => event.stopPropagation()}>
       <header className="blue-light-header"><div><strong>BLUE LIGHT</strong><span>Localized point source</span></div>
         <button type="button" className="shadow-settings-close" aria-label="Close blue light settings" onClick={onClose}><X size={19} /></button>
       </header>
