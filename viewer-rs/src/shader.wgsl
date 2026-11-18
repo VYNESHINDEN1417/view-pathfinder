@@ -29,6 +29,8 @@ struct Material {
 @group(3) @binding(0) var scene_depth: texture_depth_2d;
 
 fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f32 {
+  // DIAGNOSTIC ONLY: bypass all screen-space AO to determine whether it causes the deck artifact.
+  return 1.0;
   if (g.effects.x < 0.5) { return 1.0; }
   let size = vec2<f32>(textureDimensions(scene_depth));
   let reach = g.effects.w;
