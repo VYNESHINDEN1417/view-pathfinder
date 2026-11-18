@@ -95,7 +95,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         // Without this directional gate, screen-space depth samples can create
         // a camera-dependent translucent-box halo beneath unrelated geometry.
         let sun_alignment = max(dot(-delta / distance, normalize(g.light.xyz)), 0.0);
-        let directional_weight = sun_alignment * sun_alignment;
+        // Block-edge AO is ambient geometry shading, not a cast sun shadow.
+        // Requiring an edge blocker to face the sun suppresses the very recess
+        // and corner occlusion this channel is meant to recover. Keep the
+        // directional rejection for contact/overhang samples only.
+        let directional_weight = select(sun_alignment * sun_alignment, 1.0, is_edge);
         let contribution = facing * fade * scale_weight * directional_weight;
         if (is_edge) { blocked_edge += contribution; }
         else if (is_contact) { blocked_contact += contribution; }
