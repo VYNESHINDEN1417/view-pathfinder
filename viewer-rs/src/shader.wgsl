@@ -85,7 +85,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         // AO must only darken when the sampled blocker lies toward the light.
         // Without this directional gate, screen-space depth samples can create
         // a camera-dependent translucent-box halo beneath unrelated geometry.
-        let sun_alignment = max(dot(-delta / distance, normalize(g.light.xyz)), 0.0);
+        let sun_alignment = max(dot(delta / distance, normalize(g.light.xyz)), 0.0);
         let directional_weight = sun_alignment * sun_alignment;
         let contribution = facing * fade * scale_weight * directional_weight;
         if (is_edge) { blocked_edge += contribution; }
