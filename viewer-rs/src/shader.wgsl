@@ -57,17 +57,26 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   var blocked_contact = 0.0;
   var blocked_overhang = 0.0;
   let count = 4u + u32(g.effects.y) * 4u;
-  let edge_samples = max(count / 4u, 1u);
+  // Give edge AO enough angular coverage to find real recess blockers.
+  // The previous first-quarter allocation gave edge AO only one sample at
+  // low quality, always at angle zero, so corners could disappear depending
+  // on camera orientation. Rebalance the same total sample budget toward edges.
+  let edge_samples = max(count / 2u, 2u);
   let contact_samples = max(count / 4u, 1u);
   let overhang_samples = count - edge_samples - contact_samples;
   for (var i = 0u; i < 12u; i++) {
     if (i >= count) { break; }
     let is_edge = i < edge_samples;
     let is_contact = i >= edge_samples && i < edge_samples + contact_samples;
+    let local_index = select(i - edge_samples - contact_samples, select(i - edge_samples, i, is_edge), is_contact);
+    let local_count = select(overhang_samples, select(contact_samples, edge_samples, is_edge), is_contact);
     let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact);
     let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact);
-    let angle = f32(i) * 2.399963;
-    let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
+    // Each AO class gets its own evenly spread angular sequence instead of
+    // inheriting the first few directions of one shared spiral.
+    let class_rotation = select(2.094395, select(0.0, 1.047198, is_contact), is_edge);
+    let angle = f32(local_index) * 2.399963 + class_rotation;
+    let radial = 0.35 + 0.65 * f32(local_index + 1u) / f32(max(local_count, 1u));
     let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
     let coord = vec2<i32>(clamp(pixel + offset, vec2<f32>(0.0), size - 1.0));
     let depth = textureLoad(scene_depth, coord, 0);
