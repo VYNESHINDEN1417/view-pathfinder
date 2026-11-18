@@ -82,7 +82,12 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
-        let contribution = facing * fade * scale_weight;
+        // AO must only darken when the sampled blocker lies toward the light.
+        // Without this directional gate, screen-space depth samples can create
+        // a camera-dependent translucent-box halo beneath unrelated geometry.
+        let sun_alignment = max(dot(-delta / distance, normalize(g.light.xyz)), 0.0);
+        let directional_weight = sun_alignment * sun_alignment;
+        let contribution = facing * fade * scale_weight * directional_weight;
         if (is_edge) { blocked_edge += contribution; }
         else if (is_contact) { blocked_contact += contribution; }
         else { blocked_overhang += contribution; }
