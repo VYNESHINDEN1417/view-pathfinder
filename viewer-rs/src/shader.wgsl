@@ -57,11 +57,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   var blocked_contact = 0.0;
   var blocked_overhang = 0.0;
   let count = 4u + u32(g.effects.y) * 4u;
-  // Give edge AO enough angular coverage to find real recess blockers.
-  // The previous first-quarter allocation gave edge AO only one sample at
-  // low quality, always at angle zero, so corners could disappear depending
-  // on camera orientation. Rebalance the same total sample budget toward edges.
-  let edge_samples = max(count / 2u, 2u);
+  // Keep edge AO as a narrow detail channel. Broad contact and overhang
+  // channels retain most of the sample budget so edge AO cannot wash the model.
+  let edge_samples = max(count / 4u, 1u);
   let contact_samples = max(count / 4u, 1u);
   let overhang_samples = count - edge_samples - contact_samples;
   for (var i = 0u; i < 12u; i++) {
@@ -85,8 +83,8 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      let max_distance = sample_reach * select(2.4, 1.7, is_contact || is_edge);
-      let fade_start = sample_reach * select(0.35, 0.28, is_contact || is_edge);
+      let max_distance = sample_reach * select(2.4, select(1.35, 1.20, is_edge), is_contact || is_edge);
+      let fade_start = sample_reach * select(0.35, 0.24, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let normal_alignment = dot(normal, delta / distance);
         // Edge blockers are lateral walls/recess boundaries, not surfaces directly in front of the receiver normal.
@@ -98,11 +96,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         // Without this directional gate, screen-space depth samples can create
         // a camera-dependent translucent-box halo beneath unrelated geometry.
         let sun_alignment = max(dot(-delta / distance, normalize(g.light.xyz)), 0.0);
-        // Block-edge AO is ambient geometry shading, not a cast sun shadow.
-        // Requiring an edge blocker to face the sun suppresses the very recess
-        // and corner occlusion this channel is meant to recover. Keep the
-        // directional rejection for contact/overhang samples only.
-        let directional_weight = select(sun_alignment * sun_alignment, 1.0, is_edge);
+        // Keep edge occlusion local to geometry that is plausibly between
+        // this surface and the light. A soft directional gate rejects unrelated
+        // lateral depth samples that otherwise darken the entire model.
+        let edge_light_gate = smoothstep(0.18, 0.62, sun_alignment);
+        let directional_weight = select(sun_alignment * sun_alignment, edge_light_gate, is_edge);
         let contribution = facing * fade * scale_weight * directional_weight;
         if (is_edge) { blocked_edge += contribution; }
         else if (is_contact) { blocked_contact += contribution; }
