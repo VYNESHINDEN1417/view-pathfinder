@@ -30,6 +30,7 @@ struct Globals {
     light_vp: [[f32; 4]; 4],
     inverse_vp: [[f32; 4]; 4],
     effects: [f32; 4], // enabled, quality, sun strength, AO world radius
+    shadow: [f32; 4], // global shadow strength, applied to directional and ambient occlusion shadows
 }
 
 #[repr(C)]
@@ -96,6 +97,7 @@ pub struct Viewer {
     sun_strength: f32,
     fancy: bool,
     fancy_quality: u32,
+    shadow_strength: f32,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -575,6 +577,7 @@ impl Viewer {
             cam: home,
             home,
             light_intensity: 1.5,
+            shadow_strength: 1.0,
             orthographic: false,
             background: 0,
             dirty: true,
@@ -693,6 +696,12 @@ impl Viewer {
 
     pub fn set_fancy(&mut self, enabled: bool, quality: u32) {
         self.fancy = enabled; self.fancy_quality = quality.min(2); self.dirty = true;
+    }
+
+    /// Set the shared strength of directional and ambient-occlusion shadows.
+    pub fn set_shadow_strength(&mut self, strength: f32) {
+        self.shadow_strength = strength.clamp(0.0, 2.0);
+        self.dirty = true;
     }
 
     /// Adjust model exposure only; backgrounds are invariant.
@@ -1040,6 +1049,7 @@ impl Viewer {
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
+            shadow: [self.shadow_strength, 0.0, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
