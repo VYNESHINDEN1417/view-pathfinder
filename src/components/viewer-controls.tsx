@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -12,6 +12,30 @@ import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, pars
 export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
 };
+
+function SliderValueReadout({ value, min, max, step, label, disabled, onApply }: {
+  value: number; min: number; max: number; step: number; label: string; disabled?: boolean; onApply: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value.toFixed(2));
+  useEffect(() => { if (!editing) setDraft(value.toFixed(2)); }, [value, editing]);
+  const commit = () => {
+    const parsed = Number(draft);
+    if (Number.isFinite(parsed) && draft.trim() !== "") {
+      const clamped = Math.min(max, Math.max(min, parsed));
+      const snapped = Math.min(max, Math.max(min, min + Math.round((clamped - min) / step) * step));
+      onApply(Number(snapped.toFixed(4)));
+    }
+    setEditing(false);
+  };
+  if (editing) return <input className="viewer-value-input" type="number" inputMode="decimal" min={min} max={max} step={step}
+    aria-label={`Set ${label}`} value={draft} autoFocus
+    onChange={(event) => setDraft(event.target.value)} onBlur={commit}
+    onKeyDown={(event) => { event.stopPropagation(); if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditing(false); }} />;
+  return <button type="button" className="viewer-value-readout" aria-label={`Edit ${label}, current value ${value.toFixed(2)}`}
+    title={`Tap to enter ${label}`} disabled={disabled}
+    onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}>{value.toFixed(2)}×</button>;
+}
 
 export function ViewerControls({ options, brightness, shadowStrength, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; orthographic: boolean; saving: boolean; error: string;
