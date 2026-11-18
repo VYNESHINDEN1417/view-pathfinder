@@ -76,10 +76,15 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      let max_distance = sample_reach * select(2.4, 1.7, is_contact || is_edge);
-      let fade_start = sample_reach * select(0.35, 0.28, is_contact || is_edge);
+      // Edge AO is deliberately more local and requires a stronger
+      // receiver-facing blocker test. This rejects broad depth silhouettes
+      // that can otherwise read as translucent rectangular volumes.
+      let edge_max_distance = 1.15;
+      let max_distance = sample_reach * select(2.4, select(edge_max_distance, 1.7, is_contact), is_edge || is_contact);
+      let fade_start = sample_reach * select(0.35, select(0.20, 0.28, is_contact), is_edge || is_contact);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
+        let facing_bias = select(0.06, 0.22, is_edge);
+        let facing = max(dot(normal, delta / distance) - facing_bias, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         // AO must only darken when the sampled blocker lies toward the light.
