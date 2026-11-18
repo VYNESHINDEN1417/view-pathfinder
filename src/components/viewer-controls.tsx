@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -8,6 +8,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
+
+export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number };
 
 export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
@@ -37,14 +39,32 @@ function SliderValueReadout({ value, min, max, step, label, disabled, onApply }:
     onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}>{value.toFixed(2)}×</button>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
-  options: ViewerOptions; brightness: number; shadowStrength: number; orthographic: boolean; saving: boolean; error: string;
-  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void;
+function ShadowSettingRow({ title, description, value, onChange, disabled }: {
+  title: string; description: string; value: number; onChange: (value: number) => void; disabled: boolean;
+}) {
+  return <div className="shadow-setting-row">
+    <div className="shadow-setting-copy">
+      <strong>{title}</strong>
+      <span>{description}</span>
+    </div>
+    <div className="shadow-setting-control">
+      <SliderValueReadout value={value} min={0} max={2} step={0.05} label={title.toLowerCase()} disabled={disabled} onApply={onChange} />
+      <Slider min={0} max={2} step={0.05} value={[value]} disabled={disabled}
+        onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange(next); }}
+        aria-label={title} />
+    </div>
+  </div>;
+}
+
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
+  options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; saving: boolean; error: string;
+  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
+  const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -136,12 +156,30 @@ export function ViewerControls({ options, brightness, shadowStrength, orthograph
     </div>
     <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
       <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
-      <Moon size={17} aria-hidden="true" />
+      <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
         value={[shadowStrength]} disabled={!options.fancy}
         onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
         aria-label="Shadow strength" />
     </div>
+    {shadowPanelOpen && <div className="shadow-settings-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShadowPanelOpen(false); }}>
+      <section className="shadow-settings-panel" role="dialog" aria-modal="true" aria-labelledby="shadow-settings-title">
+        <header className="shadow-settings-header">
+          <div><span className="shadow-settings-eyebrow">PATHFINDER / LIGHTING</span><h2 id="shadow-settings-title">SHADOW SETTINGS</h2></div>
+          <button type="button" className="shadow-settings-close" aria-label="Close shadow settings" onClick={() => setShadowPanelOpen(false)}><X size={19} /></button>
+        </header>
+        <p className="shadow-settings-intro">Fine-tune each shadow family independently. The main shadow slider remains the overall strength control.</p>
+        <div className="shadow-settings-list">
+          <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
+          <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
+          <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
+          <ShadowSettingRow title="Block-edge shadows" description="Tight, subtle dark lines that define individual block boundaries." value={shadowComponents.edge} onChange={(value) => onShadowComponents({ edge: value })} disabled={!options.fancy} />
+          <ShadowSettingRow title="Ambient occlusion" description="Soft corner and gap shading that adds depth to enclosed spaces." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!options.fancy} />
+        </div>
+        {!options.fancy && <p className="shadow-settings-disabled-note">Enable Fancy Graphics to adjust shadow rendering.</p>}
+        <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× DEFAULT</span><span>2.00× MAX</span></footer>
+      </section>
+    </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
   </>;
