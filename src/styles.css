@@ -459,3 +459,7 @@ body {
   .shadow-setting-control [role="slider"] { width: 14px; height: 14px; }
   .shadow-settings-footer { padding-top: 6px; font-size: 7px; }
 }
+
+.shadow-settings-lab-heading { display: grid; gap: 3px; padding: 0 4px 10px; }
+.shadow-settings-lab-heading strong { color: #fff; font-size: 11px; letter-spacing: .13em; text-shadow: 0 2px 5px #000; }
+.shadow-settings-lab-heading span { color: #e6edf6; font-size: 9px; text-shadow: 0 1px 4px #000; }
