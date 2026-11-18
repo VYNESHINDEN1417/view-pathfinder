@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -39,6 +39,25 @@ function SliderValueReadout({ value, min, max, step, label, disabled, onApply }:
     onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}>{value.toFixed(2)}×</button>;
 }
 
+const AO_TUNING_CONTROLS = [
+  { label: "Corner depth", detail: "Strengthen darkening in tight inside corners.", family: "ambient" },
+  { label: "Enclosed-space shade", detail: "Increase occlusion inside enclosed spaces.", family: "ambient" },
+  { label: "Crevice darkness", detail: "Tune narrow cracks and recessed gaps.", family: "ambient" },
+  { label: "Cavity fill", detail: "Adjust the depth of broad hidden cavities.", family: "ambient" },
+  { label: "Block contact", detail: "Darken surfaces where blocks meet.", family: "contact" },
+  { label: "Joint definition", detail: "Emphasize seams between touching blocks.", family: "contact" },
+  { label: "Near-surface contact", detail: "Tune short-distance contact shading.", family: "contact" },
+  { label: "Under-deck shade", detail: "Strengthen occlusion beneath overhangs.", family: "overhang" },
+  { label: "Roof underside", detail: "Tune shade below roofs and platforms.", family: "overhang" },
+  { label: "Beam underside", detail: "Adjust shade beneath narrow protrusions.", family: "overhang" },
+  { label: "Deep overhang", detail: "Increase shade in deeply recessed undersides.", family: "overhang" },
+  { label: "Edge definition", detail: "Tune the darkness along block boundaries.", family: "edge" },
+  { label: "Corner edge", detail: "Emphasize edges where two faces meet.", family: "edge" },
+  { label: "Fine seam", detail: "Adjust thin, close-range edge shading.", family: "edge" },
+  { label: "Broad edge", detail: "Adjust wider edge transitions.", family: "edge" },
+  { label: "Directional contrast", detail: "Tune the contribution of sun-cast shadows.", family: "directional" },
+] as const;
+
 function ShadowSettingRow({ title, description, value, onChange, disabled }: {
   title: string; description: string; value: number; onChange: (value: number) => void; disabled: boolean;
 }) {
@@ -64,7 +83,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   sunIntensity: number; onSunIntensity: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
-  const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
+  const [shadowPanelOpen, setShadowPanelOpen] = useState(false);\n  const [aoTuning, setAoTuning] = useState<number[]>(() => AO_TUNING_CONTROLS.map(() => 1));\n  const baseShadowRef = useRef(shadowComponents);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -167,15 +186,28 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         <header className="shadow-settings-header">
           <button type="button" className="shadow-settings-close" aria-label="Close shadow settings" onClick={() => setShadowPanelOpen(false)}><X size={19} /></button>
         </header>
+        <div className="shadow-settings-lab-heading">
+          <strong>AO CONTROL LABORATORY</strong>
+          <span>16 live tuning controls · neutral = 1.00×</span>
+        </div>
         <div className="shadow-settings-list">
-          <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Block-edge shadows" description="Tight, subtle dark lines that define individual block boundaries." value={shadowComponents.edge} onChange={(value) => onShadowComponents({ edge: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Ambient occlusion" description="Soft corner and gap shading that adds depth to enclosed spaces." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!options.fancy} />
+          {AO_TUNING_CONTROLS.map((control, index) => {
+            const value = aoTuning[index] ?? 1;
+            const update = (next: number) => {
+              const values = [...aoTuning];
+              values[index] = next;
+              setAoTuning(values);
+              const multiplier = AO_TUNING_CONTROLS.reduce((product, item, i) =>
+                item.family === control.family ? product * (values[i] ?? 1) : product, 1);
+              const base = baseShadowRef.current[control.family];
+              onShadowComponents({ [control.family]: Math.min(2, Math.max(0, base * multiplier)) });
+            };
+            return <ShadowSettingRow key={control.label} title={control.label} description={control.detail}
+              value={value} onChange={update} disabled={!options.fancy} />;
+          })}
         </div>
         {!options.fancy && <p className="shadow-settings-disabled-note">Enable Fancy Graphics to adjust shadow rendering.</p>}
-        <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× DEFAULT</span><span>2.00× MAX</span></footer>
+        <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× NEUTRAL</span><span>2.00× MAX</span></footer>
       </section>
     </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
