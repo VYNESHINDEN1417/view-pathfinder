@@ -35,13 +35,23 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let edge_reach = reach * 0.18;
   let contact_reach = reach * 0.42;
   let broad_reach = reach * 2.0;
-  let center = g.view_proj * vec4<f32>(world, 1.0);
-  let edge_projected = g.view_proj * vec4<f32>(world + vec3<f32>(edge_reach, 0.0, 0.0), 1.0);
-  let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
-  let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let edge_radius_px = abs(edge_projected.x / edge_projected.w - center.x / center.w) * size.x * 0.5;
-  let contact_radius_px = abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5;
-  let broad_radius_px = abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5;
+  // Measure the local world-space size of one screen pixel at this fragment.
+  // Reconstruct neighboring points at the same NDC depth using both screen axes,
+  // then use their geometric-mean footprint for an orientation-independent radius.
+  let center_clip = g.view_proj * vec4<f32>(world, 1.0);
+  let center_ndc = center_clip.xyz / center_clip.w;
+  let center_uv = center_ndc.xy;
+  let pixel_step = vec2<f32>(2.0) / size;
+  let world_center_h = g.inverse_vp * vec4<f32>(center_uv, center_ndc.z, 1.0);
+  let world_x_h = g.inverse_vp * vec4<f32>(center_uv + vec2<f32>(pixel_step.x, 0.0), center_ndc.z, 1.0);
+  let world_y_h = g.inverse_vp * vec4<f32>(center_uv + vec2<f32>(0.0, -pixel_step.y), center_ndc.z, 1.0);
+  let world_center = world_center_h.xyz / world_center_h.w;
+  let world_per_pixel_x = length(world_x_h.xyz / world_x_h.w - world_center);
+  let world_per_pixel_y = length(world_y_h.xyz / world_y_h.w - world_center);
+  let world_per_pixel = sqrt(max(world_per_pixel_x * world_per_pixel_y, 0.00000001));
+  let edge_radius_px = edge_reach / world_per_pixel;
+  let contact_radius_px = contact_reach / world_per_pixel;
+  let broad_radius_px = broad_reach / world_per_pixel;
 
   var blocked_edge = 0.0;
   var blocked_contact = 0.0;
@@ -72,7 +82,12 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
-        let contribution = facing * fade * scale_weight;
+        // AO must only darken when the sampled blocker lies toward the light.
+        // Without this directional gate, screen-space depth samples can create
+        // a camera-dependent translucent-box halo beneath unrelated geometry.
+        let sun_alignment = max(dot(delta / distance, normalize(g.light.xyz)), 0.0);
+        let directional_weight = sun_alignment * sun_alignment;
+        let contribution = facing * fade * scale_weight * directional_weight;
         if (is_edge) { blocked_edge += contribution; }
         else if (is_contact) { blocked_contact += contribution; }
         else { blocked_overhang += contribution; }
