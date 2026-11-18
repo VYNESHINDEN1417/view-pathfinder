@@ -370,3 +370,92 @@ body {
   background-repeat: no-repeat !important;
   background-size: cover !important;
 }
+
+
+/* Independent shadow controls */
+.shadow-settings-trigger {
+  display: grid; place-items: center; width: 28px; height: 28px; margin: -5px 0;
+  border: 0; border-radius: 6px; padding: 0; background: transparent; color: inherit; cursor: pointer;
+}
+.shadow-settings-trigger:hover, .shadow-settings-trigger:focus-visible { background: rgb(255 255 255 / 12%); color: #fff; outline: none; }
+.shadow-settings-trigger:disabled { cursor: not-allowed; opacity: .5; }
+.shadow-settings-backdrop {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: rgb(0 0 0 / 34%); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+.shadow-settings-panel {
+  position: relative; width: min(560px, 100%); max-height: min(78dvh, 680px); display: flex; flex-direction: column;
+  overflow: hidden; border: 0; border-radius: 0; background: transparent; color: #f5f9ff; box-shadow: none;
+}
+.shadow-settings-header { position: absolute; top: 0; right: 0; z-index: 2; display: flex; justify-content: flex-end; padding: 0; }
+.shadow-settings-close {
+  display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%; background: rgb(5 10 16 / 38%); color: #fff; cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 95%));
+}
+.shadow-settings-close:hover { background: rgb(5 10 16 / 65%); color: #fff; }
+.shadow-settings-list {
+  overflow-y: auto; overscroll-behavior: contain; padding: 0 40px 0 4px;
+  scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 25%) transparent;
+}
+.shadow-setting-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 42%); align-items: center; gap: 16px;
+  padding: 10px 0; border-top: 1px solid rgb(255 255 255 / 15%);
+}
+.shadow-setting-row:first-child { border-top: 0; }
+.shadow-setting-copy { display: grid; gap: 3px; min-width: 0; }
+.shadow-setting-copy strong {
+  color: #fff; font-size: 13px; font-weight: 700;
+  text-shadow: 0 2px 4px #000, 0 3px 12px rgb(0 0 0 / 95%);
+}
+.shadow-setting-copy span {
+  color: #f0f5fb; font-size: 10px; line-height: 1.35;
+  text-shadow: 0 1px 3px #000, 0 2px 9px rgb(0 0 0 / 100%);
+}
+.shadow-setting-control {
+  position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding-top: 11px;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 95%));
+}
+.shadow-setting-control .viewer-value-readout {
+  position: static; transform: none; flex: 0 0 44px; min-width: 44px; border: 1px solid rgb(230 241 255 / 45%);
+  background: rgb(5 10 16 / 38%); color: #fff; text-shadow: 0 1px 3px #000;
+}
+.shadow-setting-control .viewer-value-input { position: static; transform: none; flex: 0 0 54px; width: 54px; }
+.shadow-setting-control [data-orientation="horizontal"] { flex: 1; min-width: 0; height: 26px; touch-action: pan-y; }
+.shadow-setting-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 255 255 / 40%); box-shadow: 0 1px 4px #000; }
+.shadow-setting-control [data-orientation="horizontal"] > span:first-child > span { background: #e6f2ff; }
+.shadow-setting-control [role="slider"] {
+  width: 15px; height: 15px; border: 1px solid #fff; background: #fff;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 90%);
+}
+.shadow-settings-disabled-note {
+  margin: 5px 4px 0; padding: 7px 9px; background: rgb(0 0 0 / 35%); color: #fff;
+  font-size: 10px; text-shadow: 0 1px 3px #000;
+}
+.shadow-settings-footer {
+  display: flex; justify-content: space-between; gap: 8px; padding: 8px 4px 0;
+  color: #fff; font-size: 8px; font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  text-shadow: 0 1px 4px #000, 0 2px 8px #000;
+}
+@media (max-width: 520px) {
+  .shadow-settings-backdrop {
+    align-items: center; padding: 12px 10px max(12px, env(safe-area-inset-bottom));
+    background: rgb(0 0 0 / 28%);
+  }
+  .shadow-settings-panel { width: 100%; max-height: 76dvh; }
+  .shadow-settings-list { padding: 0 38px 0 2px; }
+  .shadow-setting-row {
+    grid-template-columns: minmax(0, 1fr) minmax(116px, 40%);
+    gap: 9px; padding: 8px 0;
+  }
+  .shadow-setting-copy { gap: 2px; }
+  .shadow-setting-copy strong { font-size: 11px; }
+  .shadow-setting-copy span { font-size: 9px; line-height: 1.25; }
+  .shadow-setting-control { gap: 5px; padding-top: 9px; }
+  .shadow-setting-control .viewer-value-readout { flex-basis: 40px; min-width: 40px; font-size: 10px; }
+  .shadow-setting-control .viewer-value-input { flex-basis: 48px; width: 48px; }
+  .shadow-setting-control [data-orientation="horizontal"] { height: 22px; }
+  .shadow-setting-control [role="slider"] { width: 14px; height: 14px; }
+  .shadow-settings-footer { padding-top: 6px; font-size: 7px; }
+}

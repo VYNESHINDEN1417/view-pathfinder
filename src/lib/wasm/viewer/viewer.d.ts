@@ -65,6 +65,10 @@ export class Viewer {
     set_light(intensity: number): void;
     set_orthographic(enabled: boolean): void;
     /**
+     * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
+     */
+    set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number): void;
+    /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
      */
     set_shadow_mode(mode: number): void;
@@ -120,6 +124,7 @@ export interface InitOutput {
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
+    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
     readonly viewer_set_shadow_strength: (a: number, b: number) => void;

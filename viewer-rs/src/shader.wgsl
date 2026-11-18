@@ -7,6 +7,7 @@ struct Globals {
   inverse_vp: mat4x4<f32>,
   effects: vec4<f32>,
   shadow: vec4<f32>,
+  shadow_detail: vec4<f32>,
 };
 
 struct Material {
@@ -31,26 +32,30 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   if (g.effects.x < 0.5) { return 1.0; }
   let size = vec2<f32>(textureDimensions(scene_depth));
   let reach = g.effects.w;
-
-  // Two screen-space scales share the existing depth prepass:
-  // short-range contact occlusion catches joins and tight crevices;
-  // broad-range occlusion adds soft shade beneath larger overhangs.
+  let edge_reach = reach * 0.18;
   let contact_reach = reach * 0.42;
   let broad_reach = reach * 2.0;
   let center = g.view_proj * vec4<f32>(world, 1.0);
+  let edge_projected = g.view_proj * vec4<f32>(world + vec3<f32>(edge_reach, 0.0, 0.0), 1.0);
   let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
   let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let contact_radius_px = clamp(abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5, 2.0, 15.0);
-  let broad_radius_px = clamp(abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5, 4.0, 40.0);
+  let edge_radius_px = abs(edge_projected.x / edge_projected.w - center.x / center.w) * size.x * 0.5;
+  let contact_radius_px = abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5;
+  let broad_radius_px = abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5;
 
-  var blocked = 0.0;
+  var blocked_edge = 0.0;
+  var blocked_contact = 0.0;
+  var blocked_overhang = 0.0;
   let count = 4u + u32(g.effects.y) * 4u;
-  let contact_samples = (count + 1u) / 2u;
+  let edge_samples = max(count / 4u, 1u);
+  let contact_samples = max(count / 4u, 1u);
+  let overhang_samples = count - edge_samples - contact_samples;
   for (var i = 0u; i < 12u; i++) {
     if (i >= count) { break; }
-    let is_contact = i < contact_samples;
-    let sample_reach = select(broad_reach, contact_reach, is_contact);
-    let sample_radius_px = select(broad_radius_px, contact_radius_px, is_contact);
+    let is_edge = i < edge_samples;
+    let is_contact = i >= edge_samples && i < edge_samples + contact_samples;
+    let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact);
+    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact);
     let angle = f32(i) * 2.399963;
     let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
     let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
@@ -61,20 +66,30 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      let max_distance = sample_reach * select(2.4, 1.7, is_contact);
-      let fade_start = sample_reach * select(0.35, 0.28, is_contact);
+      let max_distance = sample_reach * select(2.4, 1.7, is_contact || is_edge);
+      let fade_start = sample_reach * select(0.35, 0.28, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
-        let scale_weight = select(0.86, 0.70, is_contact);
-        blocked += facing * fade * scale_weight;
+        let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
+        let contribution = facing * fade * scale_weight;
+        if (is_edge) { blocked_edge += contribution; }
+        else if (is_contact) { blocked_contact += contribution; }
+        else { blocked_overhang += contribution; }
       }
     }
   }
-  // A lower floor permits stronger local shade without dimming exposed surfaces.
-  let ao = clamp(1.0 - blocked * 4.0 / f32(count), 0.04, 1.0);
-  let strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
-  return clamp(1.0 - (1.0 - ao) * strength, 0.0, 1.0);
+  let edge_ao = clamp(1.0 - blocked_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
+  let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
+  let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
+  let local_occlusion = (
+    (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
+    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
+    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
+  ) / f32(count);
+  let ambient_strength = select(1.0, g.shadow_detail.y, g.effects.x > 0.5);
+  let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  return clamp(1.0 - local_occlusion * ambient_strength * master_strength, 0.0, 1.0);
 }
 
 struct VsOut {
@@ -182,7 +197,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
-  let shadow_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  let shadow_strength = select(1.0, g.shadow.x * g.shadow.y, g.effects.x > 0.5);
   var visibility = clamp(1.0 - (1.0 - shadow) * shadow_strength, 0.0, 1.0);
   let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
