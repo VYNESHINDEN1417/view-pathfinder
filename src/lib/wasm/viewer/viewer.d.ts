@@ -64,7 +64,9 @@ export class Viewer {
      */
     set_light(intensity: number): void;
     set_orthographic(enabled: boolean): void;
-    /** Configure the localized point light: azimuth degrees, brightness, intensity, RGB channels, and range multiplier. */
+    /**
+     * Configure the independent localized colored point light around the model.
+     */
     set_point_light(azimuth: number, brightness: number, intensity: number, red: number, green: number, blue: number, range: number): void;
     /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
@@ -126,6 +128,7 @@ export interface InitOutput {
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
+    readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
