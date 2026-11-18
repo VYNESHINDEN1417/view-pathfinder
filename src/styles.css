@@ -306,6 +306,17 @@ body {
 .sun-handle:hover, .sun-handle:focus-visible { background: var(--viewer-sun); outline: 2px solid var(--viewer-label); }
 .sun-intensity-menu { padding: 18px; width: 180px; }
 .viewer-record { position: absolute; top: max(68px, calc(env(safe-area-inset-top) + 52px)); right: max(16px, env(safe-area-inset-right)); z-index: 4; }
+.viewer-iron-trapdoor { position: absolute; top: max(120px, calc(env(safe-area-inset-top) + 104px)); right: max(16px, env(safe-area-inset-right)); z-index: 4; }
+.iron-trapdoor-panel { position: absolute; top: max(172px, calc(env(safe-area-inset-top) + 156px)); right: max(16px, env(safe-area-inset-right)); z-index: 6; width: min(250px, calc(100vw - 32px)); display: grid; gap: 12px; padding: 14px; border: 1px solid rgb(255 132 35 / 48%); border-radius: 12px; background: rgb(20 16 13 / 92%); color: #f7eee6; box-shadow: 0 8px 28px rgb(0 0 0 / 48%); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); }
+.iron-trapdoor-panel-heading, .iron-trapdoor-panel-scale { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.iron-trapdoor-panel-heading { font-size: 13px; }
+.iron-trapdoor-panel-heading span { color: #ffb56d; font-variant-numeric: tabular-nums; }
+.iron-trapdoor-panel [data-orientation="horizontal"] { height: 28px; touch-action: pan-y; }
+.iron-trapdoor-panel [data-orientation="horizontal"] > span:first-child { height: 5px; background: rgb(255 255 255 / 24%); }
+.iron-trapdoor-panel [data-orientation="horizontal"] > span:first-child > span { background: linear-gradient(90deg, #777, #c7b8a8); }
+.iron-trapdoor-panel [role="slider"] { width: 17px; height: 17px; border: 1px solid #fff; background: #ded8d0; box-shadow: 0 1px 5px #000; }
+.iron-trapdoor-panel-scale, .iron-trapdoor-panel p { color: rgb(255 255 255 / 66%); font-size: 10px; }
+.iron-trapdoor-panel p { margin: 0; }
 .video-panel { position: absolute; top: max(120px, calc(env(safe-area-inset-top) + 104px)); right: max(16px, env(safe-area-inset-right)); z-index: 5; width: 240px; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: var(--viewer-tool-bg); color: var(--viewer-label); backdrop-filter: blur(8px); }
 .video-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .video-progress { height: 4px; border-radius: 2px; background: var(--viewer-tool-hover); overflow: hidden; }
@@ -337,7 +348,7 @@ body {
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
-@media (max-height: 500px) { .studio-open { --studio-panel-height: 48dvh; } .studio-open .viewer-stage { top: 64px; } .studio-open .viewer-record { top: 8px; right: 120px; } }
+@media (max-height: 500px) { .studio-open { --studio-panel-height: 48dvh; } .studio-open .viewer-stage { top: 64px; } .studio-open .viewer-record { top: 8px; right: 120px; } .studio-open .viewer-iron-trapdoor { top: 60px; right: 120px; } .studio-open .iron-trapdoor-panel { top: 112px; right: 120px; } }
 
 
 /* First-launch scene selection: defer all model and WASM downloads until a choice is made. */
