@@ -163,12 +163,10 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         aria-label="Shadow strength" />
     </div>
     {shadowPanelOpen && <div className="shadow-settings-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShadowPanelOpen(false); }}>
-      <section className="shadow-settings-panel" role="dialog" aria-modal="true" aria-labelledby="shadow-settings-title">
+      <section className="shadow-settings-panel" role="dialog" aria-modal="true" aria-label="Shadow settings">
         <header className="shadow-settings-header">
-          <div><span className="shadow-settings-eyebrow">PATHFINDER / LIGHTING</span><h2 id="shadow-settings-title">SHADOW SETTINGS</h2></div>
           <button type="button" className="shadow-settings-close" aria-label="Close shadow settings" onClick={() => setShadowPanelOpen(false)}><X size={19} /></button>
         </header>
-        <p className="shadow-settings-intro">Fine-tune each shadow family independently. The main shadow slider remains the overall strength control.</p>
         <div className="shadow-settings-list">
           <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
           <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
