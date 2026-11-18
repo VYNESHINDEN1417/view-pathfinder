@@ -6,6 +6,7 @@ name: Build Pathfinder WASM
 # Rebuild after the plank-only contrast attenuation shader correction.
 # Rebuild after matching the portfolio wooden-plank contrast setting at 18%.
 # Rebuild after balanced edge AO sampling distribution.
+# Rebuild after decoupling ambient edge AO from sun direction.
 on:
   push:
     branches: ['**']
