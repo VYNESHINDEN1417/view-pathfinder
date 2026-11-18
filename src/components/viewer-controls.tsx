@@ -128,12 +128,14 @@ export function ViewerControls({ options, brightness, shadowStrength, orthograph
       aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
+      <SliderValueReadout value={brightness} min={0.25} max={3} step={0.05} label="brightness" onApply={onBrightness} />
       <Sun size={17} aria-hidden="true" />
       <Slider orientation="vertical" className="brightness-slider" min={0.25} max={3} step={0.05}
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
     </div>
     <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
       <Moon size={17} aria-hidden="true" />
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
         value={[shadowStrength]} disabled={!options.fancy}
