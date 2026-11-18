@@ -84,7 +84,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
-  const [aoTuning, setAoTuning] = useState<number[]>(() => AO_TUNING_CONTROLS.map(() => 1));
+  const [aoTuning, setAoTuning] = useState<number[]>(() => AO_TUNING_CONTROLS.map((control) => control.label === "Under-deck shade" ? 0.35 : 1));
   const baseShadowRef = useRef(shadowComponents);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
