@@ -68,7 +68,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     if (i >= count) { break; }
     let is_edge = i < edge_samples;
     let is_contact = i >= edge_samples && i < edge_samples + contact_samples;
-    let local_index = select(i - edge_samples - contact_samples, select(i - edge_samples, i, is_edge), is_contact);
+    let local_index = select(i - edge_samples - contact_samples, select(i - edge_samples, i, is_edge), is_contact || is_edge);
     let local_count = select(overhang_samples, select(contact_samples, edge_samples, is_edge), is_contact);
     let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact);
     let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact);
@@ -88,7 +88,10 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let max_distance = sample_reach * select(2.4, 1.7, is_contact || is_edge);
       let fade_start = sample_reach * select(0.35, 0.28, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
+        let normal_alignment = dot(normal, delta / distance);
+        // Edge blockers are lateral walls/recess boundaries, not surfaces directly in front of the receiver normal.
+        // Weight tangential blockers strongly so vertical bulkheads can occlude horizontal decks.
+        let facing = select(max(normal_alignment - 0.06, 0.0), sqrt(max(1.0 - normal_alignment * normal_alignment, 0.0)), is_edge);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         // AO must only darken when the sampled blocker lies toward the light.
