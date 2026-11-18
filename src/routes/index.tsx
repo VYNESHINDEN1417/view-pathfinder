@@ -82,13 +82,14 @@ function Index() {
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
+  const [shadowStrength, setShadowStrength] = useState(1);
   const [orthographic, setOrthographic] = useState(false);
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
-  const settingsRef = useRef({ background, brightness, orthographic, options, sun });
+  const settingsRef = useRef({ background, brightness, shadowStrength, orthographic, options, sun });
   useEffect(() => {
-    settingsRef.current = { background, brightness, orthographic, options, sun };
+    settingsRef.current = { background, brightness, shadowStrength, orthographic, options, sun };
     const viewer = viewerRef.current;
     if (!viewer) return;
     const target = viewer;
@@ -99,13 +100,14 @@ function Index() {
       if (viewerRef.current === target) { target.set_background(0); scheduleRef.current(); }
     });
     viewer.set_light(brightness);
+    viewer.set_shadow_strength(shadowStrength);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
     viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
     viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
-  }, [background, brightness, orthographic, options, sun]);
+  }, [background, brightness, shadowStrength, orthographic, options, sun]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -193,6 +195,7 @@ function Index() {
         v.set_background(0);
       });
       v.set_light(settingsRef.current.brightness);
+      v.set_shadow_strength(settingsRef.current.shadowStrength);
       v.set_orthographic(settingsRef.current.orthographic);
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
       v.set_shadow_quality(settingsRef.current.options.shadowQuality);
@@ -364,11 +367,11 @@ function Index() {
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
       onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }}
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
-    {loading.ready && <ViewerControls options={options} brightness={brightness} orthographic={orthographic}
+    {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} orthographic={orthographic}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
-      onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness}
+      onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       onLayout={setStudioLayout}
