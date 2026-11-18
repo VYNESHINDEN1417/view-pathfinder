@@ -3,7 +3,7 @@ name: Build Pathfinder WASM
 on:
   push:
     branches:
-      - experiment/deep-shade
+      - experiment/starboard-blue-point-light-2026-11-18
     paths-ignore:
       - public/wasm/viewer_bg.wasm
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Check out experiment branch
         uses: actions/checkout@v4
         with:
-          ref: experiment/deep-shade
+          ref: experiment/starboard-blue-point-light-2026-11-18
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust and WebAssembly target
@@ -46,5 +46,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/wasm/viewer_bg.wasm
-          git commit -m "Build Pathfinder WASM for stone segment color variation"
-          git push origin HEAD:experiment/deep-shade
+          git commit -m "Build Pathfinder WASM for starboard blue point light"
+          git push origin HEAD:experiment/starboard-blue-point-light-2026-11-18

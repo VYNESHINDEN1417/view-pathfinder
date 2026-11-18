@@ -32,6 +32,8 @@ struct Globals {
     effects: [f32; 4], // enabled, quality, sun strength, AO world radius
     shadow: [f32; 4], // master, directional, contact, overhang strengths
     shadow_detail: [f32; 4], // block-edge, ambient-occlusion, reserved, reserved
+    point_light: [f32; 4], // static starboard point-light position (xyz) and range (w)
+    point_color: [f32; 4], // blue light color (rgb) and subtle intensity (w)
 }
 
 #[repr(C)]
@@ -1060,6 +1062,10 @@ impl Viewer {
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
+            // Static test light: slightly outboard and above the starboard beam, centered longitudinally.
+            // The short range deliberately keeps the blue spill local instead of washing the whole hull.
+            point_light: [self.radius * 0.24, self.radius * 0.42, 0.0, self.radius * 0.72],
+            point_color: [0.22, 0.48, 1.0, 0.16],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
