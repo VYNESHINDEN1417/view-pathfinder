@@ -82,9 +82,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let edge_ao = clamp(1.0 - blocked_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
-  let local_occlusion = (1.0 - edge_ao) * g.shadow_detail.x
-    + (1.0 - contact_ao) * g.shadow.z
-    + (1.0 - overhang_ao) * g.shadow.w;
+  let local_occlusion = (
+    (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
+    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
+    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
+  ) / f32(count);
   let ambient_strength = select(1.0, g.shadow_detail.y, g.effects.x > 0.5);
   let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
   return clamp(1.0 - local_occlusion * ambient_strength * master_strength, 0.0, 1.0);
