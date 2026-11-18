@@ -5,6 +5,8 @@ name: Build Pathfinder WASM
 # Re-triggered after the crisp-magnification sampler update.
 # Rebuild after the plank-only contrast attenuation shader correction.
 # Rebuild after matching the portfolio wooden-plank contrast setting at 18%.
+# Rebuild after starboard blue point-light positioning and intensity correction.
+# Rebuild after adding interactive blue-light azimuth and color controls.
 on:
   push:
     branches: ['**']
@@ -48,5 +50,6 @@ jobs:
             echo "WASM runtime is already up to date."
           else
             git commit -m "Build Pathfinder WASM runtime"
+            git pull --rebase origin "$GITHUB_REF_NAME"
             git push
           fi

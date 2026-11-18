@@ -55,6 +55,13 @@ async function adjustTextureBrightness(bytes: Uint8Array, brightness: number): P
   return blob ? new Uint8Array(await blob.arrayBuffer()) : bytes;
 }
 
+function hueToRgb(hue: number): [number, number, number] {
+  const h = ((hue % 360) + 360) % 360 / 60;
+  const x = 1 - Math.abs((h % 2) - 1);
+  const rgb: [number, number, number] = h < 1 ? [1, x, 0] : h < 2 ? [x, 1, 0] : h < 3 ? [0, 1, x] : h < 4 ? [0, x, 1] : h < 5 ? [x, 0, 1] : [1, 0, x];
+  return rgb;
+}
+
 function isIronTrapdoorTexture(name: string) {
   return /(?:iron|pale_oak)_trapdoor/i.test(name);
 }
@@ -97,6 +104,7 @@ function Index() {
   const [uploadError, setUploadError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [sun, setSun] = useState({ azimuth: 32.47, elevation: 50.81, intensity: 1 });
+  const [blueLight, setBlueLight] = useState({ azimuth: 90, brightness: 1, intensity: 0.72, hue: 220, range: 1.05 });
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: true, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
@@ -111,9 +119,9 @@ function Index() {
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
-  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun });
+  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight });
   useEffect(() => {
-    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun };
+    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight };
     const viewer = viewerRef.current;
     if (!viewer) return;
     const target = viewer;
@@ -130,9 +138,11 @@ function Index() {
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
     viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
+    const [red, green, blue] = hueToRgb(blueLight.hue);
+    viewer.set_point_light(blueLight.azimuth, blueLight.brightness, blueLight.intensity, red, green, blue, blueLight.range);
     viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
-  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun]);
+  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -228,6 +238,9 @@ function Index() {
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
       v.set_shadow_quality(settingsRef.current.options.shadowQuality);
       v.set_sun(settingsRef.current.sun.azimuth, settingsRef.current.sun.elevation, settingsRef.current.sun.intensity);
+      const initialBlueLight = settingsRef.current.blueLight;
+      const [blueRed, blueGreen, blueBlue] = hueToRgb(initialBlueLight.hue);
+      v.set_point_light(initialBlueLight.azimuth, initialBlueLight.brightness, initialBlueLight.intensity, blueRed, blueGreen, blueBlue, initialBlueLight.range);
       v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
@@ -420,7 +433,8 @@ function Index() {
       onSnap={([x, y, z]) => { viewerRef.current?.snap_direction(x, y, z, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? performance.now() - 280 : performance.now()); scheduleRef.current(); }}
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic}
-      saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity}
+      saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}

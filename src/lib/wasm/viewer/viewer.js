@@ -207,6 +207,19 @@ export class Viewer {
         wasm.viewer_set_orthographic(this.__wbg_ptr, enabled);
     }
     /**
+     * Configure the independent localized colored point light around the model.
+     * @param {number} azimuth
+     * @param {number} brightness
+     * @param {number} intensity
+     * @param {number} red
+     * @param {number} green
+     * @param {number} blue
+     * @param {number} range
+     */
+    set_point_light(azimuth, brightness, intensity, red, green, blue, range) {
+        wasm.viewer_set_point_light(this.__wbg_ptr, azimuth, brightness, intensity, red, green, blue, range);
+    }
+    /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
      * @param {number} directional
      * @param {number} contact
