@@ -1373,3 +1373,5 @@ async fn report(callback: &js_sys::Function, stage: &str, completed: f64, total:
     });
     let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
 }
+
+// Rebuild trigger: ensure the exported starboard point-light method is present in the checked-in WASM runtime.
