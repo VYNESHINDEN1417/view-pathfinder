@@ -233,6 +233,12 @@ body {
 .viewer-settings { left: max(16px, env(safe-area-inset-left)); }
 .viewer-save { right: max(16px, env(safe-area-inset-right)); }
 .viewer-brightness { position: absolute; left: calc(50% - 150px); bottom: max(48px, calc(env(safe-area-inset-bottom) + 48px)); width: 40px; height: 142px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #FF9A45; z-index: 2; background: linear-gradient(155deg, rgb(255 115 0 / 22%), rgb(72 46 27 / 52%) 70%); border: 1px solid rgb(255 132 35 / 56%); border-radius: 10px; padding: 10px 0; backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); box-shadow: 0 4px 14px rgb(0 0 0 / 38%), 0 2px 12px rgb(255 102 0 / 13%), inset 0 1px 0 rgb(255 190 120 / 16%); }
+.viewer-shadow-strength { position: absolute; left: calc(50% - 98px); bottom: max(48px, calc(env(safe-area-inset-bottom) + 48px)); width: 40px; height: 142px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #A9C8E8; z-index: 2; background: linear-gradient(155deg, rgb(80 145 210 / 20%), rgb(28 48 68 / 58%) 70%); border: 1px solid rgb(115 165 210 / 58%); border-radius: 10px; padding: 10px 0; backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); box-shadow: 0 4px 14px rgb(0 0 0 / 38%), 0 2px 12px rgb(70 135 205 / 15%), inset 0 1px 0 rgb(180 215 245 / 16%); }
+.shadow-strength-disabled { opacity: 0.42; }
+.shadow-strength-slider[data-orientation="vertical"] { height: 104px; width: 24px; flex-direction: column; }
+.shadow-strength-slider > span:first-child { width: 5px; height: 100%; background: rgb(120 170 215 / 28%); border-radius: 999px; box-shadow: 0 0 5px rgb(90 145 205 / 12%); }
+.shadow-strength-slider > span:first-child > span { width: 100%; background: linear-gradient(180deg, #C4DDF5, #5796D2); border-radius: 999px; box-shadow: 0 0 7px rgb(75 145 210 / 32%); }
+.shadow-strength-slider [role="slider"] { background: #DCEEFF; border: 1px solid rgb(100 155 210 / 72%); box-shadow: 0 1px 5px rgb(0 0 0 / 25%), 0 0 7px rgb(80 145 210 / 18%); }
 .brightness-slider[data-orientation="vertical"] { height: 104px; width: 24px; flex-direction: column; }
 .brightness-slider > span:first-child { width: 5px; height: 100%; background: rgb(255 145 65 / 28%); border-radius: 999px; box-shadow: 0 0 5px rgb(255 105 0 / 12%); }
 .brightness-slider > span:first-child > span { width: 100%; background: linear-gradient(180deg, #FFB15C, #FF6900); border-radius: 999px; box-shadow: 0 0 7px rgb(255 105 0 / 32%); }
