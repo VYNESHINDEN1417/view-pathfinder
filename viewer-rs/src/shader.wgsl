@@ -34,7 +34,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   // Two screen-space scales share the existing depth prepass:
   // short-range contact occlusion catches joins and tight crevices;
   // broad-range occlusion adds soft shade beneath larger overhangs.
-  let contact_reach = reach * 0.42;
+  let contact_reach = reach * 0.357;
   let broad_reach = reach * 2.0;
   let center = g.view_proj * vec4<f32>(world, 1.0);
   let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
@@ -65,7 +65,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
-        let scale_weight = select(0.86, 0.70, is_contact);
+        let scale_weight = select(1.032, 0.70, is_contact);
         // Every AO scale must respect the current sun direction. Leaving contact
         // samples unweighted creates a fixed screen-space shadow that survives sun
         // movement and can read as a translucent box beneath large overhangs.
