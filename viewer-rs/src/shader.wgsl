@@ -79,9 +79,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       // Edge AO is deliberately more local and requires a stronger
       // receiver-facing blocker test. This rejects broad depth silhouettes
       // that can otherwise read as translucent rectangular volumes.
-      let edge_max_distance = 1.45;
+      let edge_max_distance = 1.70;
       let max_distance = sample_reach * select(2.4, select(edge_max_distance, 1.7, is_contact), is_edge || is_contact);
-      let fade_start = sample_reach * select(0.35, select(0.20, 0.28, is_contact), is_edge || is_contact);
+      let fade_start = sample_reach * select(0.35, 0.28, is_edge || is_contact);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let facing_bias = select(0.06, 0.12, is_edge);
         let facing = max(dot(normal, delta / distance) - facing_bias, 0.0);
