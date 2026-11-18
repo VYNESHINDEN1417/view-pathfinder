@@ -1067,6 +1067,7 @@ impl Viewer {
             let r = self.radius;
             self.light_vp = Mat4::orthographic_rh(-r, r, -r, r, r * 0.5, r * 3.5) * Mat4::look_at_rh(light * r * 2.0, Vec3::ZERO, if light.y.abs() > 0.99 { Vec3::Z } else { Vec3::Y });
         }
+        let point_azimuth = self.point_azimuth.to_radians();
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
@@ -1078,7 +1079,6 @@ impl Viewer {
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
             // Rotate the source around the ship's center; camera motion never changes its world direction.
-            let point_azimuth = self.point_azimuth.to_radians();
             point_light: [self.radius * point_azimuth.sin(), self.radius * 0.08, self.radius * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
         };
