@@ -70,7 +70,7 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
   const row = (title: string, description: string, current: number, min: number, max: number, step: number, patch: keyof BlueLightSettings) => <div className="blue-light-setting">
     <div className="blue-light-setting-heading"><strong>{title}</strong><span>{current.toFixed(2)}×</span></div>
     <p>{description}</p>
-    <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next }); }} aria-label={title} />
+    <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next } as Partial<BlueLightSettings>); }} aria-label={title} />
   </div>;
   return <div className="blue-light-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="blue-light-panel" role="dialog" aria-modal="true" aria-label="Blue light settings">
