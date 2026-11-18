@@ -98,6 +98,11 @@ pub struct Viewer {
     ao_layout: wgpu::BindGroupLayout,
     sun_direction: Vec3,
     sun_strength: f32,
+    point_azimuth: f32,
+    point_brightness: f32,
+    point_intensity: f32,
+    point_color: [f32; 3],
+    point_range: f32,
     fancy: bool,
     fancy_quality: u32,
     shadow_strength: f32,
@@ -559,7 +564,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -688,6 +693,16 @@ impl Viewer {
             self.msaa = m;
             self.depth = d;
         }
+        self.dirty = true;
+    }
+
+    /// Configure the independent localized colored point light around the model.
+    pub fn set_point_light(&mut self, azimuth: f32, brightness: f32, intensity: f32, red: f32, green: f32, blue: f32, range: f32) {
+        self.point_azimuth = azimuth.rem_euclid(360.0);
+        self.point_brightness = brightness.clamp(0.0, 2.5);
+        self.point_intensity = intensity.clamp(0.0, 2.0);
+        self.point_color = [red, green, blue].map(|value| value.clamp(0.0, 1.0));
+        self.point_range = range.clamp(0.2, 2.5);
         self.dirty = true;
     }
 
@@ -1062,10 +1077,10 @@ impl Viewer {
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
-            // Place the source beside the upper hull, not high above the ship.
-            // +X is the starboard side in the viewer's model coordinates.
-            point_light: [self.radius * 0.32, self.radius * 0.08, 0.0, self.radius * 1.05],
-            point_color: [0.16, 0.38, 1.0, 0.72],
+            // Rotate the source around the ship's center; camera motion never changes its world direction.
+            let point_azimuth = self.point_azimuth.to_radians();
+            point_light: [self.radius * point_azimuth.sin(), self.radius * 0.08, self.radius * point_azimuth.cos(), self.radius * self.point_range],
+            point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
