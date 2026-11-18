@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Clapperboard, Diamond, Download, Film, Pause, Play, RotateCcw, Settings2, Square, Video, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Clapperboard, Diamond, Download, Film, Pause, Play, RotateCcw, Settings2, Square, Sun, Video, X, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { exportFilename } from "@/lib/export-filename";
 import { Timeline } from "@/components/studio/Timeline";
 import { SettingsPanel } from "@/components/studio/SettingsPanel";
@@ -12,11 +13,13 @@ type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, onLayout }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
+  ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   onLayout: (layout: { open: boolean; ratio: number }) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
   const [keys, setKeys] = useState<Keyframe[]>([]);
@@ -207,6 +210,17 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, onLayout }
   return <>
     <Button className="viewer-tool viewer-record" variant="ghost" size="icon" aria-label="Video studio" aria-pressed={open}
       title="Video studio" onClick={() => setOpen((v) => !v)}><Video /></Button>
+    <Button className="viewer-tool viewer-iron-trapdoor" variant="ghost" size="icon"
+      aria-label="Iron trapdoor brightness" aria-expanded={ironTrapdoorPanelOpen}
+      title="Iron trapdoor brightness" onClick={() => setIronTrapdoorPanelOpen((v) => !v)}><Sun /></Button>
+    {ironTrapdoorPanelOpen && <section className="iron-trapdoor-panel" aria-label="Iron trapdoor brightness control">
+      <div className="iron-trapdoor-panel-heading"><strong>Iron trapdoor</strong><span>{ironTrapdoorBrightness.toFixed(2)}×</span></div>
+      <Slider min={0.25} max={1.5} step={0.01} value={[ironTrapdoorBrightness]}
+        onValueChange={(values) => { const value = values[0]; if (value !== undefined) onIronTrapdoorBrightness(value); }}
+        aria-label="Iron trapdoor brightness" />
+      <div className="iron-trapdoor-panel-scale"><span>Darker</span><span>Brighter</span></div>
+      <p>Only iron trapdoor textures are affected.</p>
+    </section>}
     {open && <aside className="studio-sheet dark" aria-label="Video studio">
       <header className="safe-x flex items-center justify-between gap-3 border-b border-border py-2">
         <h2 className="truncate text-lg font-bold">Orbit<span className="text-primary">Studio</span></h2>

@@ -40,6 +40,25 @@ const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
 const backgroundImageCache = new Map<number, Promise<Uint8Array>>();
 let backgroundRequest = 0;
 
+
+async function adjustTextureBrightness(bytes: Uint8Array, brightness: number): Promise<Uint8Array> {
+  const bitmap = await createImageBitmap(new Blob([bytes]));
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d");
+  if (!context) { bitmap.close(); return bytes; }
+  context.filter = `brightness(${brightness})`;
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  return blob ? new Uint8Array(await blob.arrayBuffer()) : bytes;
+}
+
+function isIronTrapdoorTexture(name: string) {
+  return /(?:iron|pale_oak)_trapdoor/i.test(name);
+}
+
 async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").Viewer, mode: number) {
   const request = ++backgroundRequest;
   const image = BACKGROUND_IMAGES[mode];
@@ -82,6 +101,10 @@ function Index() {
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
+  const [ironTrapdoorBrightness, setIronTrapdoorBrightness] = useState(0.73);
+  const ironTrapdoorBrightnessRef = useRef(0.73);
+  const ironTrapdoorOriginalsRef = useRef(new Map<string, Uint8Array>());
+  const ironTrapdoorRevisionRef = useRef(0);
   const [shadowStrength, setShadowStrength] = useState(1);
   const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1 });
   const [orthographic, setOrthographic] = useState(false);
@@ -122,6 +145,8 @@ function Index() {
     let viewer: import("@/lib/wasm/viewer/viewer").Viewer | null = null;
     let raf = 0;
     const cleanups: Array<() => void> = [];
+    ironTrapdoorOriginalsRef.current.clear();
+    ironTrapdoorRevisionRef.current += 1;
 
     const schedule = () => {
       if (!raf && viewer)
@@ -213,12 +238,21 @@ function Index() {
         tracker.update("decode:" + name, 0, 0, "Decoding and uploading textures...");
         // Paint stage state before the synchronous decoder runs; this is not simulated progress.
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        let valid = v.set_texture(name, result.data);
+        const isIronTrapdoor = isIronTrapdoorTexture(name);
+        if (isIronTrapdoor) ironTrapdoorOriginalsRef.current.set(name, result.data);
+        const initialTexture = isIronTrapdoor
+          ? await adjustTextureBrightness(result.data, ironTrapdoorBrightnessRef.current)
+          : result.data;
+        let valid = v.set_texture(name, initialTexture);
         const fallback = model ? localTexture(name) : MODEL_DIR + name;
         if (!valid && fallback && result.url !== fallback) {
           const original = await bytes(fallback, "download:" + name, "Loading original texture...");
           if (disposed) return;
-          valid = v.set_texture(name, original);
+          if (isIronTrapdoor) ironTrapdoorOriginalsRef.current.set(name, original);
+          const fallbackTexture = isIronTrapdoor
+            ? await adjustTextureBrightness(original, ironTrapdoorBrightnessRef.current)
+            : original;
+          valid = v.set_texture(name, fallbackTexture);
         }
         // Unknown custom textures retain MTL diffuse colors.
         tracker.update("decode:" + name, 1, 1, "Preparing viewer...");
@@ -307,6 +341,21 @@ function Index() {
     };
   }, [attempt, model, builtInId, sceneSelected, emptyScene]);
 
+  const applyIronTrapdoorBrightness = async (value: number) => {
+    setIronTrapdoorBrightness(value);
+    ironTrapdoorBrightnessRef.current = value;
+    const revision = ++ironTrapdoorRevisionRef.current;
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    for (const [name, original] of ironTrapdoorOriginalsRef.current) {
+      const adjusted = await adjustTextureBrightness(original, value);
+      if (revision !== ironTrapdoorRevisionRef.current || viewerRef.current !== viewer) return;
+      viewer.set_texture(name, adjusted);
+    }
+    viewer.frame();
+    scheduleRef.current();
+  };
+
   const uploadModel = async (file: File) => {
     setUploading(true); setUploadError("");
     try {
@@ -377,6 +426,7 @@ function Index() {
       onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
+      ironTrapdoorBrightness={ironTrapdoorBrightness} onIronTrapdoorBrightness={(value) => void applyIronTrapdoorBrightness(value)}
       onLayout={setStudioLayout}
       name={model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
     {sceneSelected && <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
