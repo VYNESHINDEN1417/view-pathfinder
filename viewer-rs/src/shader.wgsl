@@ -100,7 +100,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let local_occlusion = (
     (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
     + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
-    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
+    + 0.0 // DIAGNOSTIC: disable overhang AO only; preserve edge and contact AO
   ) / f32(count);
   let ambient_strength = select(1.0, g.shadow_detail.y, g.effects.x > 0.5);
   let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
