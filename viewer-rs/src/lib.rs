@@ -707,7 +707,7 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Set independent shadow-family strengths. Values are clamped to 0.0..2.0.
+    /// Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
     pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32) {
         self.shadow_components = [directional, contact, overhang, edge, ambient].map(|value| value.clamp(0.0, 2.0));
         self.dirty = true;
