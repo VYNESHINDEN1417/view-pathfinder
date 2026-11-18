@@ -1062,10 +1062,10 @@ impl Viewer {
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
-            // Static test light: slightly outboard and above the starboard beam, centered longitudinally.
-            // The short range deliberately keeps the blue spill local instead of washing the whole hull.
-            point_light: [self.radius * 0.24, self.radius * 0.42, 0.0, self.radius * 0.72],
-            point_color: [0.22, 0.48, 1.0, 0.16],
+            // Place the source beside the upper hull, not high above the ship.
+            // +X is the starboard side in the viewer's model coordinates.
+            point_light: [self.radius * 0.32, self.radius * 0.08, 0.0, self.radius * 1.05],
+            point_color: [0.16, 0.38, 1.0, 0.72],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
