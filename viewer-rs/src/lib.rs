@@ -103,6 +103,7 @@ pub struct Viewer {
     point_intensity: f32,
     point_color: [f32; 3],
     point_range: f32,
+    point_orbit_major_x: bool,
     fancy: bool,
     fancy_quality: u32,
     shadow_strength: f32,
@@ -564,7 +565,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_orbit_major_x: false, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -583,6 +584,7 @@ impl Viewer {
             css_h: h as f32,
             center,
             radius,
+            point_orbit_major_x: (hi.x - lo.x) >= (hi.z - lo.z),
             cam: home,
             home,
             light_intensity: 1.5,
@@ -1068,6 +1070,13 @@ impl Viewer {
             self.light_vp = Mat4::orthographic_rh(-r, r, -r, r, r * 0.5, r * 3.5) * Mat4::look_at_rh(light * r * 2.0, Vec3::ZERO, if light.y.abs() > 0.99 { Vec3::Z } else { Vec3::Y });
         }
         let point_azimuth = self.point_azimuth.to_radians();
+        // Stretch the orbit along the model's longest horizontal axis so the source
+        // travels around the bow/stern as well as the port/starboard sides.
+        let (orbit_x, orbit_z) = if self.point_orbit_major_x {
+            (self.radius * 1.30, self.radius * 0.55)
+        } else {
+            (self.radius * 0.55, self.radius * 1.30)
+        };
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
@@ -1078,8 +1087,8 @@ impl Viewer {
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
-            // Rotate the source around the ship's center; camera motion never changes its world direction.
-            point_light: [self.radius * point_azimuth.sin(), self.radius * 0.08, self.radius * point_azimuth.cos(), self.radius * self.point_range],
+            // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
+            point_light: [orbit_x * point_azimuth.sin(), self.radius * 0.08, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
