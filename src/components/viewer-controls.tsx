@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Menu, Box, Sun, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -13,9 +13,9 @@ export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
 };
 
-export function ViewerControls({ options, brightness, orthographic, saving, error, onOptions, onBrightness, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
-  options: ViewerOptions; brightness: number; orthographic: boolean; saving: boolean; error: string;
-  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void;
+export function ViewerControls({ options, brightness, shadowStrength, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
+  options: ViewerOptions; brightness: number; shadowStrength: number; orthographic: boolean; saving: boolean; error: string;
+  onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
@@ -108,6 +108,13 @@ export function ViewerControls({ options, brightness, orthographic, saving, erro
       <Slider orientation="vertical" className="brightness-slider" min={0.25} max={3} step={0.05}
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
+    </div>
+    <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+      <Moon size={17} aria-hidden="true" />
+      <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
+        value={[shadowStrength]} disabled={!options.fancy}
+        onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
+        aria-label="Shadow strength" />
     </div>
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
