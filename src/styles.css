@@ -473,6 +473,8 @@ body {
 
 
 /* Independent blue point-light controls */
+.viewer-blue-light-trigger { color: #83baff; }
+.viewer-blue-light-trigger:hover, .viewer-blue-light-trigger:focus-visible { color: #c5e0ff; border-color: rgb(104 169 255 / 82%); }
 .viewer-blue-light-trigger { position: absolute; left: calc(50% + 114px); bottom: max(44px, calc(env(safe-area-inset-bottom) + 44px)); z-index: 2; }
 .blue-light-backdrop {
   position: fixed; inset: 0; z-index: 35; display: flex; align-items: center; justify-content: center;
@@ -524,7 +526,7 @@ body {
 .blue-light-color-chip { width: 20px; height: 20px; border: 2px solid rgb(255 255 255 / 85%); border-radius: 50%; box-shadow: 0 0 10px currentColor; }
 .blue-light-hue-slider [data-orientation="horizontal"] > span:first-child,
 .blue-light-hue-slider[data-orientation="horizontal"] > span:first-child { background: linear-gradient(90deg, #ff3434, #ffe34b, #4bff72, #40eaff, #4169ff, #e84bff, #ff3434); }
-.blue-light-hue-slider [data-orientation="horizontal"] > span:first-child > span { background: transparent; }
+.blue-light-hue-slider[data-orientation="horizontal"] > span:first-child > span { background: transparent; }
 .blue-light-hue-labels { display: flex; justify-content: space-between; color: rgb(224 238 255 / 42%); font-size: 7px; letter-spacing: .08em; }
 .blue-light-footer { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgb(255 255 255 / 10%); color: rgb(224 238 255 / 45%); font-size: 8px; letter-spacing: .08em; }
 @media (max-width: 520px) {
