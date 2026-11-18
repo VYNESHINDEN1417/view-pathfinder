@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -10,6 +10,7 @@ import {
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
 export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number };
+export type BlueLightSettings = { azimuth: number; brightness: number; intensity: number; hue: number; range: number };
 
 export type ViewerOptions = {
   background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
@@ -56,15 +57,66 @@ function ShadowSettingRow({ title, description, value, onChange, disabled }: {
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity }: {
+
+function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings; onChange: (patch: Partial<BlueLightSettings>) => void; onClose: () => void }) {
+  const angle = value.azimuth * Math.PI / 180;
+  const updateAzimuth = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * 220 / rect.width;
+    const y = (event.clientY - rect.top) * 220 / rect.height;
+    onChange({ azimuth: Math.round(((Math.atan2(x - 110, 110 - y) * 180 / Math.PI + 360) % 360) * 10) / 10 });
+  };
+  const handle = { left: ((110 + Math.sin(angle) * 90) / 220 * 100) + "%", top: ((110 - Math.cos(angle) * 90) / 220 * 100) + "%" };
+  const row = (title: string, description: string, current: number, min: number, max: number, step: number, patch: keyof BlueLightSettings) => <div className="blue-light-setting">
+    <div className="blue-light-setting-heading"><strong>{title}</strong><span>{current.toFixed(2)}×</span></div>
+    <p>{description}</p>
+    <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next }); }} aria-label={title} />
+  </div>;
+  return <div className="blue-light-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="blue-light-panel" role="dialog" aria-modal="true" aria-label="Blue light settings">
+      <header className="blue-light-header"><div><strong>BLUE LIGHT</strong><span>Localized point source</span></div>
+        <button type="button" className="shadow-settings-close" aria-label="Close blue light settings" onClick={onClose}><X size={19} /></button>
+      </header>
+      <div className="blue-light-layout">
+        <div className="blue-light-direction">
+          <div className="blue-light-compass" role="slider" tabIndex={0} aria-label="Blue light azimuth" aria-valuemin={0} aria-valuemax={360} aria-valuenow={Math.round(value.azimuth)}
+            onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); updateAzimuth(event); }}
+            onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateAzimuth(event); }}
+            onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+            onKeyDown={(event) => { if (["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? 359 : value.azimuth + (["ArrowLeft", "ArrowDown"].includes(event.key) ? -2 : 2); onChange({ azimuth: (next + 360) % 360 }); } }}>
+            <svg viewBox="0 0 220 220" aria-hidden="true"><circle cx="110" cy="110" r="90" /><path d="M180.71 39.29 A100 100 0 0 1 180.71 180.71" /><path d="M110 14 V30 M110 190 V206 M14 110 H30 M190 110 H206" /></svg>
+            <span className="blue-light-cardinal north">N</span><span className="blue-light-cardinal east">E</span><span className="blue-light-cardinal south">S</span><span className="blue-light-cardinal west">W</span>
+            <span className="blue-light-handle" style={handle} />
+          </div>
+          <strong className="blue-light-azimuth-value">{value.azimuth.toFixed(1)}°</strong>
+          <span className="blue-light-compass-caption">LIGHT DIRECTION</span>
+        </div>
+        <div className="blue-light-settings">
+          {row("Brightness", "Source brightness multiplier.", value.brightness, 0, 2.5, 0.05, "brightness")}
+          {row("Intensity", "How strongly the light illuminates surfaces.", value.intensity, 0, 2, 0.05, "intensity")}
+          <div className="blue-light-setting"><div className="blue-light-setting-heading"><strong>Color</strong><span className="blue-light-color-chip" style={{ background: "hsl(" + value.hue + " 100% 55%)" }} /></div>
+            <p>Change the light's hue.</p><Slider className="blue-light-hue-slider" min={0} max={360} step={1} value={[value.hue]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ hue: next }); }} aria-label="Light color hue" />
+            <div className="blue-light-hue-labels"><span>RED</span><span>BLUE</span><span>VIOLET</span></div>
+          </div>
+          {row("Influence width", "How far the light reaches across the ship.", value.range, 0.2, 2.5, 0.05, "range")}
+        </div>
+      </div>
+      <footer className="blue-light-footer"><span>AZIMUTH 0–360°</span><span>CAMERA-INDEPENDENT</span></footer>
+    </section>
+  </div>;
+}
+
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
+  blueLight: BlueLightSettings; onBlueLightChange: (patch: Partial<BlueLightSettings>) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
+  const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -180,5 +232,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
+    <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => setBlueLightPanelOpen(true)}
+      aria-label="Blue light settings" title="Blue light settings"><Lightbulb /></Button>
+    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} onClose={() => setBlueLightPanelOpen(false)} />}
   </>;
 }
