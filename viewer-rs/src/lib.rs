@@ -1073,9 +1073,9 @@ impl Viewer {
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
         let (orbit_x, orbit_z) = if self.point_orbit_major_x {
-            (self.radius * 1.30, self.radius * 0.55)
+            (self.radius * 1.70, self.radius * 0.38)
         } else {
-            (self.radius * 0.55, self.radius * 1.30)
+            (self.radius * 0.38, self.radius * 1.70)
         };
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
