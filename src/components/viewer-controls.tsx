@@ -83,10 +83,12 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
     const rect = event.currentTarget.getBoundingClientRect();
     const sx = ((event.clientX - rect.left) * 220 / rect.width - 110) / 90;
     const sy = (110 - (event.clientY - rect.top) * 220 / rect.height) / 90;
-    const det = axisX[0] * (-axisZ[1]) - axisZ[0] * (-axisX[1]);
+    // Invert the same screen projection used to draw the compass.
+    // screenY is flipped for SVG, then converted back to upward-positive sy above.
+    const det = axisX[0] * axisZ[1] - axisZ[0] * axisX[1];
     if (Math.abs(det) < 0.025) return;
-    const worldX = (sx * (-axisZ[1]) - axisZ[0] * sy) / det;
-    const worldZ = (axisX[0] * sy - sx * (-axisX[1])) / det;
+    const worldX = (sx * axisZ[1] - axisZ[0] * sy) / det;
+    const worldZ = (axisX[0] * sy - sx * axisX[1]) / det;
     onChange({ azimuth: Math.round(((Math.atan2(worldX, worldZ) * 180 / Math.PI + 360) % 360) * 10) / 10 });
   };
   const handle = directionPoint(value.azimuth);
