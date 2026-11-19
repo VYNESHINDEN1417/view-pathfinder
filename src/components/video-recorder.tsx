@@ -13,7 +13,7 @@ type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   shadowMode: number;
