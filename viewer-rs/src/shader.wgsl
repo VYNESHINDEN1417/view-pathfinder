@@ -245,7 +245,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let point_falloff = 1.0 - smoothstep(g.point_light.w * 0.10, g.point_light.w, point_distance);
   let point_attenuation = point_falloff * point_falloff;
   // No ambient blue fill: only source-facing surfaces receive this light.
-  // The screen-space depth test prevents the source illuminating surfaces
+  // Four-tap screen-space depth testing prevents the source illuminating surfaces
   // hidden behind the visible hull or superstructure.
   let point_visibility = point_light_visibility(in.world, g.point_light.xyz);
   let blue_contribution = point_facing * point_attenuation * point_visibility * g.point_color.w;
