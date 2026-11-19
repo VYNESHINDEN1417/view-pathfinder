@@ -573,7 +573,7 @@ impl Viewer {
             ((hi.x - lo.x) * 0.62).max(radius * 0.30),
             ((hi.z - lo.z) * 0.62).max(radius * 0.30),
         ];
-        let (orbit_vertices, orbit_indices) = build_orbit_geometry(orbit_axes, orbit_y, 90.0, radius * 0.035);
+        let (orbit_vertices, orbit_indices) = build_orbit_geometry(orbit_axes, orbit_y, 90.0, radius * 0.075);
         let orbit_vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Blue Light world-space orbit vertices"),
             contents: bytemuck::cast_slice(&orbit_vertices),
@@ -586,9 +586,9 @@ impl Viewer {
         });
         let orbit_uniform = MaterialU {
             ambient: [0.0, 0.0, 0.0, 1.0],
-            diffuse: [0.12, 0.48, 1.0, 1.0],
+            diffuse: [0.12, 0.48, 1.0, 1.0], // vivid blue
             specular: [0.0, 0.0, 0.0, 1.0],
-            flags: [0.0, 0.0, 0.0, 1.0],
+            flags: [0.0, 0.0, 0.0, 1.0], // unlit: consistent color at every camera angle
         };
         let orbit_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Blue Light orbit material"),
@@ -772,8 +772,13 @@ impl Viewer {
     pub fn set_sun(&mut self, azimuth: f32, elevation: f32, intensity: f32) {
         let a = azimuth.to_radians(); let e = elevation.clamp(0.0, 90.0).to_radians();
         let direction = Vec3::new(a.sin() * e.cos(), e.sin(), a.cos() * e.cos()).normalize();
-        if (direction - self.sun_direction).length_squared() > 1e-8 { self.shadow_dirty = true; }
         self.sun_direction = direction; self.sun_strength = intensity.clamp(0.0, 2.0); self.dirty = true;
+    }
+
+    /// Rebuild the cached directional shadow map after interactive sun movement settles.
+    pub fn refresh_sun_shadow(&mut self) {
+        self.shadow_dirty = true;
+        self.dirty = true;
     }
 
     pub fn set_fancy(&mut self, enabled: bool, quality: u32) {
@@ -1131,8 +1136,10 @@ impl Viewer {
         }
         let point_azimuth = self.point_azimuth.to_radians();
         // Rebuild only the small marker vertices; the ellipse remains fixed to the ship's plane.
-        let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.035);
-        self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
+        if include_editor_guides && self.point_orbit_visible {
+            let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.075);
+            self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
+        }
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
         let (orbit_x, orbit_z) = (self.orbit_axes[0], self.orbit_axes[1]);
@@ -1153,7 +1160,8 @@ impl Viewer {
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         // Depth-only prepass is allocated only at full size when Fancy is enabled.
-        let ao_size = if self.fancy { (width, height) } else { (1, 1) };
+        let needs_scene_depth = self.fancy || self.point_enabled;
+        let ao_size = if needs_scene_depth { (width, height) } else { (1, 1) };
         let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
             mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
@@ -1166,7 +1174,7 @@ impl Viewer {
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&ao_view) }],
         });
         let mut enc = self.device.create_command_encoder(&Default::default());
-        if self.fancy {
+        if needs_scene_depth {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("model-only AO depth"), color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: &ao_view,
@@ -1380,25 +1388,37 @@ fn downsample_srgb(src: &image::RgbaImage, contrast_center: Option<[f32; 3]>) ->
 
 fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius: f32) -> (Vec<Vertex>, Vec<u32>) {
     const SEGMENTS: usize = 96;
+    const TUBE_SIDES: usize = 8;
     const MARKER_SEGMENTS: usize = 16;
     let (rx, rz) = (axes[0].max(0.01), axes[1].max(0.01));
-    let half_width = (rx.min(rz) * 0.006).max(0.008);
-    let mut vertices = Vec::with_capacity(SEGMENTS * 4 + MARKER_SEGMENTS + 1);
-    let mut indices = Vec::with_capacity(SEGMENTS * 6 + MARKER_SEGMENTS * 3);
+    // A true round tube, rather than a flat ribbon, stays visible from low and edge-on views.
+    // Deliberately substantial cross-section: the guide must read as a 3D tube at mobile viewing distances.
+    let tube_radius = (rx.min(rz) * 0.04).max(0.025);
+    let mut vertices = Vec::with_capacity(SEGMENTS * TUBE_SIDES + MARKER_SEGMENTS + 1);
+    let mut indices = Vec::with_capacity(SEGMENTS * TUBE_SIDES * 6 + MARKER_SEGMENTS * 3);
     for i in 0..SEGMENTS {
         let a0 = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
         let a1 = (i + 1) as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
-        let point = |a: f32, side: f32| {
-            let x = rx * a.cos();
-            let z = rz * a.sin();
+        let ring_start = vertices.len() as u32;
+        for (a, _) in [(a0, 0usize), (a1, 1usize)] {
+            let center = Vec3::new(rx * a.cos(), y, rz * a.sin());
             let tangent = Vec3::new(-rx * a.sin(), 0.0, rz * a.cos()).normalize_or(Vec3::Z);
-            let normal = Vec3::new(tangent.z, 0.0, -tangent.x);
-            let p = Vec3::new(x, y, z) + normal * (half_width * side);
-            Vertex { pos: p.into(), normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] }
-        };
-        let base = vertices.len() as u32;
-        vertices.extend([point(a0, -1.0), point(a0, 1.0), point(a1, 1.0), point(a1, -1.0)]);
-        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+            let outward = Vec3::new(tangent.z, 0.0, -tangent.x).normalize_or(Vec3::X);
+            for side in 0..TUBE_SIDES {
+                let phi = side as f32 / TUBE_SIDES as f32 * std::f32::consts::TAU;
+                let radial = outward * phi.cos() + Vec3::Y * phi.sin();
+                let p = center + radial * tube_radius;
+                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0] });
+            }
+        }
+        for side in 0..TUBE_SIDES {
+            let next = (side + 1) % TUBE_SIDES;
+            let a = ring_start + side as u32;
+            let b = ring_start + next as u32;
+            let c = ring_start + TUBE_SIDES as u32 + next as u32;
+            let d = ring_start + TUBE_SIDES as u32 + side as u32;
+            indices.extend([a, b, c, a, c, d]);
+        }
     }
     // The bright source marker travels on the same ellipse as the shader's point light.
     let a = azimuth_deg.to_radians();

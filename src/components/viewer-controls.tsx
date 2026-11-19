@@ -58,15 +58,41 @@ function ShadowSettingRow({ title, description, value, onChange, disabled }: {
 }
 
 
-function BlueLightPanel({ value, onChange, onClose, enabled, onToggle }: { value: BlueLightSettings; onChange: (patch: Partial<BlueLightSettings>) => void; onClose: () => void; enabled: boolean; onToggle: (enabled: boolean) => void }) {
-  const angle = value.azimuth * Math.PI / 180;
+function rotateDirection(v: [number, number, number], q: number[]) {
+  const [x = 0, y = 0, z = 0, w = 1] = q;
+  const [vx, vy, vz] = v;
+  const tx = 2 * (-y * vz + z * vy), ty = 2 * (-z * vx + x * vz), tz = 2 * (-x * vy + y * vx);
+  return [vx + w * tx - y * tz + z * ty, vy + w * ty - z * tx + x * tz, vz + w * tz - x * ty + y * tx] as [number, number, number];
+}
+
+function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle }: { value: BlueLightSettings; rotation: number[]; onChange: (patch: Partial<BlueLightSettings>) => void; onClose: () => void; enabled: boolean; onToggle: (enabled: boolean) => void }) {
+  const axisX = rotateDirection([1, 0, 0], rotation);
+  const axisZ = rotateDirection([0, 0, 1], rotation);
+  const screenX = (x: number, z: number) => 110 + (axisX[0] * x + axisZ[0] * z) * 90;
+  const screenY = (x: number, z: number) => 110 - (axisX[1] * x + axisZ[1] * z) * 90;
+  const directionPoint = (azimuth: number) => {
+    const a = azimuth * Math.PI / 180;
+    const x = Math.sin(a), z = Math.cos(a);
+    return { left: (screenX(x, z) / 220 * 100) + "%", top: (screenY(x, z) / 220 * 100) + "%" };
+  };
+  const ringPath = Array.from({ length: 73 }, (_, i) => {
+    const a = i / 72 * Math.PI * 2;
+    return `${i === 0 ? "M" : "L"}${screenX(Math.sin(a), Math.cos(a)).toFixed(2)} ${screenY(Math.sin(a), Math.cos(a)).toFixed(2)}`;
+  }).join(" ") + " Z";
   const updateAzimuth = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) * 220 / rect.width;
-    const y = (event.clientY - rect.top) * 220 / rect.height;
-    onChange({ azimuth: Math.round(((Math.atan2(x - 110, 110 - y) * 180 / Math.PI + 360) % 360) * 10) / 10 });
+    const sx = ((event.clientX - rect.left) * 220 / rect.width - 110) / 90;
+    const sy = (110 - (event.clientY - rect.top) * 220 / rect.height) / 90;
+    // Invert the same screen projection used to draw the compass.
+    // screenY is flipped for SVG, then converted back to upward-positive sy above.
+    const det = axisX[0] * axisZ[1] - axisZ[0] * axisX[1];
+    if (Math.abs(det) < 0.025) return;
+    const worldX = (sx * axisZ[1] - axisZ[0] * sy) / det;
+    const worldZ = (axisX[0] * sy - sx * axisX[1]) / det;
+    onChange({ azimuth: Math.round(((Math.atan2(worldX, worldZ) * 180 / Math.PI + 360) % 360) * 10) / 10 });
   };
-  const handle = { left: ((110 + Math.sin(angle) * 90) / 220 * 100) + "%", top: ((110 - Math.cos(angle) * 90) / 220 * 100) + "%" };
+  const handle = directionPoint(value.azimuth);
+  const cardinals = [{ label: "N", az: 0 }, { label: "E", az: 90 }, { label: "S", az: 180 }, { label: "W", az: 270 }];
   const row = (title: string, description: string, current: number, min: number, max: number, step: number, patch: keyof BlueLightSettings) => <div className="blue-light-setting">
     <div className="blue-light-setting-heading"><strong>{title}</strong><span>{current.toFixed(2)}×</span></div>
     <p>{description}</p>
@@ -96,8 +122,8 @@ function BlueLightPanel({ value, onChange, onClose, enabled, onToggle }: { value
             onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateAzimuth(event); }}
             onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
             onKeyDown={(event) => { if (["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? 359 : value.azimuth + (["ArrowLeft", "ArrowDown"].includes(event.key) ? -2 : 2); onChange({ azimuth: (next + 360) % 360 }); } }}>
-            <svg viewBox="0 0 220 220" aria-hidden="true"><circle cx="110" cy="110" r="90" /><path d="M180.71 39.29 A100 100 0 0 1 180.71 180.71" /><path d="M110 14 V30 M110 190 V206 M14 110 H30 M190 110 H206" /></svg>
-            <span className="blue-light-cardinal north">N</span><span className="blue-light-cardinal east">E</span><span className="blue-light-cardinal south">S</span><span className="blue-light-cardinal west">W</span>
+            <svg viewBox="0 0 220 220" aria-hidden="true"><path d={ringPath} /><path d={cardinals.map(({ az }) => { const p = directionPoint(az); const x = parseFloat(p.left) * 2.2, y = parseFloat(p.top) * 2.2; const a = az * Math.PI / 180; return `M${screenX(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} ${screenY(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} L${x} ${y}`; }).join(" ")} /></svg>
+            {cardinals.map(({ label, az }) => <span key={label} className="blue-light-cardinal" style={directionPoint(az)}>{label}</span>)}
             <span className="blue-light-handle" style={handle} />
           </div>
           <strong className="blue-light-azimuth-value">{value.azimuth.toFixed(1)}°</strong>
@@ -113,13 +139,13 @@ function BlueLightPanel({ value, onChange, onClose, enabled, onToggle }: { value
           {row("Influence width", "How far the light reaches across the ship.", value.range, 0.2, 2.5, 0.05, "range")}
         </div>
       </div>
-      <footer className="blue-light-footer"><span>AZIMUTH 0–360°</span><span>CAMERA-INDEPENDENT</span></footer>
+      <footer className="blue-light-footer"><span>AZIMUTH 0–360°</span><span>CAMERA-ALIGNED</span></footer>
     </section>
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
-  options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; saving: boolean; error: string;
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
+  options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
@@ -247,6 +273,6 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
     <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => onBlueLightPanelOpenChange(true)}
       aria-label="Blue light settings" title="Blue light settings"><Lightbulb /></Button>
-    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} enabled={blueLightEnabled} onToggle={onBlueLightEnabledChange} onClose={() => onBlueLightPanelOpenChange(false)} />}
+    {blueLightPanelOpen && <BlueLightPanel value={blueLight} rotation={rotation} onChange={onBlueLightChange} enabled={blueLightEnabled} onToggle={onBlueLightEnabledChange} onClose={() => onBlueLightPanelOpenChange(false)} />}
   </>;
 }

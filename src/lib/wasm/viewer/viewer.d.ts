@@ -40,6 +40,10 @@ export class Viewer {
      * Returns 0 = nothing, 1 = tap/click, 2 = double tap (camera was reset).
      */
     pointer_up(id: number, x: number, y: number, time_ms: number): number;
+    /**
+     * Rebuild the cached directional shadow map after interactive sun movement settles.
+     */
+    refresh_sun_shadow(): void;
     reset(): void;
     /**
      * Resize in device pixels; css size is used for input scaling.
@@ -127,6 +131,7 @@ export interface InitOutput {
     readonly viewer_pointer_down: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_pointer_move: (a: number, b: number, c: number, d: number) => void;
     readonly viewer_pointer_up: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly viewer_refresh_sun_shadow: (a: number) => void;
     readonly viewer_reset: (a: number) => void;
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
