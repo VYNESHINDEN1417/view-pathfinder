@@ -604,3 +604,14 @@ body:has(.blue-light-backdrop) .viewer-projection,
 body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   transform: translateY(calc(100% + 90px));
 }
+
+
+.blue-light-power-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 9px 11px; border: 1px solid rgb(145 195 255 / 18%); border-radius: 10px; background: rgb(4 12 24 / 28%); }
+.blue-light-power-row > div { display: grid; gap: 3px; }
+.blue-light-power-row strong { color: #eaf4ff; font-size: 11px; }
+.blue-light-power-row span { color: rgb(224 238 255 / 58%); font-size: 9px; }
+.blue-light-power-toggle { display: inline-flex; align-items: center; gap: 7px; min-width: 72px; justify-content: center; padding: 7px 10px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; background: rgb(35 48 66 / 70%); color: #d7e5f6; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.blue-light-power-toggle[aria-checked="true"] { border-color: rgb(91 165 255 / 75%); background: rgb(35 112 210 / 55%); color: #fff; box-shadow: 0 0 14px rgb(51 137 255 / 25%); }
+.blue-light-power-knob { width: 8px; height: 8px; border-radius: 50%; background: #8393a8; }
+.blue-light-power-toggle[aria-checked="true"] .blue-light-power-knob { background: #9dccff; box-shadow: 0 0 8px #5ba5ff; }
+@media (max-width: 520px) { .blue-light-power-row { margin-bottom: 8px; padding: 7px 9px; } }
