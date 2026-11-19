@@ -772,8 +772,13 @@ impl Viewer {
     pub fn set_sun(&mut self, azimuth: f32, elevation: f32, intensity: f32) {
         let a = azimuth.to_radians(); let e = elevation.clamp(0.0, 90.0).to_radians();
         let direction = Vec3::new(a.sin() * e.cos(), e.sin(), a.cos() * e.cos()).normalize();
-        if (direction - self.sun_direction).length_squared() > 1e-8 { self.shadow_dirty = true; }
         self.sun_direction = direction; self.sun_strength = intensity.clamp(0.0, 2.0); self.dirty = true;
+    }
+
+    /// Rebuild the cached directional shadow map after interactive sun movement settles.
+    pub fn refresh_sun_shadow(&mut self) {
+        self.shadow_dirty = true;
+        self.dirty = true;
     }
 
     pub fn set_fancy(&mut self, enabled: bool, quality: u32) {
@@ -1131,8 +1136,10 @@ impl Viewer {
         }
         let point_azimuth = self.point_azimuth.to_radians();
         // Rebuild only the small marker vertices; the ellipse remains fixed to the ship's plane.
-        let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.075);
-        self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
+        if include_editor_guides && self.point_orbit_visible {
+            let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.075);
+            self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
+        }
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
         let (orbit_x, orbit_z) = (self.orbit_axes[0], self.orbit_axes[1]);
@@ -1153,7 +1160,8 @@ impl Viewer {
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         // Depth-only prepass is allocated only at full size when Fancy is enabled.
-        let ao_size = if self.fancy { (width, height) } else { (1, 1) };
+        let needs_scene_depth = self.fancy || self.point_enabled;
+        let ao_size = if needs_scene_depth { (width, height) } else { (1, 1) };
         let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
             mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
@@ -1166,7 +1174,7 @@ impl Viewer {
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&ao_view) }],
         });
         let mut enc = self.device.create_command_encoder(&Default::default());
-        if self.fancy {
+        if needs_scene_depth {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("model-only AO depth"), color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: &ao_view,
