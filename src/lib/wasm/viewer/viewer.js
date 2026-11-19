@@ -140,6 +140,12 @@ export class Viewer {
         const ret = wasm.viewer_pointer_up(this.__wbg_ptr, id, x, y, time_ms);
         return ret;
     }
+    /**
+     * Rebuild the cached directional shadow map after interactive sun movement settles.
+     */
+    refresh_sun_shadow() {
+        wasm.viewer_refresh_sun_shadow(this.__wbg_ptr);
+    }
     reset() {
         wasm.viewer_reset(this.__wbg_ptr);
     }
