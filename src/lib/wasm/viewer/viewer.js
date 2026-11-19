@@ -220,11 +220,18 @@ export class Viewer {
         wasm.viewer_set_point_light(this.__wbg_ptr, azimuth, brightness, intensity, red, green, blue, range);
     }
     /**
-     * Show or hide the Blue Light orbit and its localized light source.
+     * Enable or disable only the localized Blue Light illumination.
      * @param {boolean} enabled
      */
     set_point_light_enabled(enabled) {
         wasm.viewer_set_point_light_enabled(this.__wbg_ptr, enabled);
+    }
+    /**
+     * Show or hide the editor-only orbit guide and source marker.
+     * @param {boolean} visible
+     */
+    set_point_orbit_visible(visible) {
+        wasm.viewer_set_point_orbit_visible(this.__wbg_ptr, visible);
     }
     /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
