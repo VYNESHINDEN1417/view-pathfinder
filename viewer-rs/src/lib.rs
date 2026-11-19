@@ -117,6 +117,12 @@ pub struct Viewer {
     textures: HashMap<String, (wgpu::Texture, wgpu::TextureView)>,
     vbuf: wgpu::Buffer,
     ibuf: wgpu::Buffer,
+    orbit_vbuf: wgpu::Buffer,
+    orbit_ibuf: wgpu::Buffer,
+    orbit_index_count: u32,
+    orbit_axes: [f32; 2],
+    orbit_y: f32,
+    orbit_mat: Mat,
     draws: Vec<Draw>,
     mats: Vec<Mat>,
     msaa: Option<wgpu::TextureView>,
@@ -556,6 +562,37 @@ impl Viewer {
             })
             .collect();
 
+        // Dedicated, unlit orbit guide. It is real model-space geometry, not a panel overlay.
+        let orbit_y = -radius * 0.18;
+        let orbit_axes = [
+            ((hi.x - lo.x) * 0.62).max(radius * 0.30),
+            ((hi.z - lo.z) * 0.62).max(radius * 0.30),
+        ];
+        let (orbit_vertices, orbit_indices) = build_orbit_geometry(orbit_axes, orbit_y, 90.0, radius * 0.035);
+        let orbit_vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Blue Light world-space orbit vertices"),
+            contents: bytemuck::cast_slice(&orbit_vertices),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+        let orbit_ibuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Blue Light world-space orbit indices"),
+            contents: bytemuck::cast_slice(&orbit_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let orbit_uniform = MaterialU {
+            ambient: [0.0, 0.0, 0.0, 1.0],
+            diffuse: [0.12, 0.48, 1.0, 1.0],
+            specular: [0.0, 0.0, 0.0, 1.0],
+            flags: [0.0, 0.0, 0.0, 1.0],
+        };
+        let orbit_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Blue Light orbit material"),
+            contents: bytemuck::bytes_of(&orbit_uniform),
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
+        let orbit_bind = make_mat_bind(&device, &mat_layout, &orbit_buffer, &white, &sampler, &anisotropic_sampler);
+        let orbit_mat = Mat { uniform: orbit_uniform, buffer: orbit_buffer, texture_name: None, bind: orbit_bind };
+
         let (msaa, depth) = make_targets(&device, &config);
         let home = Camera { target: Vec3::ZERO, rot: Quat::IDENTITY, dist: radius * 2.6 };
         let mut v = Viewer {
@@ -575,6 +612,12 @@ impl Viewer {
             textures: HashMap::new(),
             vbuf,
             ibuf,
+            orbit_vbuf,
+            orbit_ibuf,
+            orbit_index_count: orbit_indices.len() as u32,
+            orbit_axes,
+            orbit_y,
+            orbit_mat,
             draws,
             mats,
             msaa,
@@ -1070,6 +1113,9 @@ impl Viewer {
             self.light_vp = Mat4::orthographic_rh(-r, r, -r, r, r * 0.5, r * 3.5) * Mat4::look_at_rh(light * r * 2.0, Vec3::ZERO, if light.y.abs() > 0.99 { Vec3::Z } else { Vec3::Y });
         }
         let point_azimuth = self.point_azimuth.to_radians();
+        // Rebuild only the small marker vertices; the ellipse remains fixed to the ship's plane.
+        let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.035);
+        self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
         let (orbit_x, orbit_z) = if self.point_orbit_major_x {
@@ -1088,7 +1134,7 @@ impl Viewer {
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
-            point_light: [orbit_x * point_azimuth.sin(), -self.radius * 0.18, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
+            point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
@@ -1171,6 +1217,11 @@ impl Viewer {
                 pass.set_bind_group(1, &self.mats[d.material].bind, &[]);
                 pass.draw_indexed(d.start..d.start + d.count, 0, 0..1);
             }
+            // Render the orbit in the same depth-tested 3D pass so the ship naturally occludes it.
+            pass.set_bind_group(1, &self.orbit_mat.bind, &[]);
+            pass.set_vertex_buffer(0, self.orbit_vbuf.slice(..));
+            pass.set_index_buffer(self.orbit_ibuf.slice(..), wgpu::IndexFormat::Uint32);
+            pass.draw_indexed(0..self.orbit_index_count, 0, 0..1);
         }
         self.queue.submit(Some(enc.finish()));
     }
@@ -1180,6 +1231,8 @@ impl Viewer {
         self.shadow_texture.destroy();
         self.vbuf.destroy();
         self.ibuf.destroy();
+        self.orbit_vbuf.destroy();
+        self.orbit_ibuf.destroy();
         for (t, _) in self.textures.values() {
             t.destroy();
         }
@@ -1308,6 +1361,49 @@ fn downsample_srgb(src: &image::RgbaImage, contrast_center: Option<[f32; 3]>) ->
         }
     }
     dst
+}
+
+fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius: f32) -> (Vec<Vertex>, Vec<u32>) {
+    const SEGMENTS: usize = 96;
+    const MARKER_SEGMENTS: usize = 16;
+    let (rx, rz) = (axes[0].max(0.01), axes[1].max(0.01));
+    let half_width = (rx.min(rz) * 0.006).max(0.008);
+    let mut vertices = Vec::with_capacity(SEGMENTS * 4 + MARKER_SEGMENTS + 1);
+    let mut indices = Vec::with_capacity(SEGMENTS * 6 + MARKER_SEGMENTS * 3);
+    for i in 0..SEGMENTS {
+        let a0 = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+        let a1 = (i + 1) as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+        let point = |a: f32, side: f32| {
+            let x = rx * a.cos();
+            let z = rz * a.sin();
+            let tangent = Vec3::new(-rx * a.sin(), 0.0, rz * a.cos()).normalize_or(Vec3::Z);
+            let normal = Vec3::new(tangent.z, 0.0, -tangent.x);
+            let p = Vec3::new(x, y, z) + normal * (half_width * side);
+            Vertex { pos: p.into(), normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] }
+        };
+        let base = vertices.len() as u32;
+        vertices.extend([point(a0, -1.0), point(a0, 1.0), point(a1, 1.0), point(a1, -1.0)]);
+        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+    // The bright source marker travels on the same ellipse as the shader's point light.
+    let a = azimuth_deg.to_radians();
+    let cx = rx * a.sin();
+    let cz = rz * a.cos();
+    let center_index = vertices.len() as u32;
+    vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] });
+    for i in 0..=MARKER_SEGMENTS {
+        let angle = i as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
+        vertices.push(Vertex {
+            pos: [cx + marker_radius * angle.cos(), y + marker_radius * 0.025, cz + marker_radius * angle.sin()],
+            normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0],
+        });
+        if i > 0 {
+            let current = center_index + i as u32;
+            let previous = current - 1;
+            indices.extend([center_index, previous, current]);
+        }
+    }
+    (vertices, indices)
 }
 
 fn wrap_angle(a: f32) -> f32 {
