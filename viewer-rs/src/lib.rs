@@ -150,14 +150,6 @@ pub struct Viewer {
     pinch: (f32, f32, f32), // spread, cx, cy
 }
 
-fn is_stone_material(material_name: &str, texture_name: Option<&str>) -> bool {
-    let material = material_name.to_ascii_lowercase();
-    let texture = texture_name.unwrap_or_default().to_ascii_lowercase();
-    ["stone", "cobble", "masonry", "brick", "granite", "diorite", "andesite", "basalt", "slate", "limestone"]
-        .iter()
-        .any(|kind| material.contains(kind) || texture.contains(kind))
-}
-
 fn log(s: &str) {
     web_sys::console::warn_1(&s.into());
 }
