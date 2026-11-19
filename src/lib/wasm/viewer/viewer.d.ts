@@ -68,6 +68,8 @@ export class Viewer {
      * Configure the independent localized colored point light around the model.
      */
     set_point_light(azimuth: number, brightness: number, intensity: number, red: number, green: number, blue: number, range: number): void;
+    /** Show or hide the Blue Light orbit and localized source. */
+    set_point_light_enabled(enabled: boolean): void;
     /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
      */
