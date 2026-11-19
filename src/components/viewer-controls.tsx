@@ -58,7 +58,7 @@ function ShadowSettingRow({ title, description, value, onChange, disabled }: {
 }
 
 
-function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings; onChange: (patch: Partial<BlueLightSettings>) => void; onClose: () => void }) {
+function BlueLightPanel({ value, onChange, onClose, enabled, onToggle }: { value: BlueLightSettings; onChange: (patch: Partial<BlueLightSettings>) => void; onClose: () => void; enabled: boolean; onToggle: (enabled: boolean) => void }) {
   const angle = value.azimuth * Math.PI / 180;
   const updateAzimuth = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -73,10 +73,22 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
     <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next } as Partial<BlueLightSettings>); }} aria-label={title} />
   </div>;
   return <div className="blue-light-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="blue-light-panel" role="dialog" aria-modal="true" aria-label="Blue light settings">
+    <section className="blue-light-panel" role="group" aria-label="Blue light settings"
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
+      onPointerCancel={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+      onTouchMove={(event) => event.stopPropagation()}
+      onTouchEnd={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseMove={(event) => event.stopPropagation()}
+      onMouseUp={(event) => event.stopPropagation()}
+      onWheel={(event) => event.stopPropagation()}>
       <header className="blue-light-header"><div><strong>BLUE LIGHT</strong><span>Localized point source</span></div>
         <button type="button" className="shadow-settings-close" aria-label="Close blue light settings" onClick={onClose}><X size={19} /></button>
       </header>
+      <div className="blue-light-power-row"><div><strong>Light power</strong><span>{enabled ? "Illumination stays active when this panel closes." : "Light is currently off."}</span></div><button type="button" className="blue-light-power-toggle" role="switch" aria-checked={enabled} onClick={() => onToggle(!enabled)}><span className="blue-light-power-knob" />{enabled ? "ON" : "OFF"}</button></div>
       <div className="blue-light-layout">
         <div className="blue-light-direction">
           <div className="blue-light-compass" role="slider" tabIndex={0} aria-label="Blue light azimuth" aria-valuemin={0} aria-valuemax={360} aria-valuenow={Math.round(value.azimuth)}
@@ -106,17 +118,18 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
   blueLight: BlueLightSettings; onBlueLightChange: (patch: Partial<BlueLightSettings>) => void;
+  blueLightEnabled: boolean; onBlueLightEnabledChange: (enabled: boolean) => void;
+  blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
-  const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -232,8 +245,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
-    <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => setBlueLightPanelOpen(true)}
+    <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => onBlueLightPanelOpenChange(true)}
       aria-label="Blue light settings" title="Blue light settings"><Lightbulb /></Button>
-    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} onClose={() => setBlueLightPanelOpen(false)} />}
+    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} enabled={blueLightEnabled} onToggle={onBlueLightEnabledChange} onClose={() => onBlueLightPanelOpenChange(false)} />}
   </>;
 }

@@ -13,10 +13,11 @@ type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   onLayout: (layout: { open: boolean; ratio: number }) => void;
+  blueLightPanelOpen: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
@@ -108,8 +109,10 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
     // Render the engine at exact output size; restore the live view afterwards.
     const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
-    const restore = () => { v.resize(prev.w, prev.h, prev.cw, prev.ch); canvas.width = prev.w; canvas.height = prev.h; v.resize(prev.w, prev.h, prev.cw, prev.ch); schedule(); };
+    const restore = () => { v.resize(prev.w, prev.h, prev.cw, prev.ch); canvas.width = prev.w; canvas.height = prev.h; v.resize(prev.w, prev.h, prev.cw, prev.ch); v.set_point_orbit_visible(blueLightPanelOpen); schedule(); };
     canvas.width = width; canvas.height = height; v.resize(width, height, width, height);
+    // Editor orbit and source marker are guides, never part of rendered video.
+    v.set_point_orbit_visible(false);
     const total = totalFrames(settings.duration, settings.fps);
     ctrl.current = { paused: false, cancel: false };
     setRs("rendering"); setTab("render");

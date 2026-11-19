@@ -477,15 +477,24 @@ body {
 .viewer-blue-light-trigger:hover, .viewer-blue-light-trigger:focus-visible { color: #c5e0ff; border-color: rgb(104 169 255 / 82%); }
 .viewer-blue-light-trigger { position: absolute; left: calc(50% + 114px); bottom: max(44px, calc(env(safe-area-inset-bottom) + 44px)); z-index: 2; }
 .blue-light-backdrop {
-  position: fixed; inset: 0; z-index: 35; display: flex; align-items: center; justify-content: center;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  background: rgb(0 0 0 / 52%); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  position: fixed; inset: 0; z-index: 35; display: flex; align-items: flex-end; justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(7dvh, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: transparent; pointer-events: none;
 }
+/* The model viewport is raised while the lower settings sheet is open. */
+body:has(.blue-light-backdrop) .viewer-brightness,
+body:has(.blue-light-backdrop) .viewer-shadow-strength,
+body:has(.blue-light-backdrop) .viewer-gizmo,
+body:has(.blue-light-backdrop) .viewer-projection,
+body:has(.blue-light-backdrop) .viewer-blue-light-trigger { display: none !important; }
+body:has(.blue-light-backdrop) .viewer-canvas { transform: translate(-50%, calc(-50% - 13dvh)); }
 .blue-light-panel {
-  width: min(590px, 100%); max-height: min(78dvh, 620px); overflow-y: auto; padding: 16px 18px 12px;
-  border: 1px solid rgb(107 174 255 / 35%); border-radius: 16px; color: #eef6ff;
-  background: linear-gradient(145deg, rgb(12 24 42 / 96%), rgb(5 10 20 / 96%));
-  box-shadow: 0 18px 55px rgb(0 0 0 / 65%), inset 0 1px 0 rgb(255 255 255 / 8%);
+  position: relative; z-index: 1; width: min(590px, 100%); max-height: min(70dvh, 560px); overflow-y: auto; padding: 16px 18px 12px;
+  border: 1px solid rgb(145 195 255 / 30%); border-radius: 16px; color: #eef6ff;
+  background: linear-gradient(145deg, rgb(12 24 42 / 28%), rgb(5 10 20 / 22%));
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 16%), inset 0 1px 0 rgb(255 255 255 / 12%);
+  pointer-events: auto;
 }
 .blue-light-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-right: 2px; }
 .blue-light-header > div { display: grid; gap: 3px; }
@@ -531,7 +540,9 @@ body {
 .blue-light-footer { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgb(255 255 255 / 10%); color: rgb(224 238 255 / 45%); font-size: 8px; letter-spacing: .08em; }
 @media (max-width: 520px) {
   .viewer-blue-light-trigger { left: calc(50% + 92px); bottom: max(24px, calc(env(safe-area-inset-bottom) + 24px)); }
-  .blue-light-panel { padding: 12px 12px 10px; max-height: 76dvh; }
+  .blue-light-backdrop { padding-bottom: max(5dvh, env(safe-area-inset-bottom)); }
+  body:has(.blue-light-backdrop) .viewer-canvas { transform: translate(-50%, calc(-50% - 16dvh)); }
+  .blue-light-panel { padding: 12px 12px 10px; max-height: 66dvh; }
   .blue-light-layout { grid-template-columns: minmax(112px, 40%) minmax(0, 1fr); gap: 12px; }
   .blue-light-settings { gap: 6px; }
   .blue-light-setting { gap: 3px; padding-bottom: 5px; }
@@ -547,3 +558,60 @@ body {
 @media (max-width: 360px), (max-height: 500px) {
   .viewer-blue-light-trigger { left: calc(50% + 92px); bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px)); }
 }
+
+
+/* Blue Light mode: smoothly clear the surrounding controls instead of snapping them away. */
+.viewer-brightness,
+.viewer-shadow-strength,
+.viewer-gizmo,
+.viewer-projection,
+.viewer-blue-light-trigger {
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    visibility 0s;
+  will-change: transform, opacity;
+}
+.viewer-canvas {
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+body:has(.blue-light-backdrop) .viewer-brightness,
+body:has(.blue-light-backdrop) .viewer-shadow-strength { display: flex !important; }
+body:has(.blue-light-backdrop) .viewer-gizmo { display: block !important; }
+body:has(.blue-light-backdrop) .viewer-projection,
+body:has(.blue-light-backdrop) .viewer-blue-light-trigger { display: inline-flex !important; }
+body:has(.blue-light-backdrop) .viewer-brightness,
+body:has(.blue-light-backdrop) .viewer-shadow-strength,
+body:has(.blue-light-backdrop) .viewer-gizmo,
+body:has(.blue-light-backdrop) .viewer-projection,
+body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    visibility 0s linear 420ms;
+}
+body:has(.blue-light-backdrop) .viewer-brightness,
+body:has(.blue-light-backdrop) .viewer-shadow-strength {
+  transform: translateY(calc(100% + 56px));
+}
+body:has(.blue-light-backdrop) .viewer-gizmo {
+  transform: translate(-50%, calc(100% + 240px));
+}
+body:has(.blue-light-backdrop) .viewer-projection,
+body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
+  transform: translateY(calc(100% + 90px));
+}
+
+
+.blue-light-power-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 9px 11px; border: 1px solid rgb(145 195 255 / 18%); border-radius: 10px; background: rgb(4 12 24 / 28%); }
+.blue-light-power-row > div { display: grid; gap: 3px; }
+.blue-light-power-row strong { color: #eaf4ff; font-size: 11px; }
+.blue-light-power-row span { color: rgb(224 238 255 / 58%); font-size: 9px; }
+.blue-light-power-toggle { display: inline-flex; align-items: center; gap: 7px; min-width: 72px; justify-content: center; padding: 7px 10px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; background: rgb(35 48 66 / 70%); color: #d7e5f6; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.blue-light-power-toggle[aria-checked="true"] { border-color: rgb(91 165 255 / 75%); background: rgb(35 112 210 / 55%); color: #fff; box-shadow: 0 0 14px rgb(51 137 255 / 25%); }
+.blue-light-power-knob { width: 8px; height: 8px; border-radius: 50%; background: #8393a8; }
+.blue-light-power-toggle[aria-checked="true"] .blue-light-power-knob { background: #9dccff; box-shadow: 0 0 8px #5ba5ff; }
+@media (max-width: 520px) { .blue-light-power-row { margin-bottom: 8px; padding: 7px 9px; } }

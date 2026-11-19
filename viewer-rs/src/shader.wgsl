@@ -8,8 +8,8 @@ struct Globals {
   effects: vec4<f32>,
   shadow: vec4<f32>,
   shadow_detail: vec4<f32>,
-  point_light: vec4<f32>, // xyz = static starboard light position, w = effective range
-  point_color: vec4<f32>, // rgb = blue tint, w = subtle intensity
+  point_light: vec4<f32>, // xyz = elliptical-orbit light position, w = effective range
+  point_color: vec4<f32>, // rgb = blue light tint, w = intensity
 };
 
 struct Material {
@@ -130,6 +130,7 @@ fn stone_segment_noise(p: vec3<f32>) -> f32 {
 
 @fragment
 fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
+  if (m.flags.w > 0.5) { return vec4<f32>(m.diffuse.rgb, m.diffuse.a); }
   var n = normalize(in.normal);
   let v = normalize(g.eye.xyz - in.world);
   if (dot(n, v) < 0.0) { n = -n; }
@@ -208,8 +209,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
   let fill = 0.06 * max(dot(n, v), 0.0);
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
-  // Localized colored point light: inverse-distance-style falloff plus surface orientation.
-  // This is a fixed test source, independent of the camera and sun; it does not tint the whole model.
+  // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;
   let point_distance = length(to_point);
   let point_direction = to_point / max(point_distance, 0.0001);
