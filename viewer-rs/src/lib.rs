@@ -150,14 +150,6 @@ pub struct Viewer {
     pinch: (f32, f32, f32), // spread, cx, cy
 }
 
-fn is_stone_material(material_name: &str, texture_name: Option<&str>) -> bool {
-    let material = material_name.to_ascii_lowercase();
-    let texture = texture_name.unwrap_or_default().to_ascii_lowercase();
-    ["stone", "cobble", "masonry", "brick", "granite", "diorite", "andesite", "basalt", "slate", "limestone"]
-        .iter()
-        .any(|kind| material.contains(kind) || texture.contains(kind))
-}
-
 fn log(s: &str) {
     web_sys::console::warn_1(&s.into());
 }
@@ -534,14 +526,13 @@ impl Viewer {
                 let s = m.specular.unwrap_or([0.2; 3]);
                 let tex = m.diffuse_texture.clone().filter(|t| !t.trim().is_empty());
                 let is_plank = tex.as_deref().is_some_and(|name| name.to_ascii_lowercase().contains("planks"));
-                let is_stone = is_stone_material(&m.name, tex.as_deref());
                 (
                     MaterialU {
                         ambient: [a[0], a[1], a[2], 1.0],
                         diffuse: [d[0], d[1], d[2], m.dissolve.unwrap_or(1.0)],
                         specular: [s[0], s[1], s[2], m.shininess.unwrap_or(32.0)],
-                        // x = textured, y = wooden-plank contrast, z = stone segment tint.
-                        flags: [0.0, if is_plank { 1.0 } else { 0.0 }, if is_stone { 1.0 } else { 0.0 }, 0.0],
+                        // x = textured, y = wooden-plank contrast. Preserve authored stone texture colors.
+                        flags: [0.0, if is_plank { 1.0 } else { 0.0 }, 0.0, 0.0],
                     },
                     tex,
                 )

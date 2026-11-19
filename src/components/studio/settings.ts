@@ -26,7 +26,7 @@ export const defaultSettings: StudioSettings = {
   shadows: true,
   antialias: true,
   gpu: "auto",
-  bitrate: "high",
+  bitrate: "ultra",
   pixelRatio: 1.5,
 };
 

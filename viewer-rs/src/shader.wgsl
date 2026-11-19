@@ -111,23 +111,6 @@ fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @locatio
   return o;
 }
 
-fn stone_segment_hash(p: vec3<f32>) -> f32 {
-  return fract(sin(dot(p, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453);
-}
-
-// Smooth, low-frequency 3D value noise creates broad color regions in model space.
-// Because it uses world coordinates, the pattern stays fixed while the camera moves.
-fn stone_segment_noise(p: vec3<f32>) -> f32 {
-  let cell = floor(p);
-  let f = fract(p);
-  let u = f * f * (vec3<f32>(3.0) - 2.0 * f);
-  let x00 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 0.0, 0.0)), stone_segment_hash(cell + vec3<f32>(1.0, 0.0, 0.0)), u.x);
-  let x10 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 1.0, 0.0)), stone_segment_hash(cell + vec3<f32>(1.0, 1.0, 0.0)), u.x);
-  let x01 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 0.0, 1.0)), stone_segment_hash(cell + vec3<f32>(1.0, 0.0, 1.0)), u.x);
-  let x11 = mix(stone_segment_hash(cell + vec3<f32>(0.0, 1.0, 1.0)), stone_segment_hash(cell + vec3<f32>(1.0, 1.0, 1.0)), u.x);
-  return mix(mix(x00, x10, u.y), mix(x01, x11, u.y), u.z);
-}
-
 fn point_light_visibility(world: vec3<f32>, light_pos: vec3<f32>) -> f32 {
   if (g.effects.x < 0.5 && g.point_color.w <= 0.0) { return 1.0; }
   let size = vec2<i32>(textureDimensions(scene_depth));
@@ -196,15 +179,6 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
       // distance, including close-ups. Compress contrast uniformly around gray.
       let contrast = 0.82;
       texture_color = vec3<f32>(0.5) + (t.rgb - vec3<f32>(0.5)) * contrast;
-    }
-    if (m.flags.z > 0.5) {
-      // Very restrained warm/cool shifts across broad, softly blended stone regions.
-      // This is a render-time tint only; source texture pixels remain untouched.
-      let segment_scale = max(g.effects.w * 5.0, 0.65);
-      // 15% stronger than the first pass, while keeping the same broad spatial scale.
-      let variation = (stone_segment_noise(in.world / segment_scale) - 0.5) * 0.06325;
-      let tint = vec3<f32>(1.0 + variation * 0.55, 1.0 + variation * 0.10, 1.0 - variation * 0.45);
-      texture_color = texture_color * tint;
     }
     kd = kd * texture_color;
   }
