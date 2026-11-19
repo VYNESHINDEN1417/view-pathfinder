@@ -129,6 +129,32 @@ fn stone_segment_noise(p: vec3<f32>) -> f32 {
 }
 
 @fragment
+fn point_light_visibility(world: vec3<f32>, light_pos: vec3<f32>) -> f32 {
+  if (g.effects.x < 0.5 && g.point_color.w <= 0.0) { return 1.0; }
+  let size = vec2<i32>(textureDimensions(scene_depth));
+  if (size.x <= 1 || size.y <= 1) { return 1.0; }
+  let ray = light_pos - world;
+  var blocked = false;
+  // A few screen-space samples approximate whether ship geometry lies between
+  // this surface and the local source. The depth prepass includes the full model.
+  for (var i = 1u; i <= 4u; i++) {
+    let t = f32(i) / 5.0;
+    let sample_world = world + ray * t;
+    let clip = g.view_proj * vec4<f32>(sample_world, 1.0);
+    if (clip.w > 0.0001) {
+      let ndc = clip.xyz / clip.w;
+      let uv = ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
+      if (all(uv > vec2<f32>(0.0)) && all(uv < vec2<f32>(1.0)) && ndc.z > 0.0 && ndc.z < 1.0) {
+        let coord = clamp(vec2<i32>(uv * vec2<f32>(size)), vec2<i32>(0), size - vec2<i32>(1));
+        let scene = textureLoad(scene_depth, coord, 0);
+        if (scene < ndc.z - 0.0018) { blocked = true; }
+      }
+    }
+  }
+  return select(1.0, 0.0, blocked);
+}
+
+@fragment
 fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
   if (m.flags.w > 0.5) { return vec4<f32>(m.diffuse.rgb, m.diffuse.a); }
   var n = normalize(in.normal);
@@ -213,12 +239,16 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let to_point = g.point_light.xyz - in.world;
   let point_distance = length(to_point);
   let point_direction = to_point / max(point_distance, 0.0001);
-  let point_facing = max(dot(n, point_direction), 0.0);
+  // Use the authored geometric normal, not the camera-flipped shading normal:
+  // the reverse side of a hull must not receive light from the source behind it.
+  let point_facing = max(dot(normalize(in.normal), point_direction), 0.0);
   let point_falloff = 1.0 - smoothstep(g.point_light.w * 0.10, g.point_light.w, point_distance);
   let point_attenuation = point_falloff * point_falloff;
-  // Keep the source bright enough to register on nearby hull surfaces while
-  // retaining a directional component so the whole ship is not blue-washed.
-  let blue_contribution = (0.28 + 0.72 * point_facing) * point_attenuation * g.point_color.w;
+  // No ambient blue fill: only source-facing surfaces receive this light.
+  // The screen-space depth test prevents the source illuminating surfaces
+  // hidden behind the visible hull or superstructure.
+  let point_visibility = point_light_visibility(in.world, g.point_light.xyz);
+  let blue_contribution = point_facing * point_attenuation * point_visibility * g.point_color.w;
   color += kd * g.point_color.rgb * blue_contribution;
   if (g.effects.x > 0.5) {
     let half_vector = normalize(l + v);
