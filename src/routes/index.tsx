@@ -95,6 +95,7 @@ function Index() {
   const viewerRef = useRef<import("@/lib/wasm/viewer/viewer").Viewer | null>(null);
   const scheduleRef = useRef<() => void>(() => {});
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
+  const sunShadowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [model, setModel] = useState<ModelArchive | null>(null);
   const [builtInId, setBuiltInId] = useState<BuiltInId>("wisconsin");
@@ -140,6 +141,15 @@ function Index() {
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
     viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
+    // Keep sun movement on the fast lighting path while dragging. Rebuild the
+    // expensive cached shadow map once the user's adjustment has settled.
+    if (sunShadowTimerRef.current) clearTimeout(sunShadowTimerRef.current);
+    sunShadowTimerRef.current = setTimeout(() => {
+      if (viewerRef.current === target) {
+        target.refresh_sun_shadow();
+        scheduleRef.current();
+      }
+    }, 120);
     const [red, green, blue] = hueToRgb(blueLight.hue);
     viewer.set_point_light(blueLight.azimuth, blueLight.brightness, blueLight.intensity, red, green, blue, blueLight.range);
     viewer.set_point_light_enabled(blueLightEnabled);
@@ -158,6 +168,7 @@ function Index() {
     let disposed = false;
     let viewer: import("@/lib/wasm/viewer/viewer").Viewer | null = null;
     let raf = 0;
+    let lastRotation = [Number.NaN, Number.NaN, Number.NaN, Number.NaN];
     const cleanups: Array<() => void> = [];
     ironTrapdoorOriginalsRef.current.clear();
     ironTrapdoorRevisionRef.current += 1;
@@ -169,7 +180,11 @@ function Index() {
           if (!viewer) return;
           viewer.animate(time);
           viewer.frame();
-          setRotation(Array.from(viewer.camera_rotation()));
+          const nextRotation = Array.from(viewer.camera_rotation());
+          if (nextRotation.some((value, index) => Math.abs(value - lastRotation[index]) > 1e-5)) {
+            lastRotation = nextRotation;
+            setRotation(nextRotation);
+          }
           if (viewer.animating() || viewer.needs_redraw()) schedule();
         });
     };
