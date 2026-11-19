@@ -105,6 +105,7 @@ function Index() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [sun, setSun] = useState({ azimuth: 32.47, elevation: 50.81, intensity: 1 });
   const [blueLight, setBlueLight] = useState({ azimuth: 90, brightness: 1, intensity: 0.72, hue: 220, range: 1.05 });
+  const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: true, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
@@ -140,9 +141,10 @@ function Index() {
     viewer.set_sun(sun.azimuth, sun.elevation, sun.intensity);
     const [red, green, blue] = hueToRgb(blueLight.hue);
     viewer.set_point_light(blueLight.azimuth, blueLight.brightness, blueLight.intensity, red, green, blue, blueLight.range);
+    viewer.set_point_light_enabled(blueLightPanelOpen);
     viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
-  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight]);
+  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightPanelOpen]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -434,7 +436,7 @@ function Index() {
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
-      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
