@@ -1380,25 +1380,36 @@ fn downsample_srgb(src: &image::RgbaImage, contrast_center: Option<[f32; 3]>) ->
 
 fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius: f32) -> (Vec<Vertex>, Vec<u32>) {
     const SEGMENTS: usize = 96;
+    const TUBE_SIDES: usize = 8;
     const MARKER_SEGMENTS: usize = 16;
     let (rx, rz) = (axes[0].max(0.01), axes[1].max(0.01));
-    let half_width = (rx.min(rz) * 0.006).max(0.008);
-    let mut vertices = Vec::with_capacity(SEGMENTS * 4 + MARKER_SEGMENTS + 1);
-    let mut indices = Vec::with_capacity(SEGMENTS * 6 + MARKER_SEGMENTS * 3);
+    // A true round tube, rather than a flat ribbon, stays visible from low and edge-on views.
+    let tube_radius = (rx.min(rz) * 0.012).max(0.012);
+    let mut vertices = Vec::with_capacity(SEGMENTS * TUBE_SIDES + MARKER_SEGMENTS + 1);
+    let mut indices = Vec::with_capacity(SEGMENTS * TUBE_SIDES * 6 + MARKER_SEGMENTS * 3);
     for i in 0..SEGMENTS {
         let a0 = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
         let a1 = (i + 1) as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
-        let point = |a: f32, side: f32| {
-            let x = rx * a.cos();
-            let z = rz * a.sin();
+        let ring_start = vertices.len() as u32;
+        for (a, _) in [(a0, 0usize), (a1, 1usize)] {
+            let center = Vec3::new(rx * a.cos(), y, rz * a.sin());
             let tangent = Vec3::new(-rx * a.sin(), 0.0, rz * a.cos()).normalize_or(Vec3::Z);
-            let normal = Vec3::new(tangent.z, 0.0, -tangent.x);
-            let p = Vec3::new(x, y, z) + normal * (half_width * side);
-            Vertex { pos: p.into(), normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] }
-        };
-        let base = vertices.len() as u32;
-        vertices.extend([point(a0, -1.0), point(a0, 1.0), point(a1, 1.0), point(a1, -1.0)]);
-        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+            let outward = Vec3::new(tangent.z, 0.0, -tangent.x).normalize_or(Vec3::X);
+            for side in 0..TUBE_SIDES {
+                let phi = side as f32 / TUBE_SIDES as f32 * std::f32::consts::TAU;
+                let radial = outward * phi.cos() + Vec3::Y * phi.sin();
+                let p = center + radial * tube_radius;
+                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0] });
+            }
+        }
+        for side in 0..TUBE_SIDES {
+            let next = (side + 1) % TUBE_SIDES;
+            let a = ring_start + side as u32;
+            let b = ring_start + next as u32;
+            let c = ring_start + TUBE_SIDES as u32 + next as u32;
+            let d = ring_start + TUBE_SIDES as u32 + side as u32;
+            indices.extend([a, b, c, a, c, d]);
+        }
     }
     // The bright source marker travels on the same ellipse as the shader's point light.
     let a = azimuth_deg.to_radians();
