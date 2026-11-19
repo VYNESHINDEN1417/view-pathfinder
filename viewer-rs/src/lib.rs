@@ -103,6 +103,7 @@ pub struct Viewer {
     point_intensity: f32,
     point_color: [f32; 3],
     point_range: f32,
+    point_enabled: bool,
     point_orbit_major_x: bool,
     fancy: bool,
     fancy_quality: u32,
@@ -605,7 +606,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -751,6 +752,12 @@ impl Viewer {
         self.point_intensity = intensity.clamp(0.0, 2.0);
         self.point_color = [red, green, blue].map(|value| value.clamp(0.0, 1.0));
         self.point_range = range.clamp(0.2, 2.5);
+        self.dirty = true;
+    }
+
+    /// Show or hide the Blue Light orbit and its localized light source.
+    pub fn set_point_light_enabled(&mut self, enabled: bool) {
+        self.point_enabled = enabled;
         self.dirty = true;
     }
 
@@ -1134,7 +1141,7 @@ impl Viewer {
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
-            point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
+            point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
@@ -1216,11 +1223,13 @@ impl Viewer {
                 pass.set_bind_group(1, &self.mats[d.material].bind, &[]);
                 pass.draw_indexed(d.start..d.start + d.count, 0, 0..1);
             }
-            // Render the orbit in the same depth-tested 3D pass so the ship naturally occludes it.
-            pass.set_bind_group(1, &self.orbit_mat.bind, &[]);
-            pass.set_vertex_buffer(0, self.orbit_vbuf.slice(..));
-            pass.set_index_buffer(self.orbit_ibuf.slice(..), wgpu::IndexFormat::Uint32);
-            pass.draw_indexed(0..self.orbit_index_count, 0, 0..1);
+            // The orbit guide is visible only while the Blue Light panel is active.
+            if self.point_enabled {
+                pass.set_bind_group(1, &self.orbit_mat.bind, &[]);
+                pass.set_vertex_buffer(0, self.orbit_vbuf.slice(..));
+                pass.set_index_buffer(self.orbit_ibuf.slice(..), wgpu::IndexFormat::Uint32);
+                pass.draw_indexed(0..self.orbit_index_count, 0, 0..1);
+            }
         }
         self.queue.submit(Some(enc.finish()));
     }
@@ -1390,17 +1399,18 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
     let cz = rz * a.cos();
     let center_index = vertices.len() as u32;
     vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] });
-    for i in 0..=MARKER_SEGMENTS {
+    for i in 0..MARKER_SEGMENTS {
         let angle = i as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
         vertices.push(Vertex {
             pos: [cx + marker_radius * angle.cos(), y + marker_radius * 0.025, cz + marker_radius * angle.sin()],
             normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0],
         });
-        if i > 0 {
-            let current = center_index + i as u32;
-            let previous = current - 1;
-            indices.extend([center_index, previous, current]);
-        }
+    }
+    // Close every wedge back to the first perimeter vertex for a seamless full disc.
+    for i in 0..MARKER_SEGMENTS {
+        let current = center_index + 1 + i as u32;
+        let next = center_index + 1 + ((i + 1) % MARKER_SEGMENTS) as u32;
+        indices.extend([center_index, current, next]);
     }
     (vertices, indices)
 }
