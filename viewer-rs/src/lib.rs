@@ -563,7 +563,10 @@ impl Viewer {
             .collect();
 
         // Dedicated, unlit orbit guide. It is real model-space geometry, not a panel overlay.
-        let orbit_y = -radius * 0.18;
+        // Keep the orbit tied to the model's vertical bounds. Using the overall
+        // radius here makes long ships push the light far below the hull.
+        let model_height = (hi.y - lo.y).max(radius * 0.02);
+        let orbit_y = lo.y + model_height * 0.10;
         let orbit_axes = [
             ((hi.x - lo.x) * 0.62).max(radius * 0.30),
             ((hi.z - lo.z) * 0.62).max(radius * 0.30),
