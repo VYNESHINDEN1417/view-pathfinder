@@ -586,9 +586,9 @@ impl Viewer {
         });
         let orbit_uniform = MaterialU {
             ambient: [0.0, 0.0, 0.0, 1.0],
-            diffuse: [0.12, 0.48, 1.0, 1.0],
+            diffuse: [0.48, 1.0, 0.04, 1.0], // vivid lime green
             specular: [0.0, 0.0, 0.0, 1.0],
-            flags: [0.0, 0.0, 0.0, 1.0],
+            flags: [0.0, 0.0, 0.0, 1.0], // unlit: consistent color at every camera angle
         };
         let orbit_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Blue Light orbit material"),
@@ -1384,7 +1384,8 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
     const MARKER_SEGMENTS: usize = 16;
     let (rx, rz) = (axes[0].max(0.01), axes[1].max(0.01));
     // A true round tube, rather than a flat ribbon, stays visible from low and edge-on views.
-    let tube_radius = (rx.min(rz) * 0.012).max(0.012);
+    // Deliberately substantial cross-section: the guide must read as a 3D tube at mobile viewing distances.
+    let tube_radius = (rx.min(rz) * 0.04).max(0.025);
     let mut vertices = Vec::with_capacity(SEGMENTS * TUBE_SIDES + MARKER_SEGMENTS + 1);
     let mut indices = Vec::with_capacity(SEGMENTS * TUBE_SIDES * 6 + MARKER_SEGMENTS * 3);
     for i in 0..SEGMENTS {
