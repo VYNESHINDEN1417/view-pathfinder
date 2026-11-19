@@ -573,7 +573,7 @@ impl Viewer {
             ((hi.x - lo.x) * 0.62).max(radius * 0.30),
             ((hi.z - lo.z) * 0.62).max(radius * 0.30),
         ];
-        let (orbit_vertices, orbit_indices) = build_orbit_geometry(orbit_axes, orbit_y, 90.0, radius * 0.035);
+        let (orbit_vertices, orbit_indices) = build_orbit_geometry(orbit_axes, orbit_y, 90.0, radius * 0.075);
         let orbit_vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Blue Light world-space orbit vertices"),
             contents: bytemuck::cast_slice(&orbit_vertices),
@@ -586,7 +586,7 @@ impl Viewer {
         });
         let orbit_uniform = MaterialU {
             ambient: [0.0, 0.0, 0.0, 1.0],
-            diffuse: [0.48, 1.0, 0.04, 1.0], // vivid lime green
+            diffuse: [0.12, 0.48, 1.0, 1.0], // vivid blue
             specular: [0.0, 0.0, 0.0, 1.0],
             flags: [0.0, 0.0, 0.0, 1.0], // unlit: consistent color at every camera angle
         };
@@ -1131,7 +1131,7 @@ impl Viewer {
         }
         let point_azimuth = self.point_azimuth.to_radians();
         // Rebuild only the small marker vertices; the ellipse remains fixed to the ship's plane.
-        let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.035);
+        let (orbit_vertices, _) = build_orbit_geometry(self.orbit_axes, self.orbit_y, self.point_azimuth, self.radius * 0.075);
         self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
