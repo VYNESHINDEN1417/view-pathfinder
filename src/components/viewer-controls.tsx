@@ -72,14 +72,7 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
     <p>{description}</p>
     <Slider min={min} max={max} step={step} value={[current]} onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange({ [patch]: next } as Partial<BlueLightSettings>); }} aria-label={title} />
   </div>;
-  const orbitX = 500 + Math.sin(angle) * 420;
-  const orbitY = 300 - Math.cos(angle) * 112;
   return <div className="blue-light-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <svg className="blue-light-orbit-overlay" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
-      <ellipse className="blue-light-orbit-ring" cx="500" cy="300" rx="420" ry="112" />
-      <circle className="blue-light-orbit-glow" cx={orbitX} cy={orbitY} r="18" />
-      <circle className="blue-light-orbit-sun" cx={orbitX} cy={orbitY} r="8" />
-    </svg>
     <section className="blue-light-panel" role="group" aria-label="Blue light settings"
       onPointerDown={(event) => event.stopPropagation()}
       onPointerMove={(event) => event.stopPropagation()}
