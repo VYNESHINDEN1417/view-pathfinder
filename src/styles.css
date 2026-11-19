@@ -576,11 +576,15 @@ body:has(.blue-light-backdrop) .viewer-canvas { transform: translate(-50%, calc(
   transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 body:has(.blue-light-backdrop) .viewer-brightness,
+body:has(.blue-light-backdrop) .viewer-shadow-strength { display: flex !important; }
+body:has(.blue-light-backdrop) .viewer-gizmo { display: block !important; }
+body:has(.blue-light-backdrop) .viewer-projection,
+body:has(.blue-light-backdrop) .viewer-blue-light-trigger { display: inline-flex !important; }
+body:has(.blue-light-backdrop) .viewer-brightness,
 body:has(.blue-light-backdrop) .viewer-shadow-strength,
 body:has(.blue-light-backdrop) .viewer-gizmo,
 body:has(.blue-light-backdrop) .viewer-projection,
 body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
-  display: flex !important;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
