@@ -16,6 +16,7 @@ type RenderState = "idle" | "rendering" | "paused" | "done";
 export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
+  shadowMode: number;
   onLayout: (layout: { open: boolean; ratio: number }) => void;
   blueLightPanelOpen: boolean;
 }) {
@@ -109,8 +110,19 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
     // Render the engine at exact output size; restore the live view afterwards.
     const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
-    const restore = () => { v.resize(prev.w, prev.h, prev.cw, prev.ch); canvas.width = prev.w; canvas.height = prev.h; v.resize(prev.w, prev.h, prev.cw, prev.ch); v.set_point_orbit_visible(blueLightPanelOpen); schedule(); };
+    const restore = () => {
+      canvas.width = prev.w; canvas.height = prev.h;
+      v.resize(prev.w, prev.h, prev.cw, prev.ch);
+      v.set_shadow_mode(shadowMode);
+      v.set_point_orbit_visible(blueLightPanelOpen);
+      schedule();
+    };
     canvas.width = width; canvas.height = height; v.resize(width, height, width, height);
+    // Export uses the same Rust renderer and fully settled lighting as the viewport.
+    // Rebuild cached sun shadows before the first frame so a recent azimuth change
+    // cannot leak a stale/partially updated shadow map into the recording.
+    v.refresh_sun_shadow();
+    if (!settings.shadows) v.set_shadow_mode(0);
     // Editor orbit and source marker are guides, never part of rendered video.
     v.set_point_orbit_visible(false);
     const total = totalFrames(settings.duration, settings.fps);
@@ -132,6 +144,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       if (!sampled) break;
       v.set_camera_pose(new Float32Array(sampled));
       v.frame();
+      // Give the browser a compositor turn after the GPU submission before the
+      // canvas is sampled. Export is offline-timed, so this does not drop frames.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const vf = new VideoFrame(canvas, { timestamp: Math.round(f * us), duration: Math.round(us) });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
