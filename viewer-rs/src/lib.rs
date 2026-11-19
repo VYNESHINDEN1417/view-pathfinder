@@ -104,6 +104,7 @@ pub struct Viewer {
     point_color: [f32; 3],
     point_range: f32,
     point_enabled: bool,
+    point_orbit_visible: bool,
     point_orbit_major_x: bool,
     fancy: bool,
     fancy_quality: u32,
@@ -606,7 +607,7 @@ impl Viewer {
             config,
             pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -755,9 +756,15 @@ impl Viewer {
         self.dirty = true;
     }
 
-    /// Show or hide the Blue Light orbit and its localized light source.
+    /// Enable or disable only the localized Blue Light illumination.
     pub fn set_point_light_enabled(&mut self, enabled: bool) {
         self.point_enabled = enabled;
+        self.dirty = true;
+    }
+
+    /// Show or hide the editor-only orbit guide and source marker.
+    pub fn set_point_orbit_visible(&mut self, visible: bool) {
+        self.point_orbit_visible = visible;
         self.dirty = true;
     }
 
@@ -864,7 +871,7 @@ impl Viewer {
             view_formats: &[],
         });
         let (cm, cd) = make_targets_sized(&self.device, format, width, height);
-        self.render_to(&texture.create_view(&Default::default()), width, height, cm.as_ref(), &cd);
+        self.render_to(&texture.create_view(&Default::default()), width, height, cm.as_ref(), &cd, false);
         let row_bytes = width * 4;
         let padded = (row_bytes + 255) & !255;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -1098,13 +1105,13 @@ impl Viewer {
         self.dirty = false;
         let (m, d) = (self.msaa.clone(), self.depth.clone());
         let (w, h) = (self.config.width, self.config.height);
-        self.render_to(&frame.texture.create_view(&Default::default()), w, h, m.as_ref(), &d);
+        self.render_to(&frame.texture.create_view(&Default::default()), w, h, m.as_ref(), &d, true);
         if self.shadow_mode == 2 { self.shadow_dirty = true; }
         frame.present();
         true
     }
 
-    fn render_to(&mut self, view: &wgpu::TextureView, width: u32, height: u32, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView) {
+    fn render_to(&mut self, view: &wgpu::TextureView, width: u32, height: u32, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView, include_editor_guides: bool) {
         let aspect = width as f32 / height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
@@ -1224,7 +1231,7 @@ impl Viewer {
                 pass.draw_indexed(d.start..d.start + d.count, 0, 0..1);
             }
             // The orbit guide is visible only while the Blue Light panel is active.
-            if self.point_enabled {
+            if include_editor_guides && self.point_orbit_visible {
                 pass.set_bind_group(1, &self.orbit_mat.bind, &[]);
                 pass.set_vertex_buffer(0, self.orbit_vbuf.slice(..));
                 pass.set_index_buffer(self.orbit_ibuf.slice(..), wgpu::IndexFormat::Uint32);
