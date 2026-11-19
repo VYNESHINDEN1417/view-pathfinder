@@ -117,17 +117,17 @@ function BlueLightPanel({ value, onChange, onClose }: { value: BlueLightSettings
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
   uploading: boolean; customModel: boolean; onUpload: () => void; models: { id: string; name: string }[]; activeModel: string; onModel: (id: string) => void;
   sunIntensity: number; onSunIntensity: (value: number) => void;
   blueLight: BlueLightSettings; onBlueLightChange: (patch: Partial<BlueLightSettings>) => void;
+  blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
-  const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -243,8 +243,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
       aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
-    <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => setBlueLightPanelOpen(true)}
+    <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => onBlueLightPanelOpenChange(true)}
       aria-label="Blue light settings" title="Blue light settings"><Lightbulb /></Button>
-    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} onClose={() => setBlueLightPanelOpen(false)} />}
+    {blueLightPanelOpen && <BlueLightPanel value={blueLight} onChange={onBlueLightChange} onClose={() => onBlueLightPanelOpenChange(false)} />}
   </>;
 }
