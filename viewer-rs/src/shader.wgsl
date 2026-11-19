@@ -130,6 +130,7 @@ fn stone_segment_noise(p: vec3<f32>) -> f32 {
 
 @fragment
 fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
+  if (m.flags.w > 0.5) { return vec4<f32>(m.diffuse.rgb, m.diffuse.a); }
   var n = normalize(in.normal);
   let v = normalize(g.eye.xyz - in.world);
   if (dot(n, v) < 0.0) { n = -n; }
