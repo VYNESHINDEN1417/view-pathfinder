@@ -1118,11 +1118,7 @@ impl Viewer {
         self.queue.write_buffer(&self.orbit_vbuf, 0, bytemuck::cast_slice(&orbit_vertices));
         // Stretch the orbit along the model's longest horizontal axis so the source
         // travels around the bow/stern as well as the port/starboard sides.
-        let (orbit_x, orbit_z) = if self.point_orbit_major_x {
-            (self.radius * 1.70, self.radius * 0.38)
-        } else {
-            (self.radius * 0.38, self.radius * 1.70)
-        };
+        let (orbit_x, orbit_z) = (self.orbit_axes[0], self.orbit_axes[1]);
         let g = Globals {
             view_proj: vp.to_cols_array_2d(),
             eye: [eye.x, eye.y, eye.z, 1.0],
