@@ -128,7 +128,6 @@ fn stone_segment_noise(p: vec3<f32>) -> f32 {
   return mix(mix(x00, x10, u.y), mix(x01, x11, u.y), u.z);
 }
 
-@fragment
 fn point_light_visibility(world: vec3<f32>, light_pos: vec3<f32>) -> f32 {
   if (g.effects.x < 0.5 && g.point_color.w <= 0.0) { return 1.0; }
   let size = vec2<i32>(textureDimensions(scene_depth));
