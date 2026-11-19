@@ -1088,7 +1088,7 @@ impl Viewer {
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
-            point_light: [orbit_x * point_azimuth.sin(), self.radius * 0.08, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
+            point_light: [orbit_x * point_azimuth.sin(), -self.radius * 0.18, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, self.point_intensity],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
