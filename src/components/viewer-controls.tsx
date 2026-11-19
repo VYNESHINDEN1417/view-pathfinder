@@ -120,7 +120,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
             onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateAzimuth(event); }}
             onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
             onKeyDown={(event) => { if (["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? 359 : value.azimuth + (["ArrowLeft", "ArrowDown"].includes(event.key) ? -2 : 2); onChange({ azimuth: (next + 360) % 360 }); } }}>
-            <svg viewBox="0 0 220 220" aria-hidden="true"><path d={ringPath} /><path d={cardinals.map(({ az }) => { const p = directionPoint(az); const x = parseFloat(p.left) * 2.2, y = parseFloat(p.top) * 2.2; const a = az * Math.PI / 180; return `M${screenX(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} ${screenY(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} L${x} ${y}`; }).join(" ")}" /></svg>
+            <svg viewBox="0 0 220 220" aria-hidden="true"><path d={ringPath} /><path d={cardinals.map(({ az }) => { const p = directionPoint(az); const x = parseFloat(p.left) * 2.2, y = parseFloat(p.top) * 2.2; const a = az * Math.PI / 180; return `M${screenX(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} ${screenY(Math.sin(a) * 0.88, Math.cos(a) * 0.88)} L${x} ${y}`; }).join(" ")} /></svg>
             {cardinals.map(({ label, az }) => <span key={label} className="blue-light-cardinal" style={directionPoint(az)}>{label}</span>)}
             <span className="blue-light-handle" style={handle} />
           </div>
