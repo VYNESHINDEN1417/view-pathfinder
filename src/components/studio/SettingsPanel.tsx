@@ -1,5 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import type { StudioSettings } from "./settings";
 
@@ -38,6 +39,35 @@ function Toggle({ label, desc, checked, onChange, disabled }: { label: string; d
   );
 }
 
+function BitrateControl({ value, onChange, disabled, duration }: {
+  value: number; onChange: (value: number) => void; disabled: boolean; duration: number;
+}) {
+  const presets = [12, 24, 40, 60, 80];
+  const estimatedMb = (value * duration) / 8;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">Video bitrate</p>
+          <p className="text-sm text-muted-foreground">Higher bitrate preserves more detail, with larger files.</p>
+        </div>
+        <strong className="shrink-0 font-mono text-lg text-primary">{value} Mbps</strong>
+      </div>
+      <Slider min={8} max={80} step={2} value={[value]} disabled={disabled}
+        onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange(next); }}
+        aria-label="Video bitrate in megabits per second" />
+      <div className="flex justify-between text-xs text-muted-foreground"><span>8 Mbps · Smaller</span><span>80 Mbps · Larger</span></div>
+      <div className="grid grid-cols-5 gap-2" aria-label="Bitrate presets">
+        {presets.map((preset) => (
+          <Button key={preset} type="button" variant="ghost" disabled={disabled} data-active={value === preset}
+            className="studio-btn px-1 text-xs" onClick={() => onChange(preset)}>{preset}</Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">Approx. {estimatedMb.toFixed(1)} MB for {duration}s, before audio and container overhead.</p>
+    </div>
+  );
+}
+
 export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set; locked: boolean }) {
   const sections = [
     { id: "video", title: "Video Output", body: (
@@ -67,8 +97,7 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
       <Toggle label="Real-time shadows" desc="Sun shadows on the ship in the video." checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
     ) },
     { id: "enc", title: "Encoding Quality", body: (
-      <Choice label="Bitrate" desc="Higher means sharper video and bigger files." value={s.bitrate} disabled={locked} onChange={(v) => set("bitrate", v)}
-        options={[{ v: "low", l: "Low" }, { v: "medium", l: "Medium" }, { v: "high", l: "High" }, { v: "ultra", l: "Ultra" }]} />
+      <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
     ) },
   ];
   return (
