@@ -20,7 +20,6 @@ precision highp float;
 uniform sampler2D uSource;
 uniform vec2 uTexel;
 uniform float uStrength;
-in vec2 vUv;
 out vec4 outColor;
 
 float colorDistance(vec3 a, vec3 b) {
