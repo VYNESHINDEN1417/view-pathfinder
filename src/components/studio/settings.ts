@@ -11,6 +11,7 @@ export interface StudioSettings {
   antialias: boolean;
   gpu: "auto" | "high" | "low";
   bitrate: number;
+  noiseReduction: boolean;
   pixelRatio: 1 | 1.5 | 2;
 }
 
@@ -27,6 +28,7 @@ export const defaultSettings: StudioSettings = {
   antialias: true,
   gpu: "auto",
   bitrate: 40,
+  noiseReduction: true,
   pixelRatio: 1.5,
 };
 
