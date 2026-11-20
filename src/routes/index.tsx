@@ -182,15 +182,16 @@ function Index() {
       const amount = pose[7] * 0.16;
       offset = { x: screenUp.x * amount, y: screenUp.y * amount, z: screenUp.z * amount, zoom };
       bluePanelCameraOffsetRef.current = offset;
-      target[0] += offset.x;
-      target[1] += offset.y;
-      target[2] += offset.z;
-      target[7] *= zoom;
-    } else {
-      if (!offset) return;
+      // Move the camera target screen-down so the ship appears higher in frame.
       target[0] -= offset.x;
       target[1] -= offset.y;
       target[2] -= offset.z;
+      target[7] *= zoom;
+    } else {
+      if (!offset) return;
+      target[0] += offset.x;
+      target[1] += offset.y;
+      target[2] += offset.z;
       target[7] /= offset.zoom;
       bluePanelCameraOffsetRef.current = null;
     }
