@@ -112,83 +112,135 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setPreviewing(false); setError("");
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(null);
+
     const size = outputSize(settings);
     const width = size.width & ~1, height = size.height & ~1;
-    const bitrate = bitrateBps(settings.bitrate);
-    const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-    let codec = "";
-    if (typeof VideoEncoder !== "undefined")
-      for (const c of ["avc1.640034", "avc1.4d0034", "avc1.42003e"]) {
-        const ok = await VideoEncoder.isConfigSupported({ codec: c, width, height, bitrate, framerate: settings.fps }).catch(() => null);
-        if (ok?.supported) { codec = c; break; }
-      }
-    if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Render the engine at exact output size; restore the live view afterwards.
-    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
-    const restore = () => {
-      canvas.width = prev.w; canvas.height = prev.h;
-      v.resize(prev.w, prev.h, prev.cw, prev.ch);
-      v.set_shadow_mode(shadowMode);
-      v.set_point_orbit_visible(blueLightPanelOpen);
-      schedule();
-    };
-    canvas.width = width; canvas.height = height; v.resize(width, height, width, height);
-    // Export uses the same Rust renderer and fully settled lighting as the viewport.
-    // Rebuild cached sun shadows before the first frame so a recent azimuth change
-    // cannot leak a stale/partially updated shadow map into the recording.
-    v.refresh_sun_shadow();
-    if (!settings.shadows) v.set_shadow_mode(0);
-    // Editor orbit and source marker are guides, never part of rendered video.
-    v.set_point_orbit_visible(false);
-    // A separate WebGL2 post-process canvas keeps the live WebGPU viewport untouched.
-    // The low-strength edge-aware pass is enabled by default and can be disabled in settings.
-    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
-    if (settings.noiseReduction && !denoiser)
-      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
-    const total = totalFrames(settings.duration, settings.fps);
-    ctrl.current = { paused: false, cancel: false };
-    setRs("rendering"); setTab("render");
-    const target = new ArrayBufferTarget();
-    const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
-    let encErr: unknown = null;
-    const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (er) => { encErr = er; } });
-    enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
-    const us = 1e6 / settings.fps;
-    let activeMs = 0, last = performance.now();
-    for (let f = 0; f < total; f++) {
-      if (ctrl.current.cancel || encErr) break;
-      while (ctrl.current.paused && !ctrl.current.cancel) { await new Promise((r) => setTimeout(r, 100)); last = performance.now(); }
-      if (ctrl.current.cancel) break;
-      const t = f / settings.fps;
-      const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
-      if (!sampled) break;
-      v.set_camera_pose(new Float32Array(sampled));
-      v.frame();
-      // Give the browser a compositor turn after the GPU submission before the
-      // canvas is sampled. Export is offline-timed, so this does not drop frames.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const frameSource = denoiser ? denoiser.process(canvas) : canvas;
-      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
-      enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
-      vf.close();
-      while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
-      await new Promise((r) => setTimeout(r, 0));
-      const now = performance.now(); activeMs += now - last; last = now;
-      if (f % 3 === 0 || f === total - 1) {
-        const fps = (f + 1) / (activeMs / 1000);
-        setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
-      }
-    }
-    denoiser?.destroy();
-    restore();
-    if (ctrl.current.cancel || encErr) {
-      enc.close(); setRs("idle"); setProg({ frame: 0, total: 0, fps: 0, eta: null });
-      if (encErr) setError("Video encoding failed. Try a lower resolution.");
+    const pixels = width * height;
+    // 90 fps is deliberately limited to a 1080p pixel budget on mobile-class GPUs.
+    // Higher resolutions can allocate several full-frame GPU surfaces and crash the tab.
+    if (settings.fps === 90 && pixels > 2_073_600) {
+      setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
       return;
     }
-    await enc.flush(); enc.close(); muxer.finalize();
-    setVideoUrl(URL.createObjectURL(new Blob([target.buffer], { type: "video/mp4" })));
-    setRs("done");
+    const estimatedBytes = (bitrateBps(settings.bitrate) * settings.duration) / 8;
+    if (estimatedBytes > 256 * 1024 * 1024) {
+      setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
+      return;
+    }
+
+    let enc: VideoEncoder | null = null;
+    let denoiser: ReturnType<typeof createExportDenoiser> = null;
+    let restore: (() => void) | null = null;
+    let completed = false;
+    let encErr: unknown = null;
+    try {
+      const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
+      let codec = "";
+      if (typeof VideoEncoder !== "undefined") {
+        for (const c of ["avc1.640034", "avc1.4d0034", "avc1.42003e"]) {
+          const config = { codec: c, width, height, bitrate, framerate: settings.fps };
+          const ok = await VideoEncoder.isConfigSupported(config).catch(() => null);
+          if (ok?.supported) { codec = c; break; }
+        }
+      }
+      if (!codec) throw new Error("This browser or device does not support the selected export settings. Try 60 fps or a lower resolution.");
+
+      const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+      restore = () => {
+        canvas.width = prev.w; canvas.height = prev.h;
+        v.resize(prev.w, prev.h, prev.cw, prev.ch);
+        v.set_shadow_mode(shadowMode);
+        v.set_point_orbit_visible(blueLightPanelOpen);
+        schedule();
+      };
+
+      canvas.width = width; canvas.height = height;
+      v.resize(width, height, width, height);
+      v.refresh_sun_shadow();
+      if (!settings.shadows) v.set_shadow_mode(0);
+      v.set_point_orbit_visible(false);
+
+      denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
+      if (settings.noiseReduction && !denoiser)
+        setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
+
+      const total = totalFrames(settings.duration, settings.fps);
+      ctrl.current = { paused: false, cancel: false };
+      setRs("rendering"); setTab("render");
+      const target = new ArrayBufferTarget();
+      const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
+      enc = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: (error) => { encErr = error; },
+      });
+      enc.configure({ codec, width, height, bitrate: bitrateBps(settings.bitrate), framerate: settings.fps });
+
+      const frameDurationUs = 1e6 / settings.fps;
+      const queueLimit = settings.fps >= 90 ? 1 : 2;
+      let activeMs = 0, last = performance.now();
+      for (let frame = 0; frame < total; frame++) {
+        if (ctrl.current.cancel || encErr) break;
+        while (ctrl.current.paused && !ctrl.current.cancel && !encErr) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          last = performance.now();
+        }
+        if (ctrl.current.cancel || encErr) break;
+
+        // Apply backpressure BEFORE allocating the next VideoFrame. This bounds
+        // queued GPU/encoder surfaces instead of allowing a burst at 90 fps.
+        while (enc.encodeQueueSize >= queueLimit && !ctrl.current.cancel && !encErr) {
+          await new Promise((resolve) => setTimeout(resolve, 2));
+        }
+        if (ctrl.current.cancel || encErr) break;
+
+        const t = frame / settings.fps;
+        const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
+        if (!sampled) throw new Error("Camera animation could not be sampled.");
+        v.set_camera_pose(new Float32Array(sampled));
+        v.frame();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        const frameSource = denoiser ? denoiser.process(canvas) : canvas;
+        const videoFrame = new VideoFrame(frameSource, {
+          timestamp: Math.round(frame * frameDurationUs),
+          duration: Math.round(frameDurationUs),
+        });
+        try {
+          enc.encode(videoFrame, { keyFrame: frame % (settings.fps * 2) === 0 });
+        } finally {
+          videoFrame.close();
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const now = performance.now();
+        activeMs += now - last; last = now;
+        if (frame % 3 === 0 || frame === total - 1) {
+          const speed = (frame + 1) / Math.max(activeMs / 1000, 0.001);
+          setTime(t);
+          setProg({ frame: frame + 1, total, fps: speed, eta: frame > 5 ? (total - frame - 1) / speed : null });
+        }
+      }
+
+      if (ctrl.current.cancel) throw new Error("Export cancelled.");
+      if (encErr) throw encErr;
+      await enc.flush();
+      if (encErr) throw encErr;
+      muxer.finalize();
+      setVideoUrl(URL.createObjectURL(new Blob([target.buffer], { type: "video/mp4" })));
+      completed = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unexpected export error occurred.";
+      if (ctrl.current.cancel) setError("Export cancelled. Your project and keyframes are safe.");
+      else setError(`Export stopped safely: ${message}`);
+    } finally {
+      denoiser?.destroy();
+      if (enc && enc.state !== "closed") {
+        try { enc.close(); } catch { /* Encoder may already have closed itself after an error. */ }
+      }
+      restore?.();
+      setRs(completed ? "done" : "idle");
+      if (!completed) setProg({ frame: 0, total: 0, fps: 0, eta: null });
+    }
   };
   const pauseResume = () => { ctrl.current.paused = !ctrl.current.paused; setRs(ctrl.current.paused ? "paused" : "rendering"); };
   const pct = prog.total ? Math.round((prog.frame / prog.total) * 100) : 0;
