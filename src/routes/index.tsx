@@ -157,6 +157,59 @@ function Index() {
     viewer.set_fancy(options.fancy, options.fancyQuality);
     scheduleRef.current();
   }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen]);
+  // Reframe the camera while the Blue Light panel is open. The ship geometry
+  // stays untouched; we offset the camera target along its screen-up axis and
+  // slightly tighten the framing, then undo only that offset on close.
+  const bluePanelCameraOffsetRef = useRef<{ x: number; y: number; z: number; zoom: number } | null>(null);
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    const start = Array.from(viewer.camera_pose());
+    if (start.length < 8) return;
+
+    const pose = start.slice(0, 8);
+    const zoom = 0.90;
+    let offset = bluePanelCameraOffsetRef.current;
+    let target = [...pose];
+
+    if (blueLightPanelOpen) {
+      const [qx, qy, qz, qw] = [pose[3], pose[4], pose[5], pose[6]];
+      const screenUp = {
+        x: 2 * (qx * qy - qw * qz),
+        y: 1 - 2 * (qx * qx + qz * qz),
+        z: 2 * (qy * qz + qw * qx),
+      };
+      const amount = pose[7] * 0.16;
+      offset = { x: screenUp.x * amount, y: screenUp.y * amount, z: screenUp.z * amount, zoom };
+      bluePanelCameraOffsetRef.current = offset;
+      target[0] += offset.x;
+      target[1] += offset.y;
+      target[2] += offset.z;
+      target[7] *= zoom;
+    } else {
+      if (!offset) return;
+      target[0] -= offset.x;
+      target[1] -= offset.y;
+      target[2] -= offset.z;
+      target[7] /= offset.zoom;
+      bluePanelCameraOffsetRef.current = null;
+    }
+
+    const startedAt = performance.now();
+    const duration = 280;
+    let frame = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / duration);
+      const eased = t * t * (3 - 2 * t);
+      const next = pose.map((value, index) => value + (target[index] - value) * eased);
+      viewer.set_camera_pose(new Float32Array(next));
+      scheduleRef.current();
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [blueLightPanelOpen]);
+
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
