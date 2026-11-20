@@ -81,8 +81,8 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
           <span>:</span>
           <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
         </div>}
-        <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
-          options={[{ v: 24, l: "24 fps" }, { v: 30, l: "30 fps" }, { v: 60, l: "60 fps" }]} />
+        <Choice label="Frame rate" desc="90 fps creates smoother motion; availability depends on your browser and device encoder." value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
+          options={[{ v: 24, l: "24 fps" }, { v: 30, l: "30 fps" }, { v: 60, l: "60 fps" }, { v: 90, l: "90 fps" }]} />
       </>
     ) },
     { id: "camera", title: "Camera Animation", body: (
