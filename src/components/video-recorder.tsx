@@ -25,6 +25,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [tab, setTab] = useState<Tab>("animate");
   const [settings, setSettings] = useState<StudioSettings>(() => {
     try {
+      if (typeof window === "undefined") return defaultSettings;
       const saved = Number(window.localStorage.getItem("pathfinder-video-bitrate-mbps"));
       return { ...defaultSettings, bitrate: Number.isFinite(saved) && saved >= 8 && saved <= 80 ? Math.round(saved / 2) * 2 : defaultSettings.bitrate };
     } catch { return defaultSettings; }
