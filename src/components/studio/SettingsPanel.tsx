@@ -97,8 +97,10 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
       <Toggle label="Real-time shadows" desc="Sun shadows on the ship in the video." checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
     ) },
     { id: "enc", title: "Encoding Quality", body: (
-      <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
-      <Toggle label="Noise reduction" desc="Subtle edge-preserving cleanup to reduce fine-grain noise in exported frames. On by default." checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+      <>
+        <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
+        <Toggle label="Noise reduction" desc="Subtle edge-preserving cleanup to reduce fine-grain noise in exported frames. On by default." checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+      </>
     ) },
   ];
   return (
