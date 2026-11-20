@@ -23,7 +23,12 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
-  const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [settings, setSettings] = useState<StudioSettings>(() => {
+    try {
+      const saved = Number(window.localStorage.getItem("pathfinder-video-bitrate-mbps"));
+      return { ...defaultSettings, bitrate: Number.isFinite(saved) && saved >= 8 && saved <= 80 ? Math.round(saved / 2) * 2 : defaultSettings.bitrate };
+    } catch { return defaultSettings; }
+  });
   const [keys, setKeys] = useState<Keyframe[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [time, setTime] = useState(0);
@@ -42,6 +47,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const pose = () => Array.from(getViewer()?.camera_pose() ?? []);
   const apply = (p: number[] | null) => { const v = getViewer(); if (p && v) { v.set_camera_pose(new Float32Array(p)); schedule(); } };
   const set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => {
+    if (k === "bitrate") {
+      try { window.localStorage.setItem("pathfinder-video-bitrate-mbps", String(v)); } catch { /* Storage may be unavailable. */ }
+    }
     setSettings((s) => ({ ...s, [k]: v }));
     if (k === "duration") setTime((t) => Math.min(t, v as number));
   };
@@ -99,7 +107,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setVideoUrl(null);
     const size = outputSize(settings);
     const width = size.width & ~1, height = size.height & ~1;
-    const bitrate = bitrateBps[settings.bitrate];
+    const bitrate = bitrateBps(settings.bitrate);
     const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
     let codec = "";
     if (typeof VideoEncoder !== "undefined")
