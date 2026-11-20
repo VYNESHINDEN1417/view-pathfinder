@@ -2,7 +2,7 @@ export interface StudioSettings {
   resolution: "720p" | "1080p" | "1440p" | "2160p";
   aspect: "9:16" | "16:9" | "1:1" | "21:9" | "4:3" | "custom";
   customAspect: [number, number];
-  fps: 24 | 30 | 60;
+  fps: 24 | 30 | 60 | 90;
   duration: number;
   smoothing: boolean;
   loop: boolean;
