@@ -122,7 +122,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
       return;
     }
-    const estimatedBytes = (bitrateBps(settings.bitrate) * settings.duration) / 8;
+    const bitrate = bitrateBps(settings.bitrate);
+    const estimatedBytes = (bitrate * settings.duration) / 8;
     if (estimatedBytes > 256 * 1024 * 1024) {
       setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
       return;
@@ -173,7 +174,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
         error: (error) => { encErr = error; },
       });
-      enc.configure({ codec, width, height, bitrate: bitrateBps(settings.bitrate), framerate: settings.fps });
+      enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
 
       const frameDurationUs = 1e6 / settings.fps;
       const queueLimit = settings.fps >= 90 ? 1 : 2;
