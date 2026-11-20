@@ -8,6 +8,7 @@ import { SettingsPanel } from "@/components/studio/SettingsPanel";
 import { defaultSettings, outputSize, studioAspect, bitrateBps, type StudioSettings } from "@/components/studio/settings";
 import { sampleCamera, sortKeys, totalFrames, formatEta, uid, type Keyframe } from "@/lib/studio/keyframes";
 import type { Viewer } from "@/lib/wasm/viewer/viewer";
+import { createExportDenoiser } from "@/lib/studio/export-denoiser";
 
 type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
@@ -139,6 +140,11 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     if (!settings.shadows) v.set_shadow_mode(0);
     // Editor orbit and source marker are guides, never part of rendered video.
     v.set_point_orbit_visible(false);
+    // A separate WebGL2 post-process canvas keeps the live WebGPU viewport untouched.
+    // The low-strength edge-aware pass is enabled by default and can be disabled in settings.
+    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
+    if (settings.noiseReduction && !denoiser)
+      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
     const total = totalFrames(settings.duration, settings.fps);
     ctrl.current = { paused: false, cancel: false };
     setRs("rendering"); setTab("render");
@@ -161,7 +167,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // Give the browser a compositor turn after the GPU submission before the
       // canvas is sampled. Export is offline-timed, so this does not drop frames.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const vf = new VideoFrame(canvas, { timestamp: Math.round(f * us), duration: Math.round(us) });
+      const frameSource = denoiser ? denoiser.process(canvas) : canvas;
+      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
       while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
@@ -172,6 +179,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
       }
     }
+    denoiser?.destroy();
     restore();
     if (ctrl.current.cancel || encErr) {
       enc.close(); setRs("idle"); setProg({ frame: 0, total: 0, fps: 0, eta: null });
