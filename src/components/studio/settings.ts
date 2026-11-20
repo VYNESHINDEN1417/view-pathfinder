@@ -10,7 +10,7 @@ export interface StudioSettings {
   shadows: boolean;
   antialias: boolean;
   gpu: "auto" | "high" | "low";
-  bitrate: "low" | "medium" | "high" | "ultra";
+  bitrate: number;
   pixelRatio: 1 | 1.5 | 2;
 }
 
@@ -26,7 +26,7 @@ export const defaultSettings: StudioSettings = {
   shadows: true,
   antialias: true,
   gpu: "auto",
-  bitrate: "ultra",
+  bitrate: 40,
   pixelRatio: 1.5,
 };
 
@@ -42,4 +42,4 @@ export function outputSize(s: StudioSettings) {
   return ratio >= 1 ? { width: long, height: short } : { width: short, height: long };
 }
 
-export const bitrateBps = { low: 2_000_000, medium: 6_000_000, high: 16_000_000, ultra: 40_000_000 };
+export const bitrateBps = (mbps: number) => Math.round(mbps * 1_000_000);
