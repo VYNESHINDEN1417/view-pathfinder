@@ -23,13 +23,21 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
-  const [settings, setSettings] = useState<StudioSettings>(() => {
+  const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [bitratePreferenceLoaded, setBitratePreferenceLoaded] = useState(false);
+  useEffect(() => {
     try {
-      if (typeof window === "undefined") return defaultSettings;
       const saved = Number(window.localStorage.getItem("pathfinder-video-bitrate-mbps"));
-      return { ...defaultSettings, bitrate: Number.isFinite(saved) && saved >= 8 && saved <= 80 ? Math.round(saved / 2) * 2 : defaultSettings.bitrate };
-    } catch { return defaultSettings; }
-  });
+      if (Number.isFinite(saved) && saved >= 8 && saved <= 80)
+        setSettings((current) => ({ ...current, bitrate: Math.round(saved / 2) * 2 }));
+    } catch { /* Storage may be unavailable. */ }
+    setBitratePreferenceLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!bitratePreferenceLoaded) return;
+    try { window.localStorage.setItem("pathfinder-video-bitrate-mbps", String(settings.bitrate)); }
+    catch { /* Storage may be unavailable. */ }
+  }, [settings.bitrate, bitratePreferenceLoaded]);
   const [keys, setKeys] = useState<Keyframe[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [time, setTime] = useState(0);
@@ -48,9 +56,6 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const pose = () => Array.from(getViewer()?.camera_pose() ?? []);
   const apply = (p: number[] | null) => { const v = getViewer(); if (p && v) { v.set_camera_pose(new Float32Array(p)); schedule(); } };
   const set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => {
-    if (k === "bitrate") {
-      try { window.localStorage.setItem("pathfinder-video-bitrate-mbps", String(v)); } catch { /* Storage may be unavailable. */ }
-    }
     setSettings((s) => ({ ...s, [k]: v }));
     if (k === "duration") setTime((t) => Math.min(t, v as number));
   };
