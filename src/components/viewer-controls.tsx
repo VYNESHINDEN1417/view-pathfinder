@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
-export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number };
+export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number; depth: number };
 export type BlueLightSettings = { azimuth: number; brightness: number; intensity: number; hue: number; range: number };
 
 export type ViewerOptions = {
@@ -266,6 +266,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
           <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
           <ShadowSettingRow title="Block-edge shadows" description="Tight, subtle dark lines that define individual block boundaries." value={shadowComponents.edge} onChange={(value) => onShadowComponents({ edge: value })} disabled={!options.fancy} />
           <ShadowSettingRow title="Ambient occlusion" description="Soft corner and gap shading that adds depth to enclosed spaces." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!options.fancy} />
+          <ShadowSettingRow title="Shadow depth" description="Darkens faces turned away from the sun or hidden beneath decks and overhangs." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!options.fancy} />
         </div>
         {!options.fancy && <p className="shadow-settings-disabled-note">Enable Fancy Graphics to adjust shadow rendering.</p>}
         <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× DEFAULT</span><span>2.00× MAX</span></footer>
