@@ -50,7 +50,9 @@ jobs:
             echo "WASM runtime is already up to date."
           else
             git commit -m "Build Pathfinder WASM runtime"
-            git pull --rebase origin "$GITHUB_REF_NAME"
+            # The generated WASM files are binary; favor this build when rebasing
+            # so concurrent runtime rebuilds cannot strand the branch in a conflict.
+            git pull --rebase -X theirs origin "$GITHUB_REF_NAME"
             git push
           fi
 
