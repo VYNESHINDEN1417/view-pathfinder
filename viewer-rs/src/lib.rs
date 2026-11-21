@@ -296,7 +296,17 @@ impl Viewer {
         // Precompute real mesh-geometry occlusion once at load time; no per-frame ray work.
         let ao_positions: Vec<Vec3> = verts.iter().map(|v| Vec3::from(v.pos)).collect();
         let ao_normals: Vec<Vec3> = verts.iter().map(|v| Vec3::from(v.normal)).collect();
-        let ao_values = geometry_ao::compute_vertex_ao(&ao_positions, &ao_normals, &indices, radius);
+        // Transparent MTL shells must not occlude the solid deck beneath them.
+        let mut ao_indices = Vec::with_capacity(indices.len());
+        for draw in &draws {
+            let opaque = materials.get(draw.material).and_then(|material| material.dissolve).unwrap_or(1.0) >= 0.98;
+            if opaque {
+                let start = draw.start as usize;
+                let end = start + draw.count as usize;
+                ao_indices.extend_from_slice(&indices[start..end]);
+            }
+        }
+        let ao_values = geometry_ao::compute_vertex_ao(&ao_positions, &ao_normals, &ao_indices, radius);
         for (vertex, value) in verts.iter_mut().zip(ao_values) { vertex.ao = value; }
 
         report(&progress, "upload", 0.0, 2.0).await;
