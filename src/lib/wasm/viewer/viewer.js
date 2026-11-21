@@ -167,6 +167,12 @@ export class Viewer {
         wasm.viewer_roll(this.__wbg_ptr, angle);
     }
     /**
+     * @param {boolean} enabled
+     */
+    set_ao_v2_enabled(enabled) {
+        wasm.viewer_set_ao_v2_enabled(this.__wbg_ptr, enabled);
+    }
+    /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      * @param {number} mode
      */

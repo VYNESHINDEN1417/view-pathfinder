@@ -53,6 +53,7 @@ export class Viewer {
      * Screen-space twist: positive radians turn the model clockwise on screen.
      */
     roll(angle: number): void;
+    set_ao_v2_enabled(enabled: boolean): void;
     /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      */
@@ -96,7 +97,6 @@ export class Viewer {
      * Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
      */
     set_shadow_strength(strength: number): void;
-    set_ao_v2_enabled(enabled: boolean): void;
     /**
      * Sun direction in world coordinates; independent of the camera.
      */
@@ -136,6 +136,7 @@ export interface InitOutput {
     readonly viewer_reset: (a: number) => void;
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
+    readonly viewer_set_ao_v2_enabled: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
     readonly viewer_set_background_image: (a: number, b: number, c: number) => number;
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
