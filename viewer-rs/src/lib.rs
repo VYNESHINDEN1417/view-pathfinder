@@ -56,6 +56,7 @@ struct Draw {
     start: u32,
     count: u32,
     material: usize,
+    center: Vec3,
 }
 
 #[derive(Clone, Copy)]
@@ -78,6 +79,7 @@ pub struct Viewer {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
+    transparent_pipeline: wgpu::RenderPipeline,
     shadow_pipeline: wgpu::RenderPipeline,
     shadow_texture: wgpu::Texture,
     shadow_view: wgpu::TextureView,
@@ -266,7 +268,10 @@ impl Viewer {
             let start = indices.len() as u32;
             indices.extend(mesh.indices.iter().map(|i| i + base));
             let material = mesh.material_id.filter(|&id| id < materials.len()).unwrap_or(default_mat);
-            draws.push(Draw { start, count: mesh.indices.len() as u32, material });
+            let mesh_center = mesh.positions.chunks_exact(3)
+                .fold(Vec3::ZERO, |sum, p| sum + Vec3::new(p[0], p[1], p[2]))
+                / n as f32;
+            draws.push(Draw { start, count: mesh.indices.len() as u32, material, center: mesh_center });
             if model_index % 128 == 0 || model_index + 1 == models.len() {
                 report(&progress, "geometry", (model_index + 1) as f64, models.len() as f64).await;
             }
@@ -280,6 +285,9 @@ impl Viewer {
         // Center the model at the origin.
         for v in &mut verts {
             v.pos = (Vec3::from(v.pos) - center).into();
+        }
+        for draw in &mut draws {
+            draw.center -= center;
         }
 
         report(&progress, "upload", 0.0, 2.0).await;
@@ -413,6 +421,41 @@ impl Viewer {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: DEPTH,
                 depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
+            multiview: None,
+            cache: None,
+        });
+        let transparent_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("sorted translucent materials"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                compilation_options: Default::default(),
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vertex>() as u64,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                }],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: Default::default(),
                 bias: Default::default(),
@@ -597,6 +640,7 @@ impl Viewer {
             queue,
             config,
             pipeline,
+            transparent_pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
             bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1,
             globals_buf,
@@ -1225,9 +1269,24 @@ impl Viewer {
             pass.set_bind_group(3, &ao_bind, &[]);
             pass.set_vertex_buffer(0, self.vbuf.slice(..));
             pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
-            for d in &self.draws {
+            // Opaque materials render first and populate depth. Transparent MTL
+            // materials render back-to-front with alpha blending and no depth writes.
+            for d in self.draws.iter().filter(|d| self.mats[d.material].uniform.diffuse[3] >= 0.999) {
                 pass.set_bind_group(1, &self.mats[d.material].bind, &[]);
                 pass.draw_indexed(d.start..d.start + d.count, 0, 0..1);
+            }
+            let mut transparent_draws: Vec<&Draw> = self.draws.iter()
+                .filter(|d| self.mats[d.material].uniform.diffuse[3] < 0.999)
+                .collect();
+            transparent_draws.sort_by(|a, b|
+                b.center.distance_squared(eye).total_cmp(&a.center.distance_squared(eye)));
+            if !transparent_draws.is_empty() {
+                pass.set_pipeline(&self.transparent_pipeline);
+                for d in transparent_draws {
+                    pass.set_bind_group(1, &self.mats[d.material].bind, &[]);
+                    pass.draw_indexed(d.start..d.start + d.count, 0, 0..1);
+                }
+                pass.set_pipeline(&self.pipeline);
             }
             // The orbit guide is visible only while the Blue Light panel is active.
             if include_editor_guides && self.point_orbit_visible {

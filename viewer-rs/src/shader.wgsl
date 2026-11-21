@@ -38,12 +38,22 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let contact_reach = reach * 0.42;
   let broad_reach = reach * 2.0;
   let center = g.view_proj * vec4<f32>(world, 1.0);
-  let edge_projected = g.view_proj * vec4<f32>(world + vec3<f32>(edge_reach, 0.0, 0.0), 1.0);
-  let contact_projected = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
-  let broad_projected = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let edge_radius_px = abs(edge_projected.x / edge_projected.w - center.x / center.w) * size.x * 0.5;
-  let contact_radius_px = abs(contact_projected.x / contact_projected.w - center.x / center.w) * size.x * 0.5;
-  let broad_radius_px = abs(broad_projected.x / broad_projected.w - center.x / center.w) * size.x * 0.5;
+  // Estimate a conservative screen-space radius from all three world axes.
+  // Using only world-X makes the sampling footprint collapse or stretch as the
+  // camera rotates, which can associate unrelated deck pixels with this surface.
+  let edge_x = g.view_proj * vec4<f32>(world + vec3<f32>(edge_reach, 0.0, 0.0), 1.0);
+  let edge_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, edge_reach, 0.0), 1.0);
+  let edge_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, edge_reach), 1.0);
+  let contact_x = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
+  let contact_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, contact_reach, 0.0), 1.0);
+  let contact_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, contact_reach), 1.0);
+  let broad_x = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
+  let broad_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, broad_reach, 0.0), 1.0);
+  let broad_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, broad_reach), 1.0);
+  let center_ndc = center.xy / center.w;
+  let edge_radius_px = max(max(length((edge_x.xy / edge_x.w - center_ndc) * size * 0.5), length((edge_y.xy / edge_y.w - center_ndc) * size * 0.5)), length((edge_z.xy / edge_z.w - center_ndc) * size * 0.5));
+  let contact_radius_px = max(max(length((contact_x.xy / contact_x.w - center_ndc) * size * 0.5), length((contact_y.xy / contact_y.w - center_ndc) * size * 0.5)), length((contact_z.xy / contact_z.w - center_ndc) * size * 0.5));
+  let broad_radius_px = max(max(length((broad_x.xy / broad_x.w - center_ndc) * size * 0.5), length((broad_y.xy / broad_y.w - center_ndc) * size * 0.5)), length((broad_z.xy / broad_z.w - center_ndc) * size * 0.5));
 
   var blocked_edge = 0.0;
   var blocked_contact = 0.0;
@@ -68,8 +78,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
       let delta = reconstructed.xyz / reconstructed.w - world;
       let distance = length(delta);
-      let max_distance = sample_reach * select(2.4, 1.7, is_contact || is_edge);
-      let fade_start = sample_reach * select(0.35, 0.28, is_contact || is_edge);
+      // Overhang shading must remain local to the receiving surface. The old
+      // 2.4x broad-distance allowance let distant, unrelated geometry create
+      // large floating patches across open deck areas.
+      let max_distance = sample_reach * select(1.15, 1.7, is_contact || is_edge);
+      let fade_start = sample_reach * select(0.55, 0.28, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
         let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
@@ -204,7 +217,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
-  let ao = ambient_occlusion(in.pos.xy, in.world, n);
+  // Ambient occlusion is a solid-surface effect. The AO depth prepass already
+  // excludes translucent MTL geometry; don't then darken those same transparent
+  // surfaces using nearby opaque depth samples, which creates floating dark boxes.
+  var ao = 1.0;
+  if (m.diffuse.a >= 0.999) {
+    ao = ambient_occlusion(in.pos.xy, in.world, n);
+  }
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
   let fill = 0.06 * max(dot(n, v), 0.0);
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
@@ -234,7 +253,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // Soft highlight shoulder: unchanged below 0.7, asymptotically approaches 1 instead of clipping.
   let above = max(color - vec3<f32>(0.7), vec3<f32>(0.0));
   color = min(color, vec3<f32>(0.7)) + above / (vec3<f32>(1.0) + above / 0.3);
-  return vec4<f32>(color, 1.0);
+  return vec4<f32>(color, m.diffuse.a);
 }
 
 @vertex

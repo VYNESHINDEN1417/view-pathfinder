@@ -8,6 +8,7 @@ import { SettingsPanel } from "@/components/studio/SettingsPanel";
 import { defaultSettings, outputSize, studioAspect, bitrateBps, type StudioSettings } from "@/components/studio/settings";
 import { sampleCamera, sortKeys, totalFrames, formatEta, uid, type Keyframe } from "@/lib/studio/keyframes";
 import type { Viewer } from "@/lib/wasm/viewer/viewer";
+import { createExportDenoiser } from "@/lib/studio/export-denoiser";
 
 type Tab = "animate" | "render" | "settings";
 type RenderState = "idle" | "rendering" | "paused" | "done";
@@ -24,6 +25,20 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [bitratePreferenceLoaded, setBitratePreferenceLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem("pathfinder-video-bitrate-mbps"));
+      if (Number.isFinite(saved) && saved >= 8 && saved <= 80)
+        setSettings((current) => ({ ...current, bitrate: Math.round(saved / 2) * 2 }));
+    } catch { /* Storage may be unavailable. */ }
+    setBitratePreferenceLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!bitratePreferenceLoaded) return;
+    try { window.localStorage.setItem("pathfinder-video-bitrate-mbps", String(settings.bitrate)); }
+    catch { /* Storage may be unavailable. */ }
+  }, [settings.bitrate, bitratePreferenceLoaded]);
   const [keys, setKeys] = useState<Keyframe[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [time, setTime] = useState(0);
@@ -99,7 +114,17 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setVideoUrl(null);
     const size = outputSize(settings);
     const width = size.width & ~1, height = size.height & ~1;
-    const bitrate = bitrateBps[settings.bitrate];
+    const pixels = width * height;
+    if (settings.fps === 90 && pixels > 2_073_600) {
+      setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
+      return;
+    }
+    const bitrate = bitrateBps(settings.bitrate);
+    const estimatedBytes = (bitrate * settings.duration) / 8;
+    if (estimatedBytes > 256 * 1024 * 1024) {
+      setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
+      return;
+    }
     const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
     let codec = "";
     if (typeof VideoEncoder !== "undefined")
@@ -134,6 +159,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (er) => { encErr = er; } });
     enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
     const us = 1e6 / settings.fps;
+    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
+    if (settings.noiseReduction && !denoiser)
+      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
     let activeMs = 0, last = performance.now();
     for (let f = 0; f < total; f++) {
       if (ctrl.current.cancel || encErr) break;
@@ -147,7 +175,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // Give the browser a compositor turn after the GPU submission before the
       // canvas is sampled. Export is offline-timed, so this does not drop frames.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const vf = new VideoFrame(canvas, { timestamp: Math.round(f * us), duration: Math.round(us) });
+      const frameSource = denoiser ? denoiser.process(canvas) : canvas;
+      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
       while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
@@ -158,6 +187,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
       }
     }
+    denoiser?.destroy();
     restore();
     if (ctrl.current.cancel || encErr) {
       enc.close(); setRs("idle"); setProg({ frame: 0, total: 0, fps: 0, eta: null });

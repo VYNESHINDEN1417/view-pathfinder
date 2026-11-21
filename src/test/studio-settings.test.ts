@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings, studioAspect, outputSize } from "@/components/studio/settings";
+import { totalFrames } from "@/lib/studio/keyframes";
 
 describe("Studio framing and output", () => {
+  it("enables export noise reduction by default", () => {
+    expect(defaultSettings.noiseReduction).toBe(true);
+  });
+  it("supports 90 fps output frame counts", () => {
+    expect(totalFrames(6, 90)).toBe(540);
+  });
   it("keeps landscape output at 16:9", () => {
     const settings = { ...defaultSettings, aspect: "16:9" as const };
     expect(studioAspect(settings)).toBe(16 / 9);
