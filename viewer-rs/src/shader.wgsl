@@ -107,13 +107,23 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let horizontal_edge_ao = clamp(1.0 - blocked_horizontal_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
-  let local_occlusion = (
-    (1.0 - vertical_edge_ao) * g.shadow_detail.x * f32(edge_samples)
-    + (1.0 - horizontal_edge_ao) * g.shadow_detail.y * f32(edge_samples)
-    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples) * g.effects.x
-    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples) * g.effects.x
-  ) / f32(count);
-  let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  // Each AO term is already normalized by its own sample count above.
+  // Dividing the combined result by the total ray count a second time made
+  // every shadow category four times weaker and effectively invisible.
+  let ao_v2_active = g.ao_v2.x > 0.5;
+  let vertical_strength = select(0.0, g.shadow_detail.x, ao_v2_active);
+  let horizontal_strength = select(0.0, g.shadow_detail.y, ao_v2_active);
+  // AO V2 reuses Fancy Graphics' contact/overhang ray results as corner
+  // occlusion. Its AO-strength slider controls those rays when Fancy is off;
+  // when both systems are active, the stronger selected value wins.
+  let contact_strength = select(g.shadow.z, max(g.shadow.z, g.shadow_detail.z), ao_v2_active);
+  let overhang_strength = select(g.shadow.w, max(g.shadow.w, g.shadow_detail.z), ao_v2_active);
+  let local_occlusion =
+      (1.0 - vertical_edge_ao) * vertical_strength * 0.55
+    + (1.0 - horizontal_edge_ao) * horizontal_strength * 0.55
+    + (1.0 - contact_ao) * contact_strength * 0.45
+    + (1.0 - overhang_ao) * overhang_strength * 0.45;
+  let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5 || ao_v2_active);
   return clamp(1.0 - local_occlusion * master_strength, 0.0, 1.0);
 }
 
@@ -265,6 +275,11 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let highlight = pow(max(dot(n, half_vector), 0.0), clamp(m.specular.w, 8.0, 96.0));
     let fresnel = 0.025 + 0.08 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
     color += clamp(m.specular.rgb, vec3<f32>(0.02), vec3<f32>(0.3)) * highlight * visibility * g.effects.z * 0.25;
+    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao * geometry_ao;
+  } else if (g.ao_v2.x > 0.5) {
+    // Keep AO V2's shadow color in the same subtle cool-neutral family as
+    // Fancy Graphics without enabling its specular highlight response.
+    let fresnel = 0.025 + 0.08 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
     color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao * geometry_ao;
   }
   color *= g.light.w;
