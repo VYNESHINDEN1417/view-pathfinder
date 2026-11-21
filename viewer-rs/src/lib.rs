@@ -1,4 +1,5 @@
 //! Minimal OBJ/MTL inspection viewer: wgpu (WebGPU, WebGL2 fallback) compiled to WebAssembly.
+mod geometry_ao;
 use glam::{Mat4, Quat, Vec3};
 use std::collections::HashMap;
 use std::io::BufReader;
@@ -18,6 +19,7 @@ struct Vertex {
     pos: [f32; 3],
     normal: [f32; 3],
     uv: [f32; 2],
+    ao: f32,
 }
 
 #[repr(C)]
@@ -110,6 +112,7 @@ pub struct Viewer {
     point_orbit_major_x: bool,
     fancy: bool,
     fancy_quality: u32,
+    ao_v2: bool,
     shadow_strength: f32,
     shadow_components: [f32; 5], // directional, contact, overhang, block edge, ambient occlusion
     globals_buf: wgpu::Buffer,
@@ -249,6 +252,7 @@ impl Viewer {
                     pos: p,
                     normal: if has_n { [mesh.normals[3 * i], mesh.normals[3 * i + 1], mesh.normals[3 * i + 2]] } else { [0.0; 3] },
                     uv: if has_uv { [mesh.texcoords[2 * i], 1.0 - mesh.texcoords[2 * i + 1]] } else { [0.0; 2] },
+                    ao: 1.0,
                 });
             }
             if !has_n {
@@ -289,6 +293,11 @@ impl Viewer {
         for draw in &mut draws {
             draw.center -= center;
         }
+        // Precompute real mesh-geometry occlusion once at load time; no per-frame ray work.
+        let ao_positions: Vec<Vec3> = verts.iter().map(|v| Vec3::from(v.pos)).collect();
+        let ao_normals: Vec<Vec3> = verts.iter().map(|v| Vec3::from(v.normal)).collect();
+        let ao_values = geometry_ao::compute_vertex_ao(&ao_positions, &ao_normals, &indices, radius);
+        for (vertex, value) in verts.iter_mut().zip(ao_values) { vertex.ao = value; }
 
         report(&progress, "upload", 0.0, 2.0).await;
         let vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -365,7 +374,7 @@ impl Viewer {
             label: Some("static ship shadow"), layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_shadow"), compilation_options: Default::default(), buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as u64, step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
             }] },
             fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_shadow"), compilation_options: Default::default(), targets: &[] }),
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
@@ -386,7 +395,7 @@ impl Viewer {
             label: Some("AO model depth prepass"), layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_main"), compilation_options: Default::default(), buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as u64, step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
             }] },
             fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_shadow"), compilation_options: Default::default(), targets: &[] }),
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
@@ -408,7 +417,7 @@ impl Viewer {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -439,7 +448,7 @@ impl Viewer {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -642,7 +651,7 @@ impl Viewer {
             pipeline,
             transparent_pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1,
+            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1, ao_v2: false,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -818,6 +827,11 @@ impl Viewer {
 
     pub fn set_fancy(&mut self, enabled: bool, quality: u32) {
         self.fancy = enabled; self.fancy_quality = quality.min(2); self.dirty = true;
+    }
+
+    /// Enable independent geometry-baked ambient occlusion (precomputed on model load).
+    pub fn set_ao_v2(&mut self, enabled: bool) {
+        self.ao_v2 = enabled; self.dirty = true;
     }
 
     /// Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
@@ -1187,7 +1201,7 @@ impl Viewer {
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
-            shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
+            shadow_detail: [self.shadow_components[3], self.shadow_components[4], if self.ao_v2 { 1.0 } else { 0.0 }, 0.0],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
