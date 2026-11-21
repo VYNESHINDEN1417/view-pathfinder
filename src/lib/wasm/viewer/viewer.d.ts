@@ -82,7 +82,7 @@ export class Viewer {
      */
     set_point_orbit_visible(visible: boolean): void;
     /**
-     * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
+     * Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
      */
     set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number, depth: number, vertical_edge: number, horizontal_edge: number): void;
     /**
@@ -146,7 +146,7 @@ export interface InitOutput {
     readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly viewer_set_point_light_enabled: (a: number, b: number) => void;
     readonly viewer_set_point_orbit_visible: (a: number, b: number) => void;
-    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
     readonly viewer_set_shadow_strength: (a: number, b: number) => void;

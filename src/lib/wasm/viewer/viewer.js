@@ -246,16 +246,18 @@ export class Viewer {
         wasm.viewer_set_point_orbit_visible(this.__wbg_ptr, visible);
     }
     /**
-     * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
+     * Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
      * @param {number} directional
      * @param {number} contact
      * @param {number} overhang
      * @param {number} edge
      * @param {number} ambient
      * @param {number} depth
+     * @param {number} vertical_edge
+     * @param {number} horizontal_edge
      */
-    set_shadow_components(directional, contact, overhang, edge, ambient, depth) {
-        wasm.viewer_set_shadow_components(this.__wbg_ptr, directional, contact, overhang, edge, ambient, depth);
+    set_shadow_components(directional, contact, overhang, edge, ambient, depth, vertical_edge, horizontal_edge) {
+        wasm.viewer_set_shadow_components(this.__wbg_ptr, directional, contact, overhang, edge, ambient, depth, vertical_edge, horizontal_edge);
     }
     /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
