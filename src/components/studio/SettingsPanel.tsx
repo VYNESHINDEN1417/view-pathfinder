@@ -99,7 +99,7 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
     { id: "enc", title: "Encoding Quality", body: (
       <>
         <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
-        <Toggle label="Noise reduction" desc="Subtle edge-preserving cleanup to reduce fine-grain noise in exported frames. On by default." checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+        <Toggle label="Noise reduction" desc="Optional edge-preserving cleanup. Off by default to preserve original colors and fine details." checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
       </>
     ) },
   ];
