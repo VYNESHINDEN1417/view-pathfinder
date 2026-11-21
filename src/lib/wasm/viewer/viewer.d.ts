@@ -146,7 +146,7 @@ export interface InitOutput {
     readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly viewer_set_point_light_enabled: (a: number, b: number) => void;
     readonly viewer_set_point_orbit_visible: (a: number, b: number) => void;
-    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
     readonly viewer_set_shadow_strength: (a: number, b: number) => void;

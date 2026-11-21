@@ -252,9 +252,10 @@ export class Viewer {
      * @param {number} overhang
      * @param {number} edge
      * @param {number} ambient
+     * @param {number} depth
      */
-    set_shadow_components(directional, contact, overhang, edge, ambient) {
-        wasm.viewer_set_shadow_components(this.__wbg_ptr, directional, contact, overhang, edge, ambient);
+    set_shadow_components(directional, contact, overhang, edge, ambient, depth) {
+        wasm.viewer_set_shadow_components(this.__wbg_ptr, directional, contact, overhang, edge, ambient, depth);
     }
     /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
