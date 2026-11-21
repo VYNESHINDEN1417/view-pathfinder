@@ -109,7 +109,7 @@ function Index() {
   const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const [blueLightEnabled, setBlueLightEnabled] = useState(false);
   const [aoV2Enabled, setAoV2Enabled] = useState(false);
-  const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: true, fancyQuality: 1 });
+  const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
