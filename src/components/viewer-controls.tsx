@@ -235,6 +235,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
       aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
+    <Button className={`viewer-tool viewer-ao-v2 ${options.aoV2 ? "is-active" : ""}`} variant="ghost" size="icon" onClick={() => onOptions({ aoV2: !options.aoV2 })}
+      aria-label="Geometry AO V2" aria-pressed={options.aoV2} title={options.aoV2 ? "Disable Geometry AO V2" : "Enable Geometry AO V2"}><Aperture /></Button>
     <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
       aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
     {error && <p className="capture-error" role="alert">{error}</p>}
