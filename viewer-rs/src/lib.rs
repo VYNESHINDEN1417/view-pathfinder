@@ -130,6 +130,7 @@ pub struct Viewer {
     shadow_strength: f32,
     shadow_components: [f32; 8], // directional, contact, overhang, legacy edge, AO V2 strength, far-face darkness, vertical edge, horizontal edge
     ao_v2_enabled: bool,
+    ao_v2_contact_strength: f32,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -692,6 +693,7 @@ impl Viewer {
             shadow_strength: 1.0,
             shadow_components: [1.0; 8],
             ao_v2_enabled: false,
+            ao_v2_contact_strength: 1.0,
             orthographic: false,
             background: 0,
             dirty: true,
@@ -845,6 +847,7 @@ impl Viewer {
         self.dirty = true;
     }
     pub fn set_ao_v2_enabled(&mut self, enabled: bool) { self.ao_v2_enabled = enabled; self.dirty = true; }
+    pub fn set_ao_v2_contact_strength(&mut self, strength: f32) { self.ao_v2_contact_strength = strength.clamp(0.0, 2.0); self.dirty = true; }
 
     /// Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
     pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32, depth: f32, vertical_edge: f32, horizontal_edge: f32) {
@@ -1211,7 +1214,7 @@ impl Viewer {
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
-            ao_v2: [if self.ao_v2_enabled { 1.0 } else { 0.0 }, 0.0, 0.0, 0.0],
+            ao_v2: [if self.ao_v2_enabled { 1.0 } else { 0.0 }, self.ao_v2_contact_strength, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
