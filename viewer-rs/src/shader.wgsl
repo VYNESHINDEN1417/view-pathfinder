@@ -107,24 +107,24 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let horizontal_edge_ao = clamp(1.0 - blocked_horizontal_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
-  // Each AO term is already normalized by its own sample count above.
-  // Dividing the combined result by the total ray count a second time made
-  // every shadow category four times weaker and effectively invisible.
   let ao_v2_active = g.ao_v2.x > 0.5;
   let vertical_strength = select(0.0, g.shadow_detail.x, ao_v2_active);
   let horizontal_strength = select(0.0, g.shadow_detail.y, ao_v2_active);
-  // AO V2 reuses Fancy Graphics' contact/overhang ray results as corner
-  // occlusion. Its AO-strength slider controls those rays when Fancy is off;
-  // when both systems are active, the stronger selected value wins.
-  let contact_strength = select(g.shadow.z, max(g.shadow.z, g.shadow_detail.z), ao_v2_active);
-  let overhang_strength = select(g.shadow.w, max(g.shadow.w, g.shadow_detail.z), ao_v2_active);
+  // AO V2 uses the real depth-ray contact/overhang results for corner shading.
+  // Its master AO slider is applied once to the combined result below.
+  let contact_strength = select(g.shadow.z, 1.0, ao_v2_active);
+  let overhang_strength = select(g.shadow.w, 1.0, ao_v2_active);
   let local_occlusion =
-      (1.0 - vertical_edge_ao) * vertical_strength * 0.55
-    + (1.0 - horizontal_edge_ao) * horizontal_strength * 0.55
-    + (1.0 - contact_ao) * contact_strength * 0.45
-    + (1.0 - overhang_ao) * overhang_strength * 0.45;
-  let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5 || ao_v2_active);
-  return clamp(1.0 - local_occlusion * master_strength, 0.0, 1.0);
+      (1.0 - vertical_edge_ao) * vertical_strength * 0.35
+    + (1.0 - horizontal_edge_ao) * horizontal_strength * 0.35
+    + (1.0 - contact_ao) * contact_strength * 0.15
+    + (1.0 - overhang_ao) * overhang_strength * 0.15;
+  let ao_master = select(1.0, g.shadow_detail.z, ao_v2_active);
+  let fancy_master = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  // Keep AO from crushing low-light faces to black; the old additive stack
+  // could exceed 1.0 when several sliders were raised together.
+  let occlusion = clamp(local_occlusion * ao_master * fancy_master, 0.0, 0.72);
+  return 1.0 - occlusion;
 }
 
 struct VsOut {
@@ -246,7 +246,9 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.diffuse.a >= 0.999) {
     ao = ambient_occlusion(in.pos.xy, in.world, n);
   }
-  let geometry_ao = mix(1.0, in.vertex_ao, clamp(g.shadow_detail.z * 0.5, 0.0, 1.0));
+  // AO V2 now uses screen-space depth rays as its sole AO source. Applying
+  // baked vertex AO here as well double-darkened the same corners and faces.
+  let geometry_ao = 1.0;
   // Far-face darkness sets the ambient floor for surfaces receiving little direct sun.
   let far_face_darkness = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
   let direct_reach = clamp(diff * visibility, 0.0, 1.0);
