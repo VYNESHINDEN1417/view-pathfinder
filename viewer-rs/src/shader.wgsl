@@ -204,7 +204,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
-  let ao = ambient_occlusion(in.pos.xy, in.world, n);
+  // Ambient occlusion is a solid-surface effect. The AO depth prepass already
+  // excludes translucent MTL geometry; don't then darken those same transparent
+  // surfaces using nearby opaque depth samples, which creates floating dark boxes.
+  var ao = 1.0;
+  if (m.diffuse.a >= 0.999) {
+    ao = ambient_occlusion(in.pos.xy, in.world, n);
+  }
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
   let fill = 0.06 * max(dot(n, v), 0.0);
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
