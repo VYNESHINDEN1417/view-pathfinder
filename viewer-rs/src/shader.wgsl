@@ -112,15 +112,17 @@ struct VsOut {
   @location(0) world: vec3<f32>,
   @location(1) normal: vec3<f32>,
   @location(2) uv: vec2<f32>,
+  @location(3) ao: f32,
 };
 
 @vertex
-fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VsOut {
+fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, @location(3) ao: f32) -> VsOut {
   var o: VsOut;
   o.pos = g.view_proj * vec4<f32>(pos, 1.0);
   o.world = pos;
   o.normal = normal;
   o.uv = uv;
+  o.ao = ao;
   return o;
 }
 
@@ -224,7 +226,8 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.diffuse.a >= 0.999) {
     ao = ambient_occlusion(in.pos.xy, in.world, n);
   }
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
+  let geometry_ao = mix(1.0, in.ao, g.shadow_detail.z);
+  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao;
   let fill = 0.06 * max(dot(n, v), 0.0);
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
