@@ -28,7 +28,7 @@ export const defaultSettings: StudioSettings = {
   antialias: true,
   gpu: "auto",
   bitrate: 40,
-  noiseReduction: true,
+  noiseReduction: false,
   pixelRatio: 1.5,
 };
 
