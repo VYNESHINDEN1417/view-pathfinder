@@ -689,7 +689,7 @@ impl Viewer {
             home,
             light_intensity: 1.5,
             shadow_strength: 1.0,
-            shadow_components: [1.0; 5],
+            shadow_components: [1.0; 6],
             ao_v2_enabled: false,
             orthographic: false,
             background: 0,
