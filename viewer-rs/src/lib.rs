@@ -925,20 +925,26 @@ impl Viewer {
     pub fn capture_png(&mut self, out_w: u32, out_h: u32) -> js_sys::Promise {
         let width = if out_w == 0 { self.config.width } else { out_w.clamp(16, self.max_dim) };
         let height = if out_h == 0 { self.config.height } else { out_h.clamp(16, self.max_dim) };
+        // Render at up to 1.5x and downsample to delivery size. This is spatial
+        // supersampling, which stabilizes thin rails/chains and keeps PNG AA
+        // consistent with the supersampled video path.
+        let render_scale = 1.5_f32.min(self.max_dim as f32 / width as f32).min(self.max_dim as f32 / height as f32).max(1.0);
+        let render_width = ((width as f32 * render_scale).round() as u32).min(self.max_dim);
+        let render_height = ((height as f32 * render_scale).round() as u32).min(self.max_dim);
         let format = self.config.format;
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("PNG capture"),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d { width: render_width, height: render_height, depth_or_array_layers: 1 },
             mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
             format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        let (cm, cd) = make_targets_sized(&self.device, format, width, height);
-        self.render_to(&texture.create_view(&Default::default()), width, height, cm.as_ref(), &cd, false);
-        let row_bytes = width * 4;
+        let (cm, cd) = make_targets_sized(&self.device, format, render_width, render_height);
+        self.render_to(&texture.create_view(&Default::default()), render_width, render_height, cm.as_ref(), &cd, false);
+        let row_bytes = render_width * 4;
         let padded = (row_bytes + 255) & !255;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("PNG readback"), size: padded as u64 * height as u64,
+            label: Some("PNG readback"), size: padded as u64 * render_height as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -946,9 +952,9 @@ impl Viewer {
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
             wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout {
-                offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height),
+                offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(render_height),
             } },
-            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            wgpu::Extent3d { width: render_width, height: render_height, depth_or_array_layers: 1 },
         );
         self.queue.submit(Some(encoder.finish()));
         let completed = std::rc::Rc::new(std::cell::Cell::new(false));
@@ -980,8 +986,8 @@ impl Viewer {
             if !completed.get() { buffer.destroy(); texture.destroy(); return Err(JsValue::from_str("Capture timed out")); }
             wasm_bindgen_futures::JsFuture::from(mapped).await?;
             let pixels = buffer.slice(..).get_mapped_range();
-            let mut rgba = Vec::with_capacity((row_bytes * height) as usize);
-            for row in pixels.chunks(padded as usize) { rgba.extend_from_slice(&row[..row_bytes as usize]); }
+            let mut rgba = Vec::with_capacity((row_bytes * render_height) as usize);
+            for row in pixels.chunks(padded as usize).take(render_height as usize) { rgba.extend_from_slice(&row[..row_bytes as usize]); }
             drop(pixels);
             buffer.unmap(); buffer.destroy(); texture.destroy();
             if matches!(format, wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb) {
@@ -1000,6 +1006,9 @@ impl Viewer {
                     }
                 }
             }
+            let high_res = image::RgbaImage::from_raw(render_width, render_height, rgba)
+                .ok_or_else(|| JsValue::from_str("Invalid supersampled capture buffer"))?;
+            let rgba = image::imageops::resize(&high_res, width, height, image::imageops::FilterType::Lanczos3).into_raw();
             let mut png = Vec::new();
             use image::ImageEncoder;
             image::codecs::png::PngEncoder::new(&mut png)
