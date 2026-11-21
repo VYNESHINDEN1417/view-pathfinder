@@ -227,8 +227,14 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     ao = ambient_occlusion(in.pos.xy, in.world, n);
   }
   let geometry_ao = mix(1.0, in.vertex_ao, g.shadow_detail.z);
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao;
-  let fill = 0.06 * max(dot(n, v), 0.0);
+  // Optional shadow-depth control: surfaces facing away from the sun, or hidden
+  // from it by an overhang, receive less ambient/fill light. Zero preserves the
+  // existing neutral fill; higher values create a deeper, more directional look.
+  let depth_strength = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
+  let direct_reach = clamp(diff * visibility, 0.0, 1.0);
+  let ambient_falloff = mix(1.0, 0.18 + 0.82 * smoothstep(0.0, 0.7, direct_reach), depth_strength);
+  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * ambient_falloff;
+  let fill = 0.06 * max(dot(n, v), 0.0) * ambient_falloff;
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;
