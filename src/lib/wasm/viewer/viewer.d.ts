@@ -62,7 +62,7 @@ export class Viewer {
      */
     set_background_image(bytes: Uint8Array): boolean;
     set_camera_pose(p: Float32Array): void;
-    set_fancy(enabled: boolean, quality: number): void;
+    set_fancy(enabled: boolean, quality: number): void;\n    /** Enable geometry-baked ambient occlusion V2. */\n    set_ao_v2(enabled: boolean): void;
     /**
      * Adjust model exposure only; backgrounds are invariant.
      */
