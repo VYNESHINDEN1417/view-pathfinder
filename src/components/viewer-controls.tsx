@@ -247,9 +247,9 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
     </div>
-    <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+    <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
       <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
-      <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
+      <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy && !aoV2Enabled} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
         value={[shadowStrength]} disabled={!options.fancy}
         onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
@@ -261,9 +261,11 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
           <button type="button" className="shadow-settings-close" aria-label="Close shadow settings" onClick={() => setShadowPanelOpen(false)}><X size={19} /></button>
         </header>
         <div className="shadow-settings-list">
-          <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
+          {options.fancy && <>
+            <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
+          </>}
           {options.fancy && <>
             <div className="shadow-settings-section-title">FANCY GRAPHICS</div>
             <ShadowSettingRow title="Vertical edge shadows" description="Emphasizes blockers above or below a surface in model space." value={shadowComponents.verticalEdge} onChange={(value) => onShadowComponents({ verticalEdge: value })} disabled={!options.fancy} />
