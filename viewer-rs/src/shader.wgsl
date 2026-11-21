@@ -55,7 +55,8 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let contact_radius_px = max(max(length((contact_x.xy / contact_x.w - center_ndc) * size * 0.5), length((contact_y.xy / contact_y.w - center_ndc) * size * 0.5)), length((contact_z.xy / contact_z.w - center_ndc) * size * 0.5));
   let broad_radius_px = max(max(length((broad_x.xy / broad_x.w - center_ndc) * size * 0.5), length((broad_y.xy / broad_y.w - center_ndc) * size * 0.5)), length((broad_z.xy / broad_z.w - center_ndc) * size * 0.5));
 
-  var blocked_edge = 0.0;
+  var blocked_vertical_edge = 0.0;
+  var blocked_horizontal_edge = 0.0;
   var blocked_contact = 0.0;
   var blocked_overhang = 0.0;
   let count = 4u + u32(g.effects.y) * 4u;
@@ -88,23 +89,28 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         let contribution = facing * fade * scale_weight;
-        if (is_edge) { blocked_edge += contribution; }
-        else if (is_contact) { blocked_contact += contribution; }
+        if (is_edge) {
+          // Classify blocker direction in model space, independent of camera orbit.
+          let vertical_weight = smoothstep(0.35, 0.85, abs(delta.y) / max(distance, 0.0001));
+          blocked_vertical_edge += contribution * vertical_weight;
+          blocked_horizontal_edge += contribution * (1.0 - vertical_weight);
+        } else if (is_contact) { blocked_contact += contribution; }
         else { blocked_overhang += contribution; }
       }
     }
   }
-  let edge_ao = clamp(1.0 - blocked_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
+  let vertical_edge_ao = clamp(1.0 - blocked_vertical_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
+  let horizontal_edge_ao = clamp(1.0 - blocked_horizontal_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
   let local_occlusion = (
-    (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
+    (1.0 - vertical_edge_ao) * g.shadow_detail.x * f32(edge_samples)
+    + (1.0 - horizontal_edge_ao) * g.shadow_detail.y * f32(edge_samples)
     + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
     + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
   ) / f32(count);
-  let ambient_strength = select(1.0, g.shadow_detail.y, g.effects.x > 0.5);
   let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
-  return clamp(1.0 - local_occlusion * ambient_strength * master_strength, 0.0, 1.0);
+  return clamp(1.0 - local_occlusion * master_strength, 0.0, 1.0);
 }
 
 struct VsOut {
@@ -226,13 +232,12 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.diffuse.a >= 0.999) {
     ao = ambient_occlusion(in.pos.xy, in.world, n);
   }
-  let geometry_ao = mix(1.0, in.vertex_ao, g.shadow_detail.z);
-  // Optional shadow-depth control: surfaces facing away from the sun, or hidden
-  // from it by an overhang, receive less ambient/fill light. Zero preserves the
-  // existing neutral fill; higher values create a deeper, more directional look.
-  let depth_strength = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
+  let geometry_ao = mix(1.0, in.vertex_ao, clamp(g.shadow_detail.z * 0.5, 0.0, 1.0));
+  // Far-face darkness sets the ambient floor for surfaces receiving little direct sun.
+  let far_face_darkness = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
   let direct_reach = clamp(diff * visibility, 0.0, 1.0);
-  let ambient_falloff = mix(1.0, 0.18 + 0.82 * smoothstep(0.0, 0.7, direct_reach), depth_strength);
+  let far_face_floor = 1.0 - far_face_darkness * 0.98;
+  let ambient_falloff = mix(1.0, far_face_floor, 1.0 - smoothstep(0.0, 0.7, direct_reach));
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * ambient_falloff;
   let fill = 0.06 * max(dot(n, v), 0.0) * ambient_falloff;
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
