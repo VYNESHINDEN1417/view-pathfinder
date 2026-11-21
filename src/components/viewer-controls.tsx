@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -154,6 +154,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   blueLightEnabled: boolean; onBlueLightEnabledChange: (enabled: boolean) => void;
   blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
   aoV2Enabled: boolean; onAoV2EnabledChange: (enabled: boolean) => void;
+  aoV2ContactStrength: number; onAoV2ContactStrengthChange: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
@@ -269,6 +270,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
           {aoV2Enabled && <>
             {(options.fancy) && <div className="shadow-settings-divider" />}
             <div className="shadow-settings-section-title">AO V2 · GEOMETRY RAYS</div>
+            <ShadowSettingRow title="Contact shadows" description="Controls real depth-ray darkening where nearby surfaces meet or nearly touch." value={aoV2ContactStrength} onChange={onAoV2ContactStrengthChange} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="Vertical edge shadows" description="Emphasizes blockers above or below a surface in model space." value={shadowComponents.verticalEdge} onChange={(value) => onShadowComponents({ verticalEdge: value })} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="Horizontal edge shadows" description="Emphasizes lateral blockers around decks, walls and ledges." value={shadowComponents.horizontalEdge} onChange={(value) => onShadowComponents({ horizontalEdge: value })} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="Far-face darkness" description="Sets how dark surfaces become when they receive little direct sunlight." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!aoV2Enabled} />
