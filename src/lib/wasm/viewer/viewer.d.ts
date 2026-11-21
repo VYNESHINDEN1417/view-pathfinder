@@ -54,6 +54,10 @@ export class Viewer {
      */
     roll(angle: number): void;
     /**
+     * Enable independent geometry-baked ambient occlusion (precomputed on model load).
+     */
+    set_ao_v2(enabled: boolean): void;
+    /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      */
     set_background(mode: number): void;
@@ -62,7 +66,7 @@ export class Viewer {
      */
     set_background_image(bytes: Uint8Array): boolean;
     set_camera_pose(p: Float32Array): void;
-    set_fancy(enabled: boolean, quality: number): void;\n    /** Enable geometry-baked ambient occlusion V2. */\n    set_ao_v2(enabled: boolean): void;
+    set_fancy(enabled: boolean, quality: number): void;
     /**
      * Adjust model exposure only; backgrounds are invariant.
      */
@@ -135,6 +139,7 @@ export interface InitOutput {
     readonly viewer_reset: (a: number) => void;
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
+    readonly viewer_set_ao_v2: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
     readonly viewer_set_background_image: (a: number, b: number, c: number) => number;
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;

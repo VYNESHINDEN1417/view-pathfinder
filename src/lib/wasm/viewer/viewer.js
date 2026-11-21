@@ -167,6 +167,13 @@ export class Viewer {
         wasm.viewer_roll(this.__wbg_ptr, angle);
     }
     /**
+     * Enable independent geometry-baked ambient occlusion (precomputed on model load).
+     * @param {boolean} enabled
+     */
+    set_ao_v2(enabled) {
+        wasm.viewer_set_ao_v2(this.__wbg_ptr, enabled);
+    }
+    /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      * @param {number} mode
      */
