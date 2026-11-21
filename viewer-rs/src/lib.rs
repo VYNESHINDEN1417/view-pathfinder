@@ -35,6 +35,7 @@ struct Globals {
     shadow_detail: [f32; 4], // block-edge, ambient-occlusion, reserved, reserved
     point_light: [f32; 4], // static starboard point-light position (xyz) and range (w)
     point_color: [f32; 4], // blue light color (rgb) and subtle intensity (w)
+    ao_v2: [f32; 4], // AO V2 enable flag and padding
 }
 
 #[repr(C)]
@@ -1210,6 +1211,7 @@ impl Viewer {
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
+            ao_v2: [if self.ao_v2_enabled { 1.0 } else { 0.0 }, 0.0, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
