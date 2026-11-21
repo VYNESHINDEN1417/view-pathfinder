@@ -118,7 +118,7 @@ function Index() {
   const ironTrapdoorOriginalsRef = useRef(new Map<string, Uint8Array>());
   const ironTrapdoorRevisionRef = useRef(0);
   const [shadowStrength, setShadowStrength] = useState(1);
-  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1 });
+  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1, depth: 0 });
   const [orthographic, setOrthographic] = useState(false);
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
@@ -137,7 +137,7 @@ function Index() {
     });
     viewer.set_light(brightness);
     viewer.set_shadow_strength(shadowStrength);
-    viewer.set_shadow_components(shadowComponents.directional, shadowComponents.contact, shadowComponents.overhang, shadowComponents.edge, shadowComponents.ambient);
+    viewer.set_shadow_components(shadowComponents.directional, shadowComponents.contact, shadowComponents.overhang, shadowComponents.edge, shadowComponents.ambient, shadowComponents.depth);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
@@ -254,7 +254,7 @@ function Index() {
       });
       v.set_light(settingsRef.current.brightness);
       v.set_shadow_strength(settingsRef.current.shadowStrength);
-      v.set_shadow_components(settingsRef.current.shadowComponents.directional, settingsRef.current.shadowComponents.contact, settingsRef.current.shadowComponents.overhang, settingsRef.current.shadowComponents.edge, settingsRef.current.shadowComponents.ambient);
+      v.set_shadow_components(settingsRef.current.shadowComponents.directional, settingsRef.current.shadowComponents.contact, settingsRef.current.shadowComponents.overhang, settingsRef.current.shadowComponents.edge, settingsRef.current.shadowComponents.ambient, settingsRef.current.shadowComponents.depth);
       v.set_orthographic(settingsRef.current.orthographic);
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
       v.set_shadow_quality(settingsRef.current.options.shadowQuality);
