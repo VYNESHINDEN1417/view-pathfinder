@@ -1472,7 +1472,7 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
                 let phi = side as f32 / TUBE_SIDES as f32 * std::f32::consts::TAU;
                 let radial = outward * phi.cos() + Vec3::Y * phi.sin();
                 let p = center + radial * tube_radius;
-                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0] });
+                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0], ao: 1.0 });
             }
         }
         for side in 0..TUBE_SIDES {
@@ -1494,7 +1494,7 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
         let angle = i as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
         vertices.push(Vertex {
             pos: [cx + marker_radius * angle.cos(), y + marker_radius * 0.025, cz + marker_radius * angle.sin()],
-            normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0],
+            normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], ao: 1.0,
         });
     }
     // Close every wedge back to the first perimeter vertex for a seamless full disc.
