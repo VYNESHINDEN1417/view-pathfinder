@@ -127,7 +127,7 @@ pub struct Viewer {
     fancy: bool,
     fancy_quality: u32,
     shadow_strength: f32,
-    shadow_components: [f32; 6], // directional, contact, overhang, block edge, ambient occlusion
+    shadow_components: [f32; 8], // directional, contact, overhang, legacy edge, AO V2 strength, far-face darkness, vertical edge, horizontal edge
     ao_v2_enabled: bool,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
@@ -689,7 +689,7 @@ impl Viewer {
             home,
             light_intensity: 1.5,
             shadow_strength: 1.0,
-            shadow_components: [1.0; 6],
+            shadow_components: [1.0; 8],
             ao_v2_enabled: false,
             orthographic: false,
             background: 0,
@@ -845,9 +845,9 @@ impl Viewer {
     }
     pub fn set_ao_v2_enabled(&mut self, enabled: bool) { self.ao_v2_enabled = enabled; self.dirty = true; }
 
-    /// Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
-    pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32, depth: f32) {
-        self.shadow_components = [directional, contact, overhang, edge, ambient, depth].map(|value| value.clamp(0.0, 2.0));
+    /// Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
+    pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32, depth: f32, vertical_edge: f32, horizontal_edge: f32) {
+        self.shadow_components = [directional, contact, overhang, edge, ambient, depth, vertical_edge, horizontal_edge].map(|value| value.clamp(0.0, 2.0));
         self.dirty = true;
     }
 
@@ -1206,7 +1206,7 @@ impl Viewer {
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
-            shadow_detail: [self.shadow_components[3], self.shadow_components[4], if self.ao_v2_enabled { 1.0 } else { 0.0 }, self.shadow_components[5]],
+            shadow_detail: [self.shadow_components[6], self.shadow_components[7], if self.ao_v2_enabled { self.shadow_components[4] } else { 0.0 }, self.shadow_components[5]],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
