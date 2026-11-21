@@ -234,7 +234,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // Soft highlight shoulder: unchanged below 0.7, asymptotically approaches 1 instead of clipping.
   let above = max(color - vec3<f32>(0.7), vec3<f32>(0.0));
   color = min(color, vec3<f32>(0.7)) + above / (vec3<f32>(1.0) + above / 0.3);
-  return vec4<f32>(color, 1.0);
+  return vec4<f32>(color, m.diffuse.a);
 }
 
 @vertex
