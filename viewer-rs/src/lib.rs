@@ -1216,7 +1216,9 @@ impl Viewer {
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         // Depth-only prepass is allocated only at full size when Fancy is enabled.
-        let needs_scene_depth = self.fancy || self.point_enabled;
+        // AO V2 performs screen-space ray tests even when Fancy Graphics is off,
+        // so it must receive the same full-resolution opaque-scene depth prepass.
+        let needs_scene_depth = self.fancy || self.point_enabled || self.ao_v2_enabled;
         let ao_size = if needs_scene_depth { (width, height) } else { (1, 1) };
         let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
