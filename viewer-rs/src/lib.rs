@@ -1489,7 +1489,7 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
     let cx = rx * a.sin();
     let cz = rz * a.cos();
     let center_index = vertices.len() as u32;
-    vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] });
+    vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], ao: 1.0 });
     for i in 0..MARKER_SEGMENTS {
         let angle = i as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
         vertices.push(Vertex {
