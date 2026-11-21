@@ -112,15 +112,17 @@ struct VsOut {
   @location(0) world: vec3<f32>,
   @location(1) normal: vec3<f32>,
   @location(2) uv: vec2<f32>,
+  @location(3) vertex_ao: f32,
 };
 
 @vertex
-fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VsOut {
+fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, @location(3) vertex_ao: f32) -> VsOut {
   var o: VsOut;
   o.pos = g.view_proj * vec4<f32>(pos, 1.0);
   o.world = pos;
   o.normal = normal;
   o.uv = uv;
+  o.vertex_ao = vertex_ao;
   return o;
 }
 
@@ -224,7 +226,8 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   if (m.diffuse.a >= 0.999) {
     ao = ambient_occlusion(in.pos.xy, in.world, n);
   }
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
+  let geometry_ao = mix(1.0, in.vertex_ao, g.shadow_detail.z);
+  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao;
   let fill = 0.06 * max(dot(n, v), 0.0);
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
@@ -247,7 +250,7 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let highlight = pow(max(dot(n, half_vector), 0.0), clamp(m.specular.w, 8.0, 96.0));
     let fresnel = 0.025 + 0.08 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
     color += clamp(m.specular.rgb, vec3<f32>(0.02), vec3<f32>(0.3)) * highlight * visibility * g.effects.z * 0.25;
-    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao;
+    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao * geometry_ao;
   }
   color *= g.light.w;
   // Soft highlight shoulder: unchanged below 0.7, asymptotically approaches 1 instead of clipping.
