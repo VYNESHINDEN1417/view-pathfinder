@@ -167,6 +167,12 @@ export class Viewer {
         wasm.viewer_roll(this.__wbg_ptr, angle);
     }
     /**
+     * @param {number} strength
+     */
+    set_ao_v2_contact_strength(strength) {
+        wasm.viewer_set_ao_v2_contact_strength(this.__wbg_ptr, strength);
+    }
+    /**
      * @param {boolean} enabled
      */
     set_ao_v2_enabled(enabled) {
