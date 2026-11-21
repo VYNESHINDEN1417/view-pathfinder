@@ -84,7 +84,7 @@ export class Viewer {
     /**
      * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
      */
-    set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number): void;
+    set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number, depth: number): void;
     /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
      */
