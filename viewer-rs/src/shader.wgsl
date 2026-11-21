@@ -10,6 +10,7 @@ struct Globals {
   shadow_detail: vec4<f32>,
   point_light: vec4<f32>, // xyz = elliptical-orbit light position, w = effective range
   point_color: vec4<f32>, // rgb = blue light tint, w = intensity
+  ao_v2: vec4<f32>, // x = AO V2 enabled
 };
 
 struct Material {
@@ -31,7 +32,8 @@ struct Material {
 @group(3) @binding(0) var scene_depth: texture_depth_2d;
 
 fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f32 {
-  if (g.effects.x < 0.5) { return 1.0; }
+  // Fancy Graphics owns contact/overhang effects; AO V2 independently enables edge rays.
+  if (g.effects.x < 0.5 && g.ao_v2.x < 0.5) { return 1.0; }
   let size = vec2<f32>(textureDimensions(scene_depth));
   let reach = g.effects.w;
   let edge_reach = reach * 0.18;
@@ -106,8 +108,8 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let local_occlusion = (
     (1.0 - vertical_edge_ao) * g.shadow_detail.x * f32(edge_samples)
     + (1.0 - horizontal_edge_ao) * g.shadow_detail.y * f32(edge_samples)
-    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
-    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
+    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples) * g.effects.x
+    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples) * g.effects.x
   ) / f32(count);
   let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
   return clamp(1.0 - local_occlusion * master_strength, 0.0, 1.0);
