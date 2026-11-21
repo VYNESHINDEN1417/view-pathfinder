@@ -257,13 +257,16 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // AO V2 now uses screen-space depth rays as its sole AO source. Applying
   // baked vertex AO here as well double-darkened the same corners and faces.
   let geometry_ao = 1.0;
-  // Far-face darkness sets the ambient floor for surfaces receiving little direct sun.
-  let far_face_darkness = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
-  let direct_reach = clamp(diff * visibility, 0.0, 1.0);
+  // AO V2 far-face darkness is a dedicated sun-orientation term.
+  // It uses the authored face normal against the sun direction only: shadow-map
+  // visibility and AO ray occlusion must not drive this slider.
+  let far_face_darkness = select(0.0, clamp(g.shadow_detail.w, 0.0, 1.0), g.ao_v2.x > 0.5);
+  let sun_facing = clamp(dot(normalize(in.normal), l), 0.0, 1.0);
+  let far_face_weight = 1.0 - smoothstep(0.0, 0.72, sun_facing);
   let far_face_floor = 1.0 - far_face_darkness * 0.98;
-  let ambient_falloff = mix(1.0, far_face_floor, 1.0 - smoothstep(0.0, 0.7, direct_reach));
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * ambient_falloff;
-  let fill = 0.06 * max(dot(n, v), 0.0) * ambient_falloff;
+  let far_face_ambient = mix(1.0, far_face_floor, far_face_weight);
+  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
+  let fill = 0.06 * max(dot(n, v), 0.0) * far_face_ambient;
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;

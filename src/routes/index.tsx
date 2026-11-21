@@ -194,7 +194,7 @@ function Index() {
     };
     scheduleRef.current = schedule;
     const sizeCanvas = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
       const r = canvas.getBoundingClientRect();
       const w = Math.max(1, Math.round(r.width * dpr));
       const h = Math.max(1, Math.round(r.height * dpr));

@@ -273,7 +273,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
             <ShadowSettingRow title="Contact shadows" description="Controls real depth-ray darkening where nearby surfaces meet or nearly touch." value={aoV2ContactStrength} onChange={onAoV2ContactStrengthChange} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="Vertical edge shadows" description="Emphasizes blockers above or below a surface in model space." value={shadowComponents.verticalEdge} onChange={(value) => onShadowComponents({ verticalEdge: value })} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="Horizontal edge shadows" description="Emphasizes lateral blockers around decks, walls and ledges." value={shadowComponents.horizontalEdge} onChange={(value) => onShadowComponents({ horizontalEdge: value })} disabled={!aoV2Enabled} />
-            <ShadowSettingRow title="Far-face darkness" description="Sets how dark surfaces become when they receive little direct sunlight." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!aoV2Enabled} />
+            <ShadowSettingRow title="Far-face darkness" description="Darkens sun-opposed block faces by their surface angle to the sun, independent of other shadows." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!aoV2Enabled} />
             <ShadowSettingRow title="AO / corner strength" description="Controls contact and corner darkening around geometry intersections." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!aoV2Enabled} />
           </>}
         </div>

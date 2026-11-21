@@ -133,7 +133,16 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         if (ok?.supported) { codec = c; break; }
       }
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Render the engine at exact output size; restore the live view afterwards.
+    // Render above delivery resolution, then downsample once. This improves coverage
+    // of sub-pixel rigging (bars, chains, rails) without changing encoded dimensions.
+    const renderScale = 1.5;
+    const renderWidth = Math.round(width * renderScale);
+    const renderHeight = Math.round(height * renderScale);
+    const frameCanvas = document.createElement("canvas");
+    frameCanvas.width = width; frameCanvas.height = height;
+    const frameContext = frameCanvas.getContext("2d", { alpha: true });
+    if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
+    // Restore the live view after the temporary high-resolution render.
     const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
     const restore = () => {
       canvas.width = prev.w; canvas.height = prev.h;
@@ -142,7 +151,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       v.set_point_orbit_visible(blueLightPanelOpen);
       schedule();
     };
-    canvas.width = width; canvas.height = height; v.resize(width, height, width, height);
+    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, renderWidth, renderHeight);
     // Export uses the same Rust renderer and fully settled lighting as the viewport.
     // Rebuild cached sun shadows before the first frame so a recent azimuth change
     // cannot leak a stale/partially updated shadow map into the recording.
@@ -175,7 +184,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // Give the browser a compositor turn after the GPU submission before the
       // canvas is sampled. Export is offline-timed, so this does not drop frames.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const frameSource = denoiser ? denoiser.process(canvas) : canvas;
+      frameContext.clearRect(0, 0, width, height);
+      frameContext.drawImage(canvas, 0, 0, width, height);
+      const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
       const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
