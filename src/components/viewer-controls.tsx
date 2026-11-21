@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb, Aperture } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -13,7 +13,7 @@ export type ShadowComponents = { directional: number; contact: number; overhang:
 export type BlueLightSettings = { azimuth: number; brightness: number; intensity: number; hue: number; range: number };
 
 export type ViewerOptions = {
-  background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number;
+  background: number; aspect: string; custom: [number, number]; resolution: number; shadowMode: number; shadowQuality: number; fancy: boolean; fancyQuality: number; aoV2: boolean;
 };
 
 function SliderValueReadout({ value, min, max, step, label, disabled, onApply }: {
