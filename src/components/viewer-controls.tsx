@@ -248,10 +248,10 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         aria-label="Brightness" />
     </div>
     <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
-      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
+      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy && !aoV2Enabled} onApply={onShadowStrength} />
       <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy && !aoV2Enabled} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
-        value={[shadowStrength]} disabled={!options.fancy}
+        value={[shadowStrength]} disabled={!options.fancy && !aoV2Enabled}
         onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
         aria-label="Shadow strength" />
     </div>
