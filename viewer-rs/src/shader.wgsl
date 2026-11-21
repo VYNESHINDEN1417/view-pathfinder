@@ -249,8 +249,14 @@ fn vs_shadow(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @locat
 
 @fragment
 fn fs_shadow(in: VsOut) {
-  let alpha = textureSample(tex, samp, in.uv).a;
-  if (m.flags.x > 0.5 && alpha * m.diffuse.a < 0.3) { discard; }
+  // The shadow map and AO/point-light depth prepass must contain only opaque
+  // blockers. Treat MTL dissolve and partially transparent texture texels as
+  // non-occluding; otherwise invisible rigging/box faces still write depth and
+  // incorrectly remove sunlight or local light from surfaces behind them.
+  // The regular color pass keeps its existing cutout threshold and appearance.
+  let texture_alpha = textureSample(tex, samp, in.uv).a;
+  let surface_alpha = texture_alpha * m.diffuse.a;
+  if (surface_alpha < 0.98) { discard; }
 }
 
 // Fullscreen background: mode 4 samples the uploaded image texture.
