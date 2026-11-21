@@ -123,7 +123,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let fancy_master = select(1.0, g.shadow.x, g.effects.x > 0.5);
   // Keep AO from crushing low-light faces to black; the old additive stack
   // could exceed 1.0 when several sliders were raised together.
-  let occlusion = clamp(local_occlusion * ao_master * fancy_master, 0.0, 0.72);
+  // Preserve a stronger ambient floor so stacked screen-space hits cannot make
+  // textured faces look washed out or partially disappear.
+  let occlusion = clamp(local_occlusion * ao_master * fancy_master, 0.0, 0.45);
   return 1.0 - occlusion;
 }
 
@@ -244,7 +246,11 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // surfaces using nearby opaque depth samples, which creates floating dark boxes.
   var ao = 1.0;
   if (m.diffuse.a >= 0.999) {
-    ao = ambient_occlusion(in.pos.xy, in.world, n);
+    // AO V2 must use the authored geometric normal, not the camera-flipped
+    // two-sided lighting normal. This prevents geometry behind a carpet or
+    // other thin surface from being treated as a valid front-side occluder.
+    let ao_normal = select(n, normalize(in.normal), g.ao_v2.x > 0.5);
+    ao = ambient_occlusion(in.pos.xy, in.world, ao_normal);
   }
   // AO V2 now uses screen-space depth rays as its sole AO source. Applying
   // baked vertex AO here as well double-darkened the same corners and faces.
