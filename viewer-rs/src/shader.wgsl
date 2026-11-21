@@ -266,6 +266,7 @@ fn vs_shadow(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @locat
   o.world = pos;
   o.normal = normal;
   o.uv = uv;
+  o.vertex_ao = 1.0;
   return o;
 }
 
