@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
-export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number; depth: number };
+export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number; depth: number; verticalEdge: number; horizontalEdge: number };
 export type BlueLightSettings = { azimuth: number; brightness: number; intensity: number; hue: number; range: number };
 
 export type ViewerOptions = {
@@ -264,9 +264,17 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
           <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
           <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
           <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Block-edge shadows" description="Tight, subtle dark lines that define individual block boundaries." value={shadowComponents.edge} onChange={(value) => onShadowComponents({ edge: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Ambient occlusion" description="Soft corner and gap shading that adds depth to enclosed spaces." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Shadow depth" description="Darkens faces turned away from the sun or hidden beneath decks and overhangs." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!options.fancy} />
+          {options.fancy && <>
+            <div className="shadow-settings-section-title">FANCY GRAPHICS</div>
+            <ShadowSettingRow title="Vertical edge shadows" description="Emphasizes blockers above or below a surface in model space." value={shadowComponents.verticalEdge} onChange={(value) => onShadowComponents({ verticalEdge: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Horizontal edge shadows" description="Emphasizes lateral blockers around decks, walls and ledges." value={shadowComponents.horizontalEdge} onChange={(value) => onShadowComponents({ horizontalEdge: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Far-face darkness" description="Sets how dark surfaces become when they receive little direct sunlight." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!options.fancy} />
+          </>}
+          {aoV2Enabled && <>
+            {options.fancy && <div className="shadow-settings-divider" />}
+            <div className="shadow-settings-section-title">AO V2 · GEOMETRY RAYS</div>
+            <ShadowSettingRow title="AO strength" description="Controls the baked geometry occlusion contribution." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!aoV2Enabled} />
+          </>}
         </div>
         {!options.fancy && <p className="shadow-settings-disabled-note">Enable Fancy Graphics to adjust shadow rendering.</p>}
         <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× DEFAULT</span><span>2.00× MAX</span></footer>
