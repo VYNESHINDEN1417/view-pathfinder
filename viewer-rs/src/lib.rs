@@ -18,6 +18,7 @@ struct Vertex {
     pos: [f32; 3],
     normal: [f32; 3],
     uv: [f32; 2],
+    ao: f32,
 }
 
 #[repr(C)]
@@ -34,6 +35,7 @@ struct Globals {
     shadow_detail: [f32; 4], // block-edge, ambient-occlusion, reserved, reserved
     point_light: [f32; 4], // static starboard point-light position (xyz) and range (w)
     point_color: [f32; 4], // blue light color (rgb) and subtle intensity (w)
+    ao_v2: [f32; 4], // AO V2 enable flag and padding
 }
 
 #[repr(C)]
@@ -71,6 +73,21 @@ struct Pointer {
     x: f32,
     y: f32,
 }
+
+
+#[derive(Clone,Copy)] struct AoTri{a:Vec3,b:Vec3,c:Vec3,lo:Vec3,hi:Vec3,mid:Vec3}
+struct AoNode{lo:Vec3,hi:Vec3,l:Option<usize>,r:Option<usize>,start:usize,count:usize}
+fn compute_geometry_ao(v:&mut[Vertex],ix:&[u32],ranges:&[std::ops::Range<usize>],radius:f32){
+ let mut ts=Vec::new();for rg in ranges{for t in ix[rg.clone()].chunks_exact(3){let a=Vec3::from(v[t[0]as usize].pos);let b=Vec3::from(v[t[1]as usize].pos);let c=Vec3::from(v[t[2]as usize].pos);ts.push(AoTri{a,b,c,lo:a.min(b).min(c),hi:a.max(b).max(c),mid:(a+b+c)/3.0});}}
+ if ts.is_empty(){return;}let n=ts.len();let mut nodes=Vec::with_capacity(n*2);build_ao(&mut ts,&mut nodes,0,n);let reach=(radius*0.035).clamp(0.08,3.0);let mut used=vec![false;v.len()];for rg in ranges{for &j in &ix[rg.clone()]{used[j as usize]=true;}}
+ for(i,x)in v.iter_mut().enumerate(){if !used[i]{x.ao=1.0;continue;}let p=Vec3::from(x.pos);let normal=Vec3::from(x.normal).normalize_or(Vec3::Y);let h=if normal.y.abs()<0.9{Vec3::Y}else{Vec3::X};let t=normal.cross(h).normalize_or(Vec3::X);let b=normal.cross(t).normalize_or(Vec3::Z);let mut blocked=0.0;const R:u32=12;
+ for k in 0..R{let u=(k as f32+0.5)/R as f32;let phi=k as f32*2.39996323;let rr=u.sqrt();let z=(1.0-u).sqrt();let d=(t*(rr*phi.cos())+b*(rr*phi.sin())+normal*z).normalize_or(normal);if ao_hit(&ts,&nodes,0,p+normal*(reach*0.0015),d,reach){blocked+=1.0;}}
+ x.ao=(1.0-blocked/R as f32*0.88).clamp(0.12,1.0);
+ }}
+fn build_ao(ts:&mut[AoTri],ns:&mut Vec<AoNode>,s:usize,e:usize)->usize{let(mut lo,mut hi)=(Vec3::splat(f32::MAX),Vec3::splat(f32::MIN));for t in &ts[s..e]{lo=lo.min(t.lo);hi=hi.max(t.hi);}let id=ns.len();ns.push(AoNode{lo,hi,l:None,r:None,start:s,count:e-s});if e-s<=8{return id;}let ex=hi-lo;let ax=if ex.x>=ex.y&&ex.x>=ex.z{0}else if ex.y>=ex.z{1}else{2};ts[s..e].sort_by(|a,b|a.mid[ax].total_cmp(&b.mid[ax]));let m=s+(e-s)/2;let l=build_ao(ts,ns,s,m);let r=build_ao(ts,ns,m,e);ns[id].l=Some(l);ns[id].r=Some(r);ns[id].count=0;id}
+fn ao_box(lo:Vec3,hi:Vec3,o:Vec3,iv:Vec3,m:f32)->bool{let a=(lo-o)*iv;let b=(hi-o)*iv;let n=a.min(b).max_element().max(0.0);let f=a.max(b).min_element();f>=n&&n<=m}
+fn ao_tri(t:&AoTri,o:Vec3,d:Vec3,m:f32)->bool{let e1=t.b-t.a;let e2=t.c-t.a;let p=d.cross(e2);let det=e1.dot(p);if det.abs()<1e-8{return false;}let inv=1.0/det;let s=o-t.a;let u=s.dot(p)*inv;if u<0.0||u>1.0{return false;}let q=s.cross(e1);let v=d.dot(q)*inv;if v<0.0||u+v>1.0{return false;}let z=e2.dot(q)*inv;z>1e-5&&z<m}
+fn ao_hit(ts:&[AoTri],ns:&[AoNode],root:usize,o:Vec3,d:Vec3,m:f32)->bool{let iv=Vec3::new(if d.x.abs()<1e-8{1e8}else{1.0/d.x},if d.y.abs()<1e-8{1e8}else{1.0/d.y},if d.z.abs()<1e-8{1e8}else{1.0/d.z});let mut st=[0usize;64];let mut n=1;st[0]=root;while n>0{n-=1;let x=&ns[st[n]];if !ao_box(x.lo,x.hi,o,iv,m){continue;}if x.count>0{for t in &ts[x.start..x.start+x.count]{if ao_tri(t,o,d,m){return true;}}}else{if let Some(q)=x.l{if n<63{st[n]=q;n+=1;}}if let Some(q)=x.r{if n<63{st[n]=q;n+=1;}}}}false}
 
 #[wasm_bindgen]
 pub struct Viewer {
@@ -111,7 +128,9 @@ pub struct Viewer {
     fancy: bool,
     fancy_quality: u32,
     shadow_strength: f32,
-    shadow_components: [f32; 5], // directional, contact, overhang, block edge, ambient occlusion
+    shadow_components: [f32; 8], // directional, contact, overhang, legacy edge, AO V2 strength, far-face darkness, vertical edge, horizontal edge
+    ao_v2_enabled: bool,
+    ao_v2_contact_strength: f32,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -249,6 +268,7 @@ impl Viewer {
                     pos: p,
                     normal: if has_n { [mesh.normals[3 * i], mesh.normals[3 * i + 1], mesh.normals[3 * i + 2]] } else { [0.0; 3] },
                     uv: if has_uv { [mesh.texcoords[2 * i], 1.0 - mesh.texcoords[2 * i + 1]] } else { [0.0; 2] },
+                    ao: 1.0,
                 });
             }
             if !has_n {
@@ -286,10 +306,9 @@ impl Viewer {
         for v in &mut verts {
             v.pos = (Vec3::from(v.pos) - center).into();
         }
-        for draw in &mut draws {
-            draw.center -= center;
-        }
-
+        for draw in &mut draws { draw.center -= center; }
+        let opaque_ranges: Vec<std::ops::Range<usize>> = draws.iter().filter(|d| materials.get(d.material).and_then(|m| m.dissolve).unwrap_or(1.0) >= 0.999).map(|d| d.start as usize..(d.start+d.count) as usize).collect();
+        compute_geometry_ao(&mut verts,&indices,&opaque_ranges,radius);
         report(&progress, "upload", 0.0, 2.0).await;
         let vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("vertices"),
@@ -365,7 +384,7 @@ impl Viewer {
             label: Some("static ship shadow"), layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_shadow"), compilation_options: Default::default(), buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as u64, step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
             }] },
             fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_shadow"), compilation_options: Default::default(), targets: &[] }),
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
@@ -386,7 +405,7 @@ impl Viewer {
             label: Some("AO model depth prepass"), layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_main"), compilation_options: Default::default(), buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as u64, step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
             }] },
             fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_shadow"), compilation_options: Default::default(), targets: &[] }),
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
@@ -408,7 +427,7 @@ impl Viewer {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -439,7 +458,7 @@ impl Viewer {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -672,7 +691,9 @@ impl Viewer {
             home,
             light_intensity: 1.5,
             shadow_strength: 1.0,
-            shadow_components: [1.0; 5],
+            shadow_components: [1.0; 8],
+            ao_v2_enabled: false,
+            ao_v2_contact_strength: 1.0,
             orthographic: false,
             background: 0,
             dirty: true,
@@ -825,10 +846,12 @@ impl Viewer {
         self.shadow_strength = strength.clamp(0.0, 2.0);
         self.dirty = true;
     }
+    pub fn set_ao_v2_enabled(&mut self, enabled: bool) { self.ao_v2_enabled = enabled; self.dirty = true; }
+    pub fn set_ao_v2_contact_strength(&mut self, strength: f32) { self.ao_v2_contact_strength = strength.clamp(0.0, 2.0); self.dirty = true; }
 
-    /// Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
-    pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32) {
-        self.shadow_components = [directional, contact, overhang, edge, ambient].map(|value| value.clamp(0.0, 2.0));
+    /// Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
+    pub fn set_shadow_components(&mut self, directional: f32, contact: f32, overhang: f32, edge: f32, ambient: f32, depth: f32, vertical_edge: f32, horizontal_edge: f32) {
+        self.shadow_components = [directional, contact, overhang, edge, ambient, depth, vertical_edge, horizontal_edge].map(|value| value.clamp(0.0, 2.0));
         self.dirty = true;
     }
 
@@ -1187,15 +1210,18 @@ impl Viewer {
             inverse_vp: vp.inverse().to_cols_array_2d(),
             effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
-            shadow_detail: [self.shadow_components[3], self.shadow_components[4], 0.0, 0.0],
+            shadow_detail: [self.shadow_components[6], self.shadow_components[7], if self.ao_v2_enabled { self.shadow_components[4] } else { 0.0 }, self.shadow_components[5]],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
+            ao_v2: [if self.ao_v2_enabled { 1.0 } else { 0.0 }, self.ao_v2_contact_strength, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         // Depth-only prepass is allocated only at full size when Fancy is enabled.
-        let needs_scene_depth = self.fancy || self.point_enabled;
+        // AO V2 performs screen-space ray tests even when Fancy Graphics is off,
+        // so it must receive the same full-resolution opaque-scene depth prepass.
+        let needs_scene_depth = self.fancy || self.point_enabled || self.ao_v2_enabled;
         let ao_size = if needs_scene_depth { (width, height) } else { (1, 1) };
         let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
@@ -1458,7 +1484,7 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
                 let phi = side as f32 / TUBE_SIDES as f32 * std::f32::consts::TAU;
                 let radial = outward * phi.cos() + Vec3::Y * phi.sin();
                 let p = center + radial * tube_radius;
-                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0] });
+                vertices.push(Vertex { pos: p.into(), normal: radial.into(), uv: [0.0, 0.0], ao: 1.0 });
             }
         }
         for side in 0..TUBE_SIDES {
@@ -1475,12 +1501,12 @@ fn build_orbit_geometry(axes: [f32; 2], y: f32, azimuth_deg: f32, marker_radius:
     let cx = rx * a.sin();
     let cz = rz * a.cos();
     let center_index = vertices.len() as u32;
-    vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0] });
+    vertices.push(Vertex { pos: [cx, y + marker_radius * 0.025, cz], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], ao: 1.0 });
     for i in 0..MARKER_SEGMENTS {
         let angle = i as f32 / MARKER_SEGMENTS as f32 * std::f32::consts::TAU;
         vertices.push(Vertex {
             pos: [cx + marker_radius * angle.cos(), y + marker_radius * 0.025, cz + marker_radius * angle.sin()],
-            normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0],
+            normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], ao: 1.0,
         });
     }
     // Close every wedge back to the first perimeter vertex for a seamless full disc.

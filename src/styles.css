@@ -615,3 +615,6 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 .blue-light-power-knob { width: 8px; height: 8px; border-radius: 50%; background: #8393a8; }
 .blue-light-power-toggle[aria-checked="true"] .blue-light-power-knob { background: #9dccff; box-shadow: 0 0 8px #5ba5ff; }
 @media (max-width: 520px) { .blue-light-power-row { margin-bottom: 8px; padding: 7px 9px; } }
+
+.shadow-settings-section-title{font-size:10px;font-weight:800;letter-spacing:.14em;opacity:.62;padding:10px 0 2px}
+.shadow-settings-divider{height:1px;background:var(--border,rgba(255,255,255,.16));margin:12px 0 4px}

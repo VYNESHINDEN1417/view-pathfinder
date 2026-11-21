@@ -53,6 +53,8 @@ export class Viewer {
      * Screen-space twist: positive radians turn the model clockwise on screen.
      */
     roll(angle: number): void;
+    set_ao_v2_contact_strength(strength: number): void;
+    set_ao_v2_enabled(enabled: boolean): void;
     /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      */
@@ -81,9 +83,9 @@ export class Viewer {
      */
     set_point_orbit_visible(visible: boolean): void;
     /**
-     * Set the five independent shadow-family controls. Values are clamped to 0.0..2.0.
+     * Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
      */
-    set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number): void;
+    set_shadow_components(directional: number, contact: number, overhang: number, edge: number, ambient: number, depth: number, vertical_edge: number, horizontal_edge: number): void;
     /**
      * 0 = off, 1 = cached static sun, 2 = real-time sun that follows the view.
      */
@@ -135,6 +137,8 @@ export interface InitOutput {
     readonly viewer_reset: (a: number) => void;
     readonly viewer_resize: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_roll: (a: number, b: number) => void;
+    readonly viewer_set_ao_v2_contact_strength: (a: number, b: number) => void;
+    readonly viewer_set_ao_v2_enabled: (a: number, b: number) => void;
     readonly viewer_set_background: (a: number, b: number) => void;
     readonly viewer_set_background_image: (a: number, b: number, c: number) => number;
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
@@ -144,7 +148,7 @@ export interface InitOutput {
     readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly viewer_set_point_light_enabled: (a: number, b: number) => void;
     readonly viewer_set_point_orbit_visible: (a: number, b: number) => void;
-    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly viewer_set_shadow_components: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly viewer_set_shadow_mode: (a: number, b: number) => void;
     readonly viewer_set_shadow_quality: (a: number, b: number) => void;
     readonly viewer_set_shadow_strength: (a: number, b: number) => void;

@@ -10,6 +10,7 @@ struct Globals {
   shadow_detail: vec4<f32>,
   point_light: vec4<f32>, // xyz = elliptical-orbit light position, w = effective range
   point_color: vec4<f32>, // rgb = blue light tint, w = intensity
+  ao_v2: vec4<f32>, // x = AO V2 enabled, y = AO V2 contact-shadow strength
 };
 
 struct Material {
@@ -31,7 +32,8 @@ struct Material {
 @group(3) @binding(0) var scene_depth: texture_depth_2d;
 
 fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f32 {
-  if (g.effects.x < 0.5) { return 1.0; }
+  // Fancy Graphics owns contact/overhang effects; AO V2 independently enables edge rays.
+  if (g.effects.x < 0.5 && g.ao_v2.x < 0.5) { return 1.0; }
   let size = vec2<f32>(textureDimensions(scene_depth));
   let reach = g.effects.w;
   let edge_reach = reach * 0.18;
@@ -55,10 +57,13 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let contact_radius_px = max(max(length((contact_x.xy / contact_x.w - center_ndc) * size * 0.5), length((contact_y.xy / contact_y.w - center_ndc) * size * 0.5)), length((contact_z.xy / contact_z.w - center_ndc) * size * 0.5));
   let broad_radius_px = max(max(length((broad_x.xy / broad_x.w - center_ndc) * size * 0.5), length((broad_y.xy / broad_y.w - center_ndc) * size * 0.5)), length((broad_z.xy / broad_z.w - center_ndc) * size * 0.5));
 
-  var blocked_edge = 0.0;
+  var blocked_vertical_edge = 0.0;
+  var blocked_horizontal_edge = 0.0;
   var blocked_contact = 0.0;
   var blocked_overhang = 0.0;
-  let count = 4u + u32(g.effects.y) * 4u;
+  // AO V2 runs independently of Fancy Graphics; give its edge pass enough
+  // directions to detect both vertical and horizontal blockers on its own.
+  let count = select(4u + u32(g.effects.y) * 4u, 12u, g.ao_v2.x > 0.5 && g.effects.x < 0.5);
   let edge_samples = max(count / 4u, 1u);
   let contact_samples = max(count / 4u, 1u);
   let overhang_samples = count - edge_samples - contact_samples;
@@ -88,23 +93,42 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         let contribution = facing * fade * scale_weight;
-        if (is_edge) { blocked_edge += contribution; }
-        else if (is_contact) { blocked_contact += contribution; }
+        if (is_edge) {
+          // Classify blocker direction in model space, independent of camera orbit.
+          let vertical_weight = smoothstep(0.35, 0.85, abs(delta.y) / max(distance, 0.0001));
+          blocked_vertical_edge += contribution * vertical_weight;
+          blocked_horizontal_edge += contribution * (1.0 - vertical_weight);
+        } else if (is_contact) { blocked_contact += contribution; }
         else { blocked_overhang += contribution; }
       }
     }
   }
-  let edge_ao = clamp(1.0 - blocked_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
+  let vertical_edge_ao = clamp(1.0 - blocked_vertical_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
+  let horizontal_edge_ao = clamp(1.0 - blocked_horizontal_edge * 4.0 / f32(edge_samples), 0.04, 1.0);
   let contact_ao = clamp(1.0 - blocked_contact * 4.0 / f32(contact_samples), 0.04, 1.0);
   let overhang_ao = clamp(1.0 - blocked_overhang * 4.0 / f32(max(overhang_samples, 1u)), 0.04, 1.0);
-  let local_occlusion = (
-    (1.0 - edge_ao) * g.shadow_detail.x * f32(edge_samples)
-    + (1.0 - contact_ao) * g.shadow.z * f32(contact_samples)
-    + (1.0 - overhang_ao) * g.shadow.w * f32(overhang_samples)
-  ) / f32(count);
-  let ambient_strength = select(1.0, g.shadow_detail.y, g.effects.x > 0.5);
-  let master_strength = select(1.0, g.shadow.x, g.effects.x > 0.5);
-  return clamp(1.0 - local_occlusion * ambient_strength * master_strength, 0.0, 1.0);
+  let ao_v2_active = g.ao_v2.x > 0.5;
+  let vertical_strength = select(0.0, g.shadow_detail.x, ao_v2_active);
+  let horizontal_strength = select(0.0, g.shadow_detail.y, ao_v2_active);
+  // AO V2 uses the real depth-ray contact/overhang results for corner shading.
+  // Its master AO slider is applied once to the combined result below.
+  let contact_strength = select(g.shadow.z, g.ao_v2.y, ao_v2_active);
+  // AO V2 has one nearby-contact control; apply it to both near-contact
+  // and local overhang rays so zero genuinely disables both contributions.
+  let overhang_strength = select(g.shadow.w, g.ao_v2.y, ao_v2_active);
+  let local_occlusion =
+      (1.0 - vertical_edge_ao) * vertical_strength * 0.35
+    + (1.0 - horizontal_edge_ao) * horizontal_strength * 0.35
+    + (1.0 - contact_ao) * contact_strength * 0.15
+    + (1.0 - overhang_ao) * overhang_strength * 0.15;
+  let ao_master = select(1.0, g.shadow_detail.z, ao_v2_active);
+  let fancy_master = select(1.0, g.shadow.x, g.effects.x > 0.5);
+  // Keep AO from crushing low-light faces to black; the old additive stack
+  // could exceed 1.0 when several sliders were raised together.
+  // Preserve a stronger ambient floor so stacked screen-space hits cannot make
+  // textured faces look washed out or partially disappear.
+  let occlusion = clamp(local_occlusion * ao_master * fancy_master, 0.0, 0.45);
+  return 1.0 - occlusion;
 }
 
 struct VsOut {
@@ -112,15 +136,17 @@ struct VsOut {
   @location(0) world: vec3<f32>,
   @location(1) normal: vec3<f32>,
   @location(2) uv: vec2<f32>,
+  @location(3) vertex_ao: f32,
 };
 
 @vertex
-fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VsOut {
+fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, @location(3) vertex_ao: f32) -> VsOut {
   var o: VsOut;
   o.pos = g.view_proj * vec4<f32>(pos, 1.0);
   o.world = pos;
   o.normal = normal;
   o.uv = uv;
+  o.vertex_ao = vertex_ao;
   return o;
 }
 
@@ -222,10 +248,22 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // surfaces using nearby opaque depth samples, which creates floating dark boxes.
   var ao = 1.0;
   if (m.diffuse.a >= 0.999) {
-    ao = ambient_occlusion(in.pos.xy, in.world, n);
+    // AO V2 must use the authored geometric normal, not the camera-flipped
+    // two-sided lighting normal. This prevents geometry behind a carpet or
+    // other thin surface from being treated as a valid front-side occluder.
+    let ao_normal = select(n, normalize(in.normal), g.ao_v2.x > 0.5);
+    ao = ambient_occlusion(in.pos.xy, in.world, ao_normal);
   }
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao;
-  let fill = 0.06 * max(dot(n, v), 0.0);
+  // AO V2 now uses screen-space depth rays as its sole AO source. Applying
+  // baked vertex AO here as well double-darkened the same corners and faces.
+  let geometry_ao = 1.0;
+  // Far-face darkness sets the ambient floor for surfaces receiving little direct sun.
+  let far_face_darkness = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
+  let direct_reach = clamp(diff * visibility, 0.0, 1.0);
+  let far_face_floor = 1.0 - far_face_darkness * 0.98;
+  let ambient_falloff = mix(1.0, far_face_floor, 1.0 - smoothstep(0.0, 0.7, direct_reach));
+  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * ambient_falloff;
+  let fill = 0.06 * max(dot(n, v), 0.0) * ambient_falloff;
   var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;
@@ -247,7 +285,12 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     let highlight = pow(max(dot(n, half_vector), 0.0), clamp(m.specular.w, 8.0, 96.0));
     let fresnel = 0.025 + 0.08 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
     color += clamp(m.specular.rgb, vec3<f32>(0.02), vec3<f32>(0.3)) * highlight * visibility * g.effects.z * 0.25;
-    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao;
+    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao * geometry_ao;
+  } else if (g.ao_v2.x > 0.5) {
+    // Keep AO V2's shadow color in the same subtle cool-neutral family as
+    // Fancy Graphics without enabling its specular highlight response.
+    let fresnel = 0.025 + 0.08 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
+    color += vec3<f32>(0.55, 0.60, 0.65) * fresnel * (0.25 + 0.75 * max(n.y, 0.0)) * ao * geometry_ao;
   }
   color *= g.light.w;
   // Soft highlight shoulder: unchanged below 0.7, asymptotically approaches 1 instead of clipping.
@@ -263,6 +306,7 @@ fn vs_shadow(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @locat
   o.world = pos;
   o.normal = normal;
   o.uv = uv;
+  o.vertex_ao = 1.0;
   return o;
 }
 

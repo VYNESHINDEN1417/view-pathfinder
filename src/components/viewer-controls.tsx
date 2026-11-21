@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ASPECTS, BACKGROUNDS, RESOLUTIONS, SHADOW_MODES, SHADOW_QUALITIES, parseRatio } from "@/lib/viewer-settings";
 
-export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number };
+export type ShadowComponents = { directional: number; contact: number; overhang: number; edge: number; ambient: number; depth: number; verticalEdge: number; horizontalEdge: number };
 export type BlueLightSettings = { azimuth: number; brightness: number; intensity: number; hue: number; range: number };
 
 export type ViewerOptions = {
@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -153,6 +153,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   blueLight: BlueLightSettings; onBlueLightChange: (patch: Partial<BlueLightSettings>) => void;
   blueLightEnabled: boolean; onBlueLightEnabledChange: (enabled: boolean) => void;
   blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
+  aoV2Enabled: boolean; onAoV2EnabledChange: (enabled: boolean) => void;
+  aoV2ContactStrength: number; onAoV2ContactStrengthChange: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
@@ -172,6 +174,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
                 onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => onAoV2EnabledChange(!aoV2Enabled)}>{aoV2Enabled ? "✓ AO V2 · Geometry rays" : "AO V2 · Geometry rays"}</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
@@ -245,11 +248,11 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
     </div>
-    <div className={`viewer-shadow-strength ${options.fancy ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
-      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy} onApply={onShadowStrength} />
-      <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
+    <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+      <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy && !aoV2Enabled} onApply={onShadowStrength} />
+      <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy && !aoV2Enabled} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
-        value={[shadowStrength]} disabled={!options.fancy}
+        value={[shadowStrength]} disabled={!options.fancy && !aoV2Enabled}
         onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
         aria-label="Shadow strength" />
     </div>
@@ -259,13 +262,22 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
           <button type="button" className="shadow-settings-close" aria-label="Close shadow settings" onClick={() => setShadowPanelOpen(false)}><X size={19} /></button>
         </header>
         <div className="shadow-settings-list">
-          <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Block-edge shadows" description="Tight, subtle dark lines that define individual block boundaries." value={shadowComponents.edge} onChange={(value) => onShadowComponents({ edge: value })} disabled={!options.fancy} />
-          <ShadowSettingRow title="Ambient occlusion" description="Soft corner and gap shading that adds depth to enclosed spaces." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!options.fancy} />
+          {options.fancy && <>
+            <ShadowSettingRow title="Directional shadows" description="Shadows cast by the sun across the model." value={shadowComponents.directional} onChange={(value) => onShadowComponents({ directional: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Contact shadows" description="Darkening where blocks meet or touch nearby surfaces." value={shadowComponents.contact} onChange={(value) => onShadowComponents({ contact: value })} disabled={!options.fancy} />
+            <ShadowSettingRow title="Overhang shadows" description="Deeper shade beneath decks, roofs and protruding structures." value={shadowComponents.overhang} onChange={(value) => onShadowComponents({ overhang: value })} disabled={!options.fancy} />
+          </>}
+          {aoV2Enabled && <>
+            {(options.fancy) && <div className="shadow-settings-divider" />}
+            <div className="shadow-settings-section-title">AO V2 · GEOMETRY RAYS</div>
+            <ShadowSettingRow title="Contact shadows" description="Controls real depth-ray darkening where nearby surfaces meet or nearly touch." value={aoV2ContactStrength} onChange={onAoV2ContactStrengthChange} disabled={!aoV2Enabled} />
+            <ShadowSettingRow title="Vertical edge shadows" description="Emphasizes blockers above or below a surface in model space." value={shadowComponents.verticalEdge} onChange={(value) => onShadowComponents({ verticalEdge: value })} disabled={!aoV2Enabled} />
+            <ShadowSettingRow title="Horizontal edge shadows" description="Emphasizes lateral blockers around decks, walls and ledges." value={shadowComponents.horizontalEdge} onChange={(value) => onShadowComponents({ horizontalEdge: value })} disabled={!aoV2Enabled} />
+            <ShadowSettingRow title="Far-face darkness" description="Sets how dark surfaces become when they receive little direct sunlight." value={shadowComponents.depth} onChange={(value) => onShadowComponents({ depth: value })} disabled={!aoV2Enabled} />
+            <ShadowSettingRow title="AO / corner strength" description="Controls contact and corner darkening around geometry intersections." value={shadowComponents.ambient} onChange={(value) => onShadowComponents({ ambient: value })} disabled={!aoV2Enabled} />
+          </>}
         </div>
-        {!options.fancy && <p className="shadow-settings-disabled-note">Enable Fancy Graphics to adjust shadow rendering.</p>}
+        {!options.fancy && !aoV2Enabled && <p className="shadow-settings-disabled-note">Enable AO V2 or Fancy Graphics to adjust shadow settings.</p>}
         <footer className="shadow-settings-footer"><span>0.00× OFF</span><span>1.00× DEFAULT</span><span>2.00× MAX</span></footer>
       </section>
     </div>}

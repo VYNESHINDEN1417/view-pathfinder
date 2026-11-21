@@ -108,7 +108,9 @@ function Index() {
   const [blueLight, setBlueLight] = useState({ azimuth: 90, brightness: 1, intensity: 0.72, hue: 220, range: 1.05 });
   const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const [blueLightEnabled, setBlueLightEnabled] = useState(false);
-  const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: true, fancyQuality: 1 });
+  const [aoV2Enabled, setAoV2Enabled] = useState(false);
+  const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
+  const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
   const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
@@ -117,14 +119,14 @@ function Index() {
   const ironTrapdoorOriginalsRef = useRef(new Map<string, Uint8Array>());
   const ironTrapdoorRevisionRef = useRef(0);
   const [shadowStrength, setShadowStrength] = useState(1);
-  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1 });
+  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1, depth: 0.5, verticalEdge: 2, horizontalEdge: 2 });
   const [orthographic, setOrthographic] = useState(false);
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
-  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled });
+  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength });
   useEffect(() => {
-    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled };
+    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength };
     const viewer = viewerRef.current;
     if (!viewer) return;
     const target = viewer;
@@ -136,7 +138,7 @@ function Index() {
     });
     viewer.set_light(brightness);
     viewer.set_shadow_strength(shadowStrength);
-    viewer.set_shadow_components(shadowComponents.directional, shadowComponents.contact, shadowComponents.overhang, shadowComponents.edge, shadowComponents.ambient);
+    viewer.set_shadow_components(shadowComponents.directional, shadowComponents.contact, shadowComponents.overhang, shadowComponents.edge, shadowComponents.ambient, shadowComponents.depth, shadowComponents.verticalEdge, shadowComponents.horizontalEdge);
     viewer.set_orthographic(orthographic);
     viewer.set_shadow_mode(options.shadowMode);
     viewer.set_shadow_quality(options.shadowQuality);
@@ -155,8 +157,10 @@ function Index() {
     viewer.set_point_light_enabled(blueLightEnabled);
     viewer.set_point_orbit_visible(blueLightPanelOpen);
     viewer.set_fancy(options.fancy, options.fancyQuality);
+    viewer.set_ao_v2_enabled(aoV2Enabled);
+    viewer.set_ao_v2_contact_strength(aoV2ContactStrength);
     scheduleRef.current();
-  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen]);
+  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen, aoV2Enabled, aoV2ContactStrength]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -252,7 +256,7 @@ function Index() {
       });
       v.set_light(settingsRef.current.brightness);
       v.set_shadow_strength(settingsRef.current.shadowStrength);
-      v.set_shadow_components(settingsRef.current.shadowComponents.directional, settingsRef.current.shadowComponents.contact, settingsRef.current.shadowComponents.overhang, settingsRef.current.shadowComponents.edge, settingsRef.current.shadowComponents.ambient);
+      v.set_shadow_components(settingsRef.current.shadowComponents.directional, settingsRef.current.shadowComponents.contact, settingsRef.current.shadowComponents.overhang, settingsRef.current.shadowComponents.edge, settingsRef.current.shadowComponents.ambient, settingsRef.current.shadowComponents.depth, settingsRef.current.shadowComponents.verticalEdge, settingsRef.current.shadowComponents.horizontalEdge);
       v.set_orthographic(settingsRef.current.orthographic);
       v.set_shadow_mode(settingsRef.current.options.shadowMode);
       v.set_shadow_quality(settingsRef.current.options.shadowQuality);
@@ -263,6 +267,8 @@ function Index() {
       v.set_point_light_enabled(settingsRef.current.blueLightEnabled);
       v.set_point_orbit_visible(false);
       v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
+      v.set_ao_v2_enabled(settingsRef.current.aoV2Enabled);
+      v.set_ao_v2_contact_strength(settingsRef.current.aoV2ContactStrength);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
@@ -455,7 +461,7 @@ function Index() {
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic} rotation={rotation}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
-      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
