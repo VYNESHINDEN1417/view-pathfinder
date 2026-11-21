@@ -155,6 +155,7 @@ function Index() {
     viewer.set_point_light_enabled(blueLightEnabled);
     viewer.set_point_orbit_visible(blueLightPanelOpen);
     viewer.set_fancy(options.fancy, options.fancyQuality);
+    viewer.set_ao_v2(options.aoV2);
     scheduleRef.current();
   }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
@@ -263,6 +264,7 @@ function Index() {
       v.set_point_light_enabled(settingsRef.current.blueLightEnabled);
       v.set_point_orbit_visible(false);
       v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
+      v.set_ao_v2(settingsRef.current.options.aoV2);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
