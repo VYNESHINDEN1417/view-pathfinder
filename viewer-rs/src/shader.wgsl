@@ -10,7 +10,7 @@ struct Globals {
   shadow_detail: vec4<f32>,
   point_light: vec4<f32>, // xyz = elliptical-orbit light position, w = effective range
   point_color: vec4<f32>, // rgb = blue light tint, w = intensity
-  ao_v2: vec4<f32>, // x = AO V2 enabled
+  ao_v2: vec4<f32>, // x = AO V2 enabled, y = AO V2 contact-shadow strength
 };
 
 struct Material {
@@ -112,7 +112,7 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let horizontal_strength = select(0.0, g.shadow_detail.y, ao_v2_active);
   // AO V2 uses the real depth-ray contact/overhang results for corner shading.
   // Its master AO slider is applied once to the combined result below.
-  let contact_strength = select(g.shadow.z, 1.0, ao_v2_active);
+  let contact_strength = select(g.shadow.z, g.ao_v2.y, ao_v2_active);
   let overhang_strength = select(g.shadow.w, 1.0, ao_v2_active);
   let local_occlusion =
       (1.0 - vertical_edge_ao) * vertical_strength * 0.35
