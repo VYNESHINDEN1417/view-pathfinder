@@ -126,7 +126,7 @@ function Index() {
   const [captureError, setCaptureError] = useState("");
   const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength });
   useEffect(() => {
-    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled };
+    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength };
     const viewer = viewerRef.current;
     if (!viewer) return;
     const target = viewer;
