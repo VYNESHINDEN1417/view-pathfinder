@@ -109,7 +109,7 @@ function Index() {
   const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const [blueLightEnabled, setBlueLightEnabled] = useState(false);
   const [aoV2Enabled, setAoV2Enabled] = useState(false);
-  const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1);
+  const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: true, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
@@ -119,7 +119,7 @@ function Index() {
   const ironTrapdoorOriginalsRef = useRef(new Map<string, Uint8Array>());
   const ironTrapdoorRevisionRef = useRef(0);
   const [shadowStrength, setShadowStrength] = useState(1);
-  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1, depth: 0, verticalEdge: 1, horizontalEdge: 1 });
+  const [shadowComponents, setShadowComponents] = useState<ShadowComponents>({ directional: 1, contact: 1, overhang: 1, edge: 1, ambient: 1, depth: 0.5, verticalEdge: 2, horizontalEdge: 2 });
   const [orthographic, setOrthographic] = useState(false);
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
