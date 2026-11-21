@@ -96,6 +96,7 @@ export class Viewer {
      * Set shared directional and ambient-occlusion shadow strength (0.0 = off, 1.0 = baseline, 2.0 = double).
      */
     set_shadow_strength(strength: number): void;
+    set_ao_v2_enabled(enabled: boolean): void;
     /**
      * Sun direction in world coordinates; independent of the camera.
      */
