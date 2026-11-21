@@ -61,7 +61,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   var blocked_horizontal_edge = 0.0;
   var blocked_contact = 0.0;
   var blocked_overhang = 0.0;
-  let count = 4u + u32(g.effects.y) * 4u;
+  // AO V2 runs independently of Fancy Graphics; give its edge pass enough
+  // directions to detect both vertical and horizontal blockers on its own.
+  let count = select(4u + u32(g.effects.y) * 4u, 12u, g.ao_v2.x > 0.5 && g.effects.x < 0.5);
   let edge_samples = max(count / 4u, 1u);
   let contact_samples = max(count / 4u, 1u);
   let overhang_samples = count - edge_samples - contact_samples;
