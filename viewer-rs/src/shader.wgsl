@@ -258,7 +258,9 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // baked vertex AO here as well double-darkened the same corners and faces.
   let geometry_ao = 1.0;
   // Far-face darkness sets the ambient floor for surfaces receiving little direct sun.
-  let far_face_darkness = clamp(g.shadow_detail.w * 0.5, 0.0, 1.0);
+  // AO V2 far-face darkness is a direct strength control: 0.5 means 50%
+  // ambient reduction on surfaces receiving little direct sunlight, not 25%.
+  let far_face_darkness = select(0.0, clamp(g.shadow_detail.w, 0.0, 1.0), g.ao_v2.x > 0.5);
   let direct_reach = clamp(diff * visibility, 0.0, 1.0);
   let far_face_floor = 1.0 - far_face_darkness * 0.98;
   let ambient_falloff = mix(1.0, far_face_floor, 1.0 - smoothstep(0.0, 0.7, direct_reach));
