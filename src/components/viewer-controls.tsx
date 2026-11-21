@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -153,6 +153,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   blueLight: BlueLightSettings; onBlueLightChange: (patch: Partial<BlueLightSettings>) => void;
   blueLightEnabled: boolean; onBlueLightEnabledChange: (enabled: boolean) => void;
   blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
+  aoV2Enabled: boolean; onAoV2EnabledChange: (enabled: boolean) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
@@ -172,6 +173,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
                 onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => onAoV2EnabledChange(!aoV2Enabled)}>{aoV2Enabled ? "✓ AO V2 · Geometry rays" : "AO V2 · Geometry rays"}</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
