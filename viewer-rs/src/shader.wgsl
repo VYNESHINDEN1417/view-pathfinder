@@ -113,7 +113,9 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   // AO V2 uses the real depth-ray contact/overhang results for corner shading.
   // Its master AO slider is applied once to the combined result below.
   let contact_strength = select(g.shadow.z, g.ao_v2.y, ao_v2_active);
-  let overhang_strength = select(g.shadow.w, 1.0, ao_v2_active);
+  // AO V2 has one nearby-contact control; apply it to both near-contact
+  // and local overhang rays so zero genuinely disables both contributions.
+  let overhang_strength = select(g.shadow.w, g.ao_v2.y, ao_v2_active);
   let local_occlusion =
       (1.0 - vertical_edge_ao) * vertical_strength * 0.35
     + (1.0 - horizontal_edge_ao) * horizontal_strength * 0.35
