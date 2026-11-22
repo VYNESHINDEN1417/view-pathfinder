@@ -377,7 +377,7 @@ body {
   transform: translate(-50%, -50%);
   border: 1px solid rgb(255 137 48 / 95%);
   outline: 1px solid rgb(255 137 48 / 28%);
-  box-shadow: 0 0 0 9999px rgb(0 0 0 / 30%);
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 75%);
   transition: width 280ms ease, height 280ms ease;
   pointer-events: none;
 }
