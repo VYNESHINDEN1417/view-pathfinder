@@ -242,9 +242,12 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
+  // Directional shadow-map shading belongs to Fancy Graphics. AO V2 has its
+  // own screen-space depth-ray occlusion; applying the shadow map while Fancy
+  // is off can falsely classify sun-facing stone faces as fully shadowed.
   let shadow_strength = select(1.0, g.shadow.x * g.shadow.y, g.effects.x > 0.5);
   var visibility = clamp(1.0 - (1.0 - shadow) * shadow_strength, 0.0, 1.0);
-  let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
+  let shadows_enabled = g.effects.x > 0.5 && ((g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5);
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
   // Ambient occlusion is a solid-surface effect. The AO depth prepass already
