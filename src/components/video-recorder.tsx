@@ -189,7 +189,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
       return;
     }
-    const bitrate = Math.round(bitrateBps(settings.bitrate) * (settings.optimizeExport === "smaller" ? 0.75 : 1));
+    const bitrateScale = settings.optimizeExport === "smaller" ? 0.75
+      : settings.optimizeExport === "faster" && settings.format === "webm" ? 0.8 : 1;
+    const bitrate = Math.round(bitrateBps(settings.bitrate) * bitrateScale);
     const estimatedBytes = (bitrate * settings.duration) / 8;
     if (estimatedBytes > 256 * 1024 * 1024) {
       setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
