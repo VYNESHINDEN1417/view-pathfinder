@@ -123,7 +123,15 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
         </>}
 
         {activeTab === "encoding" && <>
-          <h3>Encoding Quality</h3>
+          <h3>Video Encoding</h3>
+          <Choice label="File format" value={s.format} disabled={locked} onChange={(v) => set("format", v)}
+            options={[{ v: "mp4", l: "MP4" }]} />
+          <p className="studio-setting-note">MP4 is currently supported. Additional containers can be added separately.</p>
+          <Choice label="Video codec" value={s.codec} disabled={locked} onChange={(v) => set("codec", v)}
+            options={[{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }, { v: "vp9", l: "VP9" }]} />
+          <Choice label="Optimize export" value={s.optimizeExport} disabled={locked} onChange={(v) => set("optimizeExport", v)}
+            options={[{ v: "balanced", l: "Balanced" }, { v: "faster", l: "Faster" }, { v: "smaller", l: "Smaller file" }]} />
+          <p className="studio-setting-note">Faster prefers hardware encoding. Smaller file lowers the target bitrate by 25%.</p>
           <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
           <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
         </>}
