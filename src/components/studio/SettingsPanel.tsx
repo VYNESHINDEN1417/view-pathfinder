@@ -15,7 +15,7 @@ function Choice<T extends string | number>({ label, value, options, onChange, di
       <div className="studio-setting-choices" style={{ gridTemplateColumns: `repeat(${options.length > 4 ? 3 : options.length}, minmax(0,1fr))` }} role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <Button variant="ghost" key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} disabled={disabled}
-            data-active={value === o.v} className="studio-setting-choice" onClick={() => onChange(o.v)}>
+            data-active={value === o.v} className={`studio-setting-choice ${value === o.v ? "studio-setting-choice-active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={() => onChange(o.v)}>
             {o.l}
           </Button>
         ))}
@@ -26,7 +26,7 @@ function Choice<T extends string | number>({ label, value, options, onChange, di
 
 function Toggle({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <label className="studio-setting-toggle">
+    <label className="studio-setting-toggle" onPointerDown={(event) => event.stopPropagation()}>
       <span>{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} className="shrink-0" />
     </label>
@@ -50,7 +50,7 @@ function BitrateControl({ value, onChange, disabled, duration }: {
       <div className="studio-setting-choices studio-bitrate-presets" aria-label="Bitrate presets">
         {presets.map((preset) => (
           <Button key={preset} type="button" variant="ghost" disabled={disabled} data-active={value === preset}
-            className="studio-setting-choice" onClick={() => onChange(preset)}>{preset}</Button>
+            className={`studio-setting-choice ${value === preset ? "studio-setting-choice-active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={() => onChange(preset)}>{preset}</Button>
         ))}
       </div>
       <p className="studio-setting-note">Approx. {estimatedMb.toFixed(1)} MB at {duration}s</p>
@@ -71,7 +71,7 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
   const [activeTab, setActiveTab] = useState<SettingsTab>("output");
 
   return (
-    <div className="studio-settings-folder">
+    <div className="studio-settings-folder" onPointerDown={(event) => event.stopPropagation()}>
       <div className="studio-settings-tabs" role="tablist" aria-label="Studio settings categories">
         {SETTINGS_TABS.map((tab) => (
           <button
@@ -82,9 +82,9 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
             aria-selected={activeTab === tab.id}
             aria-controls="studio-settings-frame"
             tabIndex={activeTab === tab.id ? 0 : -1}
-            className="studio-settings-tab"
+            className={`studio-settings-tab ${activeTab === tab.id ? "studio-settings-tab-active" : ""}`}
             data-active={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onPointerDown={(event) => event.stopPropagation()}\n            onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
           </button>
