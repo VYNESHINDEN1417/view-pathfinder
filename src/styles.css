@@ -360,6 +360,17 @@ body {
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
 .studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
+.studio-open .viewer-backdrop-canvas {
+  position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%;
+  display: block; pointer-events: none;
+  filter: brightness(.34) saturate(.78) blur(4px);
+  transform: scale(1.025);
+}
+.studio-open .viewer-canvas.framed {
+  z-index: 1;
+  outline: 1px solid rgb(255 137 48 / 95%);
+  outline-offset: -1px;
+}
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
 /* Keep the original blue panel; add only a faint orange tint at its bottom edge. */
@@ -857,3 +868,12 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .studio-settings-tabs { gap: 4px; padding-bottom: 6px; }
   .studio-settings-tab { min-height: 34px; font-size: 10px; }
 }
+
+/* Orbit Studio expanded aspect-ratio choices. */
+.studio-more-ratios { display: grid; gap: 7px; }
+.studio-more-ratios-trigger {
+  display: flex; width: 100%; min-height: 30px; align-items: center; justify-content: space-between;
+  padding: 0 9px; border: 1px solid hsl(28 100% 52% / .34); border-radius: 7px;
+  background: hsl(28 100% 50% / .08); color: hsl(32 100% 78%); font-size: 10px; font-weight: 750;
+}
+.studio-more-ratios-trigger:hover { background: hsl(28 100% 50% / .15); }
