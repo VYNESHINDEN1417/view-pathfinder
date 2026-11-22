@@ -11,6 +11,75 @@ import type { Viewer } from "@/lib/wasm/viewer/viewer";
 import { createExportDenoiser } from "@/lib/studio/export-denoiser";
 
 type Tab = "animate" | "render" | "settings";
+
+type ExportBackground = (ctx: CanvasRenderingContext2D) => void;
+
+/** Reproduce the CSS backdrop visible through transparent WebGPU canvas pixels. */
+async function prepareExportBackground(canvas: HTMLCanvasElement, width: number, height: number): Promise<ExportBackground | null> {
+  const root = canvas.closest<HTMLElement>(".ship-viewer");
+  const stage = canvas.closest<HTMLElement>(".viewer-stage");
+  if (!root || !stage) return null;
+  const canvasRect = canvas.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+  const stageStyle = getComputedStyle(stage);
+  const rootStyle = getComputedStyle(root);
+  const stageImage = stageStyle.backgroundImage;
+  const rootImage = rootStyle.backgroundImage;
+  const useStage = stageImage && stageImage !== "none" && !stageImage.includes("gradient(");
+  const targetRect = useStage ? stageRect : rootRect;
+  const style = useStage ? stageStyle : rootStyle;
+  const imageCss = style.backgroundImage;
+  const scaleX = width / Math.max(canvasRect.width, 1);
+  const offsetX = (canvasRect.left - targetRect.left) * scaleX;
+  const offsetY = (canvasRect.top - targetRect.top) * scaleX;
+  const targetWidth = targetRect.width * scaleX;
+  const targetHeight = targetRect.height * scaleX;
+
+  if (imageCss && imageCss !== "none" && imageCss.includes("url(")) {
+    const match = imageCss.match(/url\(["']?(.*?)["']?\)/);
+    if (!match?.[1]) return null;
+    const image = new Image();
+    image.src = new URL(match[1], window.location.href).href;
+    try { await image.decode(); } catch { return null; }
+    const cover = Math.max(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight);
+    const drawWidth = image.naturalWidth * cover;
+    const drawHeight = image.naturalHeight * cover;
+    const left = (targetWidth - drawWidth) * 0.5 - offsetX;
+    const top = (targetHeight - drawHeight) * 0.5 - offsetY;
+    return (ctx) => ctx.drawImage(image, left, top, drawWidth, drawHeight);
+  }
+
+  // Recreate the CSS checkerboard, which is not part of the WebGPU canvas.
+  if (rootImage.includes("conic-gradient(")) {
+    const checker = rootStyle.getPropertyValue("--viewer-checker").trim() || "#b8b8b8";
+    const white = rootStyle.getPropertyValue("--viewer-white").trim() || "#ffffff";
+    const tile = document.createElement("canvas");
+    tile.width = tile.height = Math.max(2, Math.round(20 * scaleX));
+    const tileCtx = tile.getContext("2d");
+    if (!tileCtx) return null;
+    const half = tile.width / 2;
+    tileCtx.fillStyle = white;
+    tileCtx.fillRect(0, 0, tile.width, tile.height);
+    tileCtx.fillStyle = checker;
+    tileCtx.fillRect(0, 0, half, half);
+    tileCtx.fillRect(half, half, tile.width - half, tile.height - half);
+    const pattern = tileCtx.createPattern(tile, "repeat");
+    if (!pattern) return null;
+    const phaseX = (canvasRect.left - rootRect.left) * scaleX;
+    const phaseY = (canvasRect.top - rootRect.top) * scaleX;
+    return (ctx) => {
+      ctx.save();
+      ctx.translate(-phaseX, -phaseY);
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, rootRect.width * scaleX, rootRect.height * scaleX);
+      ctx.restore();
+    };
+  }
+  const color = style.backgroundColor;
+  if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent") return null;
+  return (ctx) => { ctx.fillStyle = color; ctx.fillRect(0, 0, width, height); };
+}
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
@@ -133,17 +202,20 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         if (ok?.supported) { codec = c; break; }
       }
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Render above delivery resolution, then downsample once. This improves coverage
-    // of sub-pixel rigging (bars, chains, rails) without changing encoded dimensions.
-    const renderScale = 1.5;
-    const renderWidth = Math.round(width * renderScale);
-    const renderHeight = Math.round(height * renderScale);
+    // Render at the viewport's existing drawing-buffer dimensions. The
+    // export delivery size can be much larger (e.g. 1080x1920 on a phone),
+    // which changes screen-space AO/depth sampling and can darken thin carpet
+    // surfaces. Scale the finished viewport-matched frame only after rendering.
+    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+    const renderWidth = Math.max(1, prev.w);
+    const renderHeight = Math.max(1, prev.h);
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = width; frameCanvas.height = height;
-    const frameContext = frameCanvas.getContext("2d", { alpha: true });
+    const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
     if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
-    // Restore the live view after the temporary high-resolution render.
-    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+    // Preserve CSS-backed viewport backgrounds behind the transparent WebGPU canvas.
+    const drawExportBackdrop = await prepareExportBackground(canvas, width, height);
+    // Restore the live view after the temporary export render.
     const restore = () => {
       canvas.width = prev.w; canvas.height = prev.h;
       v.resize(prev.w, prev.h, prev.cw, prev.ch);
@@ -151,7 +223,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       v.set_point_orbit_visible(blueLightPanelOpen);
       schedule();
     };
-    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, renderWidth, renderHeight);
+    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, prev.cw, prev.ch);
     // Export uses the same Rust renderer and fully settled lighting as the viewport.
     // Rebuild cached sun shadows before the first frame so a recent azimuth change
     // cannot leak a stale/partially updated shadow map into the recording.
@@ -164,8 +236,17 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setRs("rendering"); setTab("render");
     const target = new ArrayBufferTarget();
     const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
+    // Preserve the encoder's own output color description. The input frame is
+    // explicitly tagged as full-range sRGB below; guessing that the encoded
+    // H.264 stream is limited-range BT.709 when the encoder omits metadata can
+    // mislabel the actual YUV range and make midtone materials look darker.
     let encErr: unknown = null;
-    const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (er) => { encErr = er; } });
+    const enc = new VideoEncoder({
+      output: (chunk, metadata) => {
+        muxer.addVideoChunk(chunk, metadata);
+      },
+      error: (er) => { encErr = er; },
+    });
     enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
     const us = 1e6 / settings.fps;
     const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
@@ -184,10 +265,20 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // Give the browser a compositor turn after the GPU submission before the
       // canvas is sampled. Export is offline-timed, so this does not drop frames.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      frameContext.clearRect(0, 0, width, height);
+      // H.264 has no alpha channel. Composite the WebGPU canvas onto an opaque
+      // sRGB frame here so premultiplied canvas RGB is not later mistaken for
+      // straight-alpha video pixels by the encoder.
+      frameContext.fillStyle = "#000000";
+      frameContext.fillRect(0, 0, width, height);
+      drawExportBackdrop?.(frameContext);
       frameContext.drawImage(canvas, 0, 0, width, height);
       const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
-      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
+      const vf = new VideoFrame(frameSource, {
+        timestamp: Math.round(f * us),
+        duration: Math.round(us),
+        // The composited frame canvas contains SDR sRGB pixels.
+        colorSpace: { primaries: "bt709", transfer: "iec61966-2-1", matrix: "rgb", fullRange: true },
+      });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
       while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
