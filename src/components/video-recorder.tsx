@@ -210,7 +210,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     const renderHeight = Math.round(height * renderScale);
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = width; frameCanvas.height = height;
-    const frameContext = frameCanvas.getContext("2d", { alpha: true, colorSpace: "srgb" });
+    const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
     if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
     // Preserve CSS-backed viewport backgrounds behind the transparent WebGPU canvas.
     const drawExportBackdrop = await prepareExportBackground(canvas, width, height);
@@ -278,7 +278,11 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // Give the browser a compositor turn after the GPU submission before the
       // canvas is sampled. Export is offline-timed, so this does not drop frames.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      frameContext.clearRect(0, 0, width, height);
+      // H.264 has no alpha channel. Composite the WebGPU canvas onto an opaque
+      // sRGB frame here so premultiplied canvas RGB is not later mistaken for
+      // straight-alpha video pixels by the encoder.
+      frameContext.fillStyle = "#000000";
+      frameContext.fillRect(0, 0, width, height);
       drawExportBackdrop?.(frameContext);
       frameContext.drawImage(canvas, 0, 0, width, height);
       const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
