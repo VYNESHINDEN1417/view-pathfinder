@@ -32,6 +32,38 @@ export const BUILT_IN_MODELS = [
 ] as const;
 type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
 const FALLBACK_TEXTURE = localTexture("stone");
+// Keep successfully fetched scene assets in memory so a renderer restart never
+// needs to fetch the same model or texture bytes again.
+const assetByteCache = new Map<string, Uint8Array>();
+let assetByteCacheSize = 0;
+const MAX_CACHED_ASSET_BYTES = 128 * 1024 * 1024;
+function clearAssetByteCache() {
+  assetByteCache.clear();
+  assetByteCacheSize = 0;
+}
+
+async function isCanvasMostlyWhite(canvas: HTMLCanvasElement): Promise<boolean> {
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(canvas);
+    const sample = document.createElement("canvas");
+    sample.width = 32;
+    sample.height = 32;
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(bitmap, 0, 0, 32, 32);
+    const pixels = context.getImageData(0, 0, 32, 32).data;
+    let nearWhite = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i] >= 245 && pixels[i + 1] >= 245 && pixels[i + 2] >= 245 && pixels[i + 3] >= 245) nearWhite++;
+    }
+    return nearWhite / (pixels.length / 4) >= 0.94;
+  } catch {
+    return false;
+  } finally {
+    bitmap?.close();
+  }
+}
 
 const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
   4: { url: "/backgrounds/3untitled.png", name: "Warm" },
@@ -97,6 +129,18 @@ function Index() {
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const sunShadowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
+  const restartCameraPoseRef = useRef<Float32Array | null>(null);
+  const restartViewerRef = useRef<() => void>(() => {});
+  restartViewerRef.current = () => {
+    setRecoveryRequired(false);
+    const current = viewerRef.current;
+    if (current) {
+      try { restartCameraPoseRef.current = new Float32Array(current.camera_pose()); }
+      catch { restartCameraPoseRef.current = null; }
+    }
+    setAttempt((value) => value + 1);
+  };
   const [model, setModel] = useState<ModelArchive | null>(null);
   const [builtInId, setBuiltInId] = useState<BuiltInId>("wisconsin");
   const [sceneSelected, setSceneSelected] = useState(false);
@@ -182,8 +226,14 @@ function Index() {
         raf = requestAnimationFrame((time) => {
           raf = 0;
           if (!viewer) return;
-          viewer.animate(time);
-          viewer.frame();
+          try {
+            viewer.animate(time);
+            viewer.frame();
+          } catch (error) {
+            console.warn("Viewer frame failed; manual recovery required:", error);
+            setRecoveryRequired(true);
+            return;
+          }
           const nextRotation = Array.from(viewer.camera_rotation());
           if (nextRotation.some((value, index) => Math.abs(value - lastRotation[index]) > 1e-5)) {
             lastRotation = nextRotation;
@@ -206,7 +256,19 @@ function Index() {
     (async () => {
       const notify = (state: LoadingState) => { if (!disposed) setLoading(state); };
       const tracker = new LoadingTracker(["wasm", "obj", "mtl", "renderer", "parse", "geometry", "upload", "textures", "ready"], notify);
-      const bytes = (url: string, key: string, label: string) => downloadAsset(url, controller.signal, (done, total) => tracker.update(key, done, total, label));
+      const bytes = async (url: string, key: string, label: string) => {
+        const cached = assetByteCache.get(url);
+        if (cached) {
+          tracker.update(key, cached.byteLength, cached.byteLength, label);
+          return cached;
+        }
+        const data = await downloadAsset(url, controller.signal, (done, total) => tracker.update(key, done, total, label));
+        if (assetByteCacheSize + data.byteLength <= MAX_CACHED_ASSET_BYTES) {
+          assetByteCache.set(url, data);
+          assetByteCacheSize += data.byteLength;
+        }
+        return data;
+      };
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
@@ -250,6 +312,10 @@ function Index() {
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
       v.reset();
+      if (restartCameraPoseRef.current) {
+        v.set_camera_pose(restartCameraPoseRef.current);
+        restartCameraPoseRef.current = null;
+      }
       await applyViewerBackground(v, settingsRef.current.background).catch((error) => {
         console.warn("Background setup failed:", error);
         v.set_background(0);
@@ -302,6 +368,32 @@ function Index() {
       setRotation(Array.from(v.camera_rotation()));
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
+
+      // Never rebuild automatically on resume. Only expose recovery when the canvas
+      // is actually blank-white or the renderer reports a failure.
+      let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+      const onVisibilityChange = () => {
+        if (document.visibilityState !== "visible") return;
+        if (resumeTimer) clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(async () => {
+          if (disposed || document.visibilityState !== "visible") return;
+          const white = await isCanvasMostlyWhite(canvas);
+          if (disposed) return;
+          if (white) setRecoveryRequired(true);
+          else schedule();
+        }, 650);
+      };
+      const onContextLost = (event: Event) => {
+        event.preventDefault();
+        if (!disposed) setRecoveryRequired(true);
+      };
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      canvas.addEventListener("webglcontextlost", onContextLost);
+      cleanups.push(() => {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        canvas.removeEventListener("webglcontextlost", onContextLost);
+        if (resumeTimer) clearTimeout(resumeTimer);
+      });
 
       // The stage covers the full preview area, including letterbox bars around the
       // aspect-ratio canvas. Route gestures through it so those bars remain draggable.
@@ -367,6 +459,7 @@ function Index() {
       viewer?.destroy(); viewer = null; viewerRef.current = null;
       console.warn("Viewer loading failed:", error);
       setLoading((state) => ({ ...state, ready: false, indeterminate: false, error: error instanceof Error ? error.message : "Your browser could not start the 3D viewer. Enable graphics acceleration and retry." }));
+      setRecoveryRequired(true);
     });
 
     return () => {
@@ -397,6 +490,8 @@ function Index() {
   };
 
   const uploadModel = async (file: File) => {
+    clearAssetByteCache();
+    restartCameraPoseRef.current = null;
     setUploading(true); setUploadError("");
     try {
       const archive = await readModelArchive(file, () => {});
@@ -426,6 +521,7 @@ function Index() {
   };
 
   const frameRatio = studioLayout.open ? studioLayout.ratio : ratio;
+  useEffect(() => { scheduleRef.current(); }, [studioLayout.open, studioLayout.ratio]);
   return <main className={`ship-viewer background-${background} ${studioLayout.open ? "studio-open" : ""}`} data-scene-ready={loading.ready ? "true" : undefined}>
     <input ref={fileRef} type="file" accept=".zip,application/zip" hidden aria-label="Upload model ZIP"
       onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadModel(file); }} />
@@ -439,13 +535,13 @@ function Index() {
           <Button className="scene-picker-option scene-picker-upload" onClick={() => fileRef.current?.click()} disabled={uploading}>
             <span className="scene-picker-option-icon">↑</span><span><strong>{uploading ? "Preparing model..." : "Add your own model"}</strong><small>Upload a model ZIP with its textures</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("wisconsin"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId("wisconsin"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">W</span><span><strong>Wisconsin</strong><small>USS Wisconsin · BB-64</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("iowa"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId("iowa"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">I</span><span><strong>Iowa</strong><small>USS Iowa · BB-61</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A classic Minecraft grass block in a clean workspace</small></span>
           </Button>
         </div>
@@ -453,7 +549,19 @@ function Index() {
       </div>
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
-      <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
+      <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model" />
+      {studioLayout.open && frameRatio > 0 && <div className="viewer-crop-guide" style={{ "--frame-ratio": frameRatio } as CSSProperties} aria-hidden="true" />}
+      {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
+        <div className="viewer-recovery-card">
+          <strong>Viewer needs recovery</strong>
+          <span>The 3D canvas stopped rendering.</span>
+          <Button variant="secondary" size="sm"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => restartViewerRef.current()} title="Rebuild the viewer using cached model data">
+            ↻ Restart Viewer
+          </Button>
+        </div>
+      </div>}
     </div>
     {loading.ready && <ViewerGizmo rotation={rotation} sun={sun} onSun={(patch) => setSun((value) => ({ ...value, ...patch }))}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
@@ -464,7 +572,7 @@ function Index() {
       onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
-      onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
+      onModel={(id) => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       ironTrapdoorBrightness={ironTrapdoorBrightness} onIronTrapdoorBrightness={(value) => void applyIronTrapdoorBrightness(value)}

@@ -298,7 +298,6 @@ body {
 .viewer-settings-scroll { max-height: min(70dvh, 420px); overflow-y: auto; }
 .ratio-input { display: flex; align-items: center; gap: 6px; padding: 8px; }
 .ratio-input input { width: 52px; height: 32px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--viewer-tool-border); background: var(--viewer-tool-hover); color: var(--viewer-label); font-size: 14px; }
-.viewer-canvas.framed { width: min(100vw, calc(100dvh * var(--frame-ratio))); height: min(100dvh, calc(100vw / var(--frame-ratio))); }
 .viewer-fancy { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(68px, calc(env(safe-area-inset-right) + 52px)); z-index: 4; }
 .sun-tracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .sun-tracks circle, .sun-tracks path { fill: none; stroke: var(--viewer-label); stroke-width: 2; opacity: 0.6; }
@@ -343,11 +342,57 @@ body {
   .safe-t { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
 .viewer-stage { position: absolute; inset: 0; touch-action: none; }
+.viewer-recovery-overlay {
+  position: absolute; inset: 0; z-index: 30; display: grid; place-items: center;
+  padding: 20px; background: rgb(0 0 0 / 48%);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.viewer-recovery-card {
+  display: grid; justify-items: center; gap: 9px; width: min(290px, 100%);
+  padding: 22px 20px; border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 16px; background: rgb(20 22 25 / 94%); color: #fff;
+  text-align: center; box-shadow: 0 12px 36px rgb(0 0 0 / 42%);
+}
+.viewer-recovery-card strong { font-size: 14px; letter-spacing: .02em; }
+.viewer-recovery-card span { color: rgb(255 255 255 / 68%); font-size: 11px; line-height: 1.4; }
+.viewer-recovery-card button { min-height: 38px; margin-top: 3px; }
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
 .studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
-.studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
+.studio-open .viewer-canvas {
+  position: absolute;
+  inset: 0;
+  left: 0;
+  top: 0;
+  transform: none;
+  width: 100%;
+  height: 100%;
+}
+.studio-open .viewer-crop-guide {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(100cqw, calc(100cqh * var(--frame-ratio)));
+  height: min(100cqh, calc(100cqw / var(--frame-ratio)));
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(255 137 48 / 95%);
+  outline: 1px solid rgb(255 137 48 / 28%);
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 75%);
+  transition: width 280ms ease, height 280ms ease;
+  pointer-events: none;
+}
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+/* Keep the original blue panel; add only a faint orange tint at its bottom edge. */
+.studio-sheet {
+  background-color: var(--card);
+  background-image: linear-gradient(
+    to top,
+    rgb(255 115 0 / 12%) 0%,
+    rgb(255 115 0 / 5%) 18%,
+    transparent 38%
+  );
+}
 @media (max-height: 500px) { .studio-open { --studio-panel-height: 48dvh; } .studio-open .viewer-stage { top: 64px; } .studio-open .viewer-record { top: 8px; right: 120px; } .studio-open .viewer-iron-trapdoor { top: 60px; right: 120px; } .studio-open .iron-trapdoor-panel { top: 112px; right: 120px; } }
 
 
@@ -833,3 +878,12 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .studio-settings-tabs { gap: 4px; padding-bottom: 6px; }
   .studio-settings-tab { min-height: 34px; font-size: 10px; }
 }
+
+/* Orbit Studio expanded aspect-ratio choices. */
+.studio-more-ratios { display: grid; gap: 7px; }
+.studio-more-ratios-trigger {
+  display: flex; width: 100%; min-height: 30px; align-items: center; justify-content: space-between;
+  padding: 0 9px; border: 1px solid hsl(28 100% 52% / .34); border-radius: 7px;
+  background: hsl(28 100% 50% / .08); color: hsl(32 100% 78%); font-size: 10px; font-weight: 750;
+}
+.studio-more-ratios-trigger:hover { background: hsl(28 100% 50% / .15); }
