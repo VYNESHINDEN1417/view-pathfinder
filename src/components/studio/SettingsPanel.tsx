@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -57,39 +58,79 @@ function BitrateControl({ value, onChange, disabled, duration }: {
   );
 }
 
+type SettingsTab = "output" | "camera" | "lighting" | "encoding";
+
+const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+  { id: "output", label: "Output" },
+  { id: "camera", label: "Camera" },
+  { id: "lighting", label: "Lighting" },
+  { id: "encoding", label: "Encoding" },
+];
+
 export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set; locked: boolean }) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("output");
+
   return (
-    <div className="studio-settings-compact">
-      <section className="studio-settings-card">
-        <h3>Video Output</h3>
-        <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
-          options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
-        <Choice label="Aspect ratio" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
-          options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }, { v: "custom", l: "Custom" }]} />
-        {s.aspect === "custom" && <div className="ratio-input studio-custom-ratio">
-          <input type="number" aria-label="Aspect width" min="1" disabled={locked} value={s.customAspect[0]} onChange={(e) => set("customAspect", [Number(e.target.value), s.customAspect[1]])} />
-          <span>:</span>
-          <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
-        </div>}
-        <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
-          options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
-        <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
-      </section>
-      <section className="studio-settings-card">
-        <h3>Camera Animation</h3>
-        <Choice label="Duration" value={s.duration} disabled={locked} onChange={(v) => set("duration", v)}
-          options={[{ v: 4, l: "4s" }, { v: 6, l: "6s" }, { v: 10, l: "10s" }, { v: 15, l: "15s" }, { v: 30, l: "30s" }, { v: 60, l: "1m" }]} />
-        <Toggle label="Smooth easing" checked={s.smoothing} onChange={(v) => set("smoothing", v)} disabled={locked} />
-        <Toggle label="Loop preview" checked={s.loop} onChange={(v) => set("loop", v)} />
-      </section>
-      <section className="studio-settings-card">
-        <h3>Lighting</h3>
-        <Toggle label="Real-time shadows" checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
-      </section>
-      <section className="studio-settings-card">
-        <h3>Encoding Quality</h3>
-        <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
-        <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+    <div className="studio-settings-folder">
+      <div className="studio-settings-tabs" role="tablist" aria-label="Studio settings categories">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`studio-settings-tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls="studio-settings-frame"
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            className="studio-settings-tab"
+            data-active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <section
+        id="studio-settings-frame"
+        className="studio-settings-frame"
+        role="tabpanel"
+        aria-labelledby={`studio-settings-tab-${activeTab}`}
+      >
+        {activeTab === "output" && <>
+          <h3>Video Output</h3>
+          <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
+            options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
+          <Choice label="Aspect ratio" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
+            options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }, { v: "custom", l: "Custom" }]} />
+          {s.aspect === "custom" && <div className="ratio-input studio-custom-ratio">
+            <input type="number" aria-label="Aspect width" min="1" disabled={locked} value={s.customAspect[0]} onChange={(e) => set("customAspect", [Number(e.target.value), s.customAspect[1]])} />
+            <span>:</span>
+            <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
+          </div>}
+          <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
+            options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
+          <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
+        </>}
+
+        {activeTab === "camera" && <>
+          <h3>Camera Animation</h3>
+          <Choice label="Duration" value={s.duration} disabled={locked} onChange={(v) => set("duration", v)}
+            options={[{ v: 4, l: "4s" }, { v: 6, l: "6s" }, { v: 10, l: "10s" }, { v: 15, l: "15s" }, { v: 30, l: "30s" }, { v: 60, l: "1m" }]} />
+          <Toggle label="Smooth easing" checked={s.smoothing} onChange={(v) => set("smoothing", v)} disabled={locked} />
+          <Toggle label="Loop preview" checked={s.loop} onChange={(v) => set("loop", v)} />
+        </>}
+
+        {activeTab === "lighting" && <>
+          <h3>Lighting</h3>
+          <Toggle label="Real-time shadows" checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
+        </>}
+
+        {activeTab === "encoding" && <>
+          <h3>Encoding Quality</h3>
+          <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
+          <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+        </>}
       </section>
     </div>
   );
