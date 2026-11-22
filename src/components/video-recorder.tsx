@@ -344,6 +344,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       }
 
       await encoder.flush();
+      if (ctrl.current.cancel) { cancelled = true; return; }
       if (encoderError) throw new Error("Video encoding failed. Try a lower resolution or another codec.");
       encoder.close();
       encoder = null;
@@ -364,7 +365,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         if (encoder && encoder.state !== "closed") encoder.close();
       } catch (error) { console.error("Video encoder cleanup failed", error); }
       restoreRenderer();
-      if (!finished && !cancelled && rs !== "idle") setRs("idle");
+      if (!finished) setRs("idle");
       if (cancelled) {
         setRs("idle");
         setProg({ frame: 0, total: 0, fps: 0, eta: null });
