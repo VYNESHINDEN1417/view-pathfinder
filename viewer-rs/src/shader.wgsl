@@ -64,7 +64,6 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     // samples into faint floating shadow boxes across open deck areas.
     let ao_v2_local = g.ao_v2.x > 0.5 && g.effects.x < 0.5;
     let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact || ao_v2_local);
-    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact || ao_v2_local);
     let angle = f32(i) * 2.399963;
     let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
     let hemisphere_cos = (f32(i) + 0.5) / f32(count);
