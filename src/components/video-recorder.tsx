@@ -322,7 +322,9 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
           setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
         }
       }
-      const stopped = new Promise<void>((resolve) => recorder.addEventListener("stop", () => resolve(), { once: true }));
+      const stopped = recorder.state === "inactive"
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => recorder.addEventListener("stop", () => resolve(), { once: true }));
       if (recorder.state !== "inactive") recorder.stop();
       await stopped;
       mediaRecorderRef.current = null;
