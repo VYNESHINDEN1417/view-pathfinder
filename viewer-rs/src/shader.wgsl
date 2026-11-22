@@ -89,10 +89,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       // Overhang shading must remain local to the receiving surface. The old
       // 2.4x broad-distance allowance let distant, unrelated geometry create
       // large floating patches across open deck areas.
-      let max_distance = sample_reach * select(1.15, 1.7, is_contact || is_edge);
+      let max_distance = sample_reach * select(1.15, select(1.7, 1.22, ao_v2_local), is_contact || is_edge);
       let fade_start = sample_reach * select(0.55, 0.28, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
+        let facing_threshold = select(0.06, 0.14, ao_v2_local);
+        let facing = max(dot(normal, delta / distance) - facing_threshold, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         let contribution = facing * fade * scale_weight;
