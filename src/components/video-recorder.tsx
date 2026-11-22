@@ -117,6 +117,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const ctrl = useRef({ paused: false, cancel: false });
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const keysRef = useRef(keys); keysRef.current = keys;
   const locked = rs === "rendering" || rs === "paused";
   const ratio = studioAspect(settings);
@@ -194,40 +195,46 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
       return;
     }
-    const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-    const codecChoices = {
-      h264: { muxer: "avc" as const, candidates: ["avc1.640034", "avc1.4d0034", "avc1.42003e"] },
-      h265: { muxer: "hevc" as const, candidates: ["hvc1.1.6.L153.B0", "hev1.1.6.L153.B0", "hvc1.1.6.L93.B0"] },
-      av1: { muxer: "av1" as const, candidates: ["av01.0.10M.08", "av01.0.08M.08"] },
-      vp9: { muxer: "vp9" as const, candidates: ["vp09.00.51.08", "vp09.00.40.08", "vp09.00.10.08"] },
-    }[settings.codec];
+    const isWebm = settings.format === "webm";
+    let mp4Module: typeof import("mp4-muxer") | null = null;
     let encoderConfig: VideoEncoderConfig | null = null;
-    if (typeof VideoEncoder !== "undefined") {
-      for (const candidate of codecChoices.candidates) {
-        const baseConfig: VideoEncoderConfig = {
-          codec: candidate, width, height, bitrate, framerate: settings.fps,
-          latencyMode: "quality", bitrateMode: "variable",
-          hardwareAcceleration: settings.optimizeExport === "faster" ? "prefer-hardware" : "no-preference",
-        };
-        let supported = await VideoEncoder.isConfigSupported(baseConfig).catch(() => null);
-        // Hardware acceleration is a preference, not a requirement. Retry with
-        // the browser's default encoder if this device cannot honor the hint.
-        if (!supported?.supported && settings.optimizeExport === "faster") {
-          const fallback: VideoEncoderConfig = { ...baseConfig, hardwareAcceleration: "no-preference" };
-          supported = await VideoEncoder.isConfigSupported(fallback).catch(() => null);
-          if (supported?.supported) encoderConfig = fallback;
-        }
-        if (supported?.supported) {
-          encoderConfig ??= baseConfig;
-          break;
+    let muxerCodec: "avc" | "hevc" | "av1" = "avc";
+    if (isWebm) {
+      const mimeType = settings.codec === "vp8" ? "video/webm;codecs=vp8" : "video/webm;codecs=vp9";
+      if (typeof MediaRecorder === "undefined" || typeof HTMLCanvasElement.prototype.captureStream !== "function" || !MediaRecorder.isTypeSupported(mimeType)) {
+        setError(`${settings.codec.toUpperCase()} WebM recording is not supported by this browser. Try the other WebM codec or use MP4.`);
+        return;
+      }
+    } else {
+      mp4Module = await import("mp4-muxer");
+      const codecChoices = {
+        h264: { muxer: "avc" as const, candidates: ["avc1.640034", "avc1.4d0034", "avc1.42003e"] },
+        h265: { muxer: "hevc" as const, candidates: ["hvc1.1.6.L153.B0", "hev1.1.6.L153.B0", "hvc1.1.6.L93.B0"] },
+        av1: { muxer: "av1" as const, candidates: ["av01.0.10M.08", "av01.0.08M.08"] },
+      }[settings.codec as "h264" | "h265" | "av1"];
+      if (!codecChoices) { setError("Choose a codec supported by the selected file format."); return; }
+      muxerCodec = codecChoices.muxer;
+      if (typeof VideoEncoder !== "undefined") {
+        for (const candidate of codecChoices.candidates) {
+          const baseConfig: VideoEncoderConfig = {
+            codec: candidate, width, height, bitrate, framerate: settings.fps,
+            latencyMode: "quality", bitrateMode: "variable",
+            hardwareAcceleration: settings.optimizeExport === "faster" ? "prefer-hardware" : "no-preference",
+          };
+          let supported = await VideoEncoder.isConfigSupported(baseConfig).catch(() => null);
+          if (!supported?.supported && settings.optimizeExport === "faster") {
+            const fallback: VideoEncoderConfig = { ...baseConfig, hardwareAcceleration: "no-preference" };
+            supported = await VideoEncoder.isConfigSupported(fallback).catch(() => null);
+            if (supported?.supported) encoderConfig = fallback;
+          }
+          if (supported?.supported) { encoderConfig ??= baseConfig; break; }
         }
       }
+      if (!encoderConfig) {
+        setError(`This browser or device does not support ${settings.codec.toUpperCase()} encoding at the selected resolution. Choose another codec or lower the resolution.`);
+        return;
+      }
     }
-    if (!encoderConfig) {
-      setError(`This browser or device does not support ${settings.codec.toUpperCase()} encoding at the selected resolution. Choose another codec or lower the resolution.`);
-      return;
-    }
-    const muxerCodec = codecChoices.muxer;
     // Render at the viewport's existing drawing-buffer dimensions. The
     // export delivery size can be much larger (e.g. 1080x1920 on a phone),
     // which changes screen-space AO/depth sampling and can darken thin carpet
@@ -258,8 +265,80 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     // Editor orbit and source marker are guides, never part of rendered video.
     v.set_point_orbit_visible(false);
     const total = totalFrames(settings.duration, settings.fps);
+    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
+    if (settings.noiseReduction && !denoiser)
+      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
     ctrl.current = { paused: false, cancel: false };
     setRs("rendering"); setTab("render");
+
+    if (isWebm) {
+      const mimeType = settings.codec === "vp8" ? "video/webm;codecs=vp8" : "video/webm;codecs=vp9";
+      const recordCanvas = denoiser?.canvas ?? frameCanvas;
+      const stream = recordCanvas.captureStream(0);
+      const track = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined;
+      if (!track || typeof track.requestFrame !== "function") {
+        stream.getTracks().forEach((item) => item.stop());
+        denoiser?.destroy(); restore(); setRs("idle");
+        setError("This browser cannot capture export frames manually. Use MP4 or a supported browser.");
+        return;
+      }
+      const chunks: Blob[] = [];
+      let recorderError = false;
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
+      recorder.onerror = () => { recorderError = true; };
+      recorder.start(1000);
+      const startedAt = performance.now();
+      let pausedTotal = 0;
+      let pauseStarted: number | null = null;
+      for (let f = 0; f < total; f++) {
+        if (ctrl.current.cancel || recorderError) break;
+        while (ctrl.current.paused && !ctrl.current.cancel) {
+          if (pauseStarted === null) pauseStarted = performance.now();
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        if (pauseStarted !== null) { pausedTotal += performance.now() - pauseStarted; pauseStarted = null; }
+        if (ctrl.current.cancel) break;
+        const t = f / settings.fps;
+        const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
+        if (!sampled) break;
+        v.set_camera_pose(new Float32Array(sampled));
+        v.frame();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        frameContext.fillStyle = "#000000";
+        frameContext.fillRect(0, 0, width, height);
+        drawExportBackdrop?.(frameContext);
+        frameContext.drawImage(canvas, 0, 0, width, height);
+        denoiser?.process(frameCanvas);
+        const deadline = startedAt + pausedTotal + (f * 1000) / settings.fps;
+        const wait = deadline - performance.now();
+        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+        track.requestFrame();
+        if (f % 3 === 0 || f === total - 1) {
+          const elapsed = Math.max(1, performance.now() - startedAt - pausedTotal);
+          const fps = (f + 1) / (elapsed / 1000);
+          setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
+        }
+      }
+      const stopped = new Promise<void>((resolve) => recorder.addEventListener("stop", () => resolve(), { once: true }));
+      if (recorder.state !== "inactive") recorder.stop();
+      await stopped;
+      mediaRecorderRef.current = null;
+      stream.getTracks().forEach((item) => item.stop());
+      denoiser?.destroy();
+      restore();
+      if (ctrl.current.cancel || recorderError) {
+        setRs("idle"); setProg({ frame: 0, total: 0, fps: 0, eta: null });
+        if (recorderError) setError("WebM recording failed. Try a lower resolution or VP8.");
+        return;
+      }
+      setVideoUrl(URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType || mimeType })));
+      setRs("done");
+      return;
+    }
+
+    const { Muxer, ArrayBufferTarget } = mp4Module!;
     const target = new ArrayBufferTarget();
     const muxer = new Muxer({ target, video: { codec: muxerCodec, width, height, frameRate: settings.fps }, fastStart: "in-memory" });
     // Preserve the encoder's own output color description. The input frame is
@@ -275,9 +354,6 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     });
     enc.configure(encoderConfig);
     const us = 1e6 / settings.fps;
-    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
-    if (settings.noiseReduction && !denoiser)
-      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
     let activeMs = 0, last = performance.now();
     for (let f = 0; f < total; f++) {
       if (ctrl.current.cancel || encErr) break;
@@ -326,7 +402,12 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setVideoUrl(URL.createObjectURL(new Blob([target.buffer], { type: "video/mp4" })));
     setRs("done");
   };
-  const pauseResume = () => { ctrl.current.paused = !ctrl.current.paused; setRs(ctrl.current.paused ? "paused" : "rendering"); };
+  const pauseResume = () => {
+    ctrl.current.paused = !ctrl.current.paused;
+    if (mediaRecorderRef.current?.state === "recording" && ctrl.current.paused) mediaRecorderRef.current.pause();
+    else if (mediaRecorderRef.current?.state === "paused" && !ctrl.current.paused) mediaRecorderRef.current.resume();
+    setRs(ctrl.current.paused ? "paused" : "rendering");
+  };
   const pct = prog.total ? Math.round((prog.frame / prog.total) * 100) : 0;
   const out = outputSize(settings);
 
@@ -353,7 +434,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         <button className="studio-btn-primary h-16 w-full text-lg" onClick={() => void startRender()} disabled={keys.length < 2}><Clapperboard className="size-6" />Start Rendering</button>
         {videoUrl && <div className="space-y-3">
           <video src={videoUrl} controls playsInline className="max-h-80 w-full rounded-xl bg-muted" />
-          <a href={videoUrl} download={`${exportFilename(name, "vid")}.mp4`} className="studio-btn w-full"><Download className="size-5" />Download video</a>
+          <a href={videoUrl} download={`${exportFilename(name, "vid")}.${settings.format}`} className="studio-btn w-full"><Download className="size-5" />Download video</a>
         </div>}
       </> : (
         <div className="space-y-4 rounded-xl border border-primary/50 bg-card p-4" aria-live="polite">
