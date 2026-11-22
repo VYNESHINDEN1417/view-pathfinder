@@ -32,6 +32,15 @@ export const BUILT_IN_MODELS = [
 ] as const;
 type BuiltInId = (typeof BUILT_IN_MODELS)[number]["id"];
 const FALLBACK_TEXTURE = localTexture("stone");
+// Keep successfully fetched scene assets in memory so a renderer restart never
+// needs to fetch the same model or texture bytes again.
+const assetByteCache = new Map<string, Uint8Array>();
+let assetByteCacheSize = 0;
+const MAX_CACHED_ASSET_BYTES = 128 * 1024 * 1024;
+function clearAssetByteCache() {
+  assetByteCache.clear();
+  assetByteCacheSize = 0;
+}
 
 const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
   4: { url: "/backgrounds/3untitled.png", name: "Warm" },
@@ -97,6 +106,16 @@ function Index() {
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const sunShadowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const restartCameraPoseRef = useRef<Float32Array | null>(null);
+  const restartViewerRef = useRef<() => void>(() => {});
+  restartViewerRef.current = () => {
+    const current = viewerRef.current;
+    if (current) {
+      try { restartCameraPoseRef.current = new Float32Array(current.camera_pose()); }
+      catch { restartCameraPoseRef.current = null; }
+    }
+    setAttempt((value) => value + 1);
+  };
   const [model, setModel] = useState<ModelArchive | null>(null);
   const [builtInId, setBuiltInId] = useState<BuiltInId>("wisconsin");
   const [sceneSelected, setSceneSelected] = useState(false);
@@ -206,7 +225,19 @@ function Index() {
     (async () => {
       const notify = (state: LoadingState) => { if (!disposed) setLoading(state); };
       const tracker = new LoadingTracker(["wasm", "obj", "mtl", "renderer", "parse", "geometry", "upload", "textures", "ready"], notify);
-      const bytes = (url: string, key: string, label: string) => downloadAsset(url, controller.signal, (done, total) => tracker.update(key, done, total, label));
+      const bytes = async (url: string, key: string, label: string) => {
+        const cached = assetByteCache.get(url);
+        if (cached) {
+          tracker.update(key, cached.byteLength, cached.byteLength, label);
+          return cached;
+        }
+        const data = await downloadAsset(url, controller.signal, (done, total) => tracker.update(key, done, total, label));
+        if (assetByteCacheSize + data.byteLength <= MAX_CACHED_ASSET_BYTES) {
+          assetByteCache.set(url, data);
+          assetByteCacheSize += data.byteLength;
+        }
+        return data;
+      };
       const mod = await import("@/lib/wasm/viewer/viewer");
       const wasm = await bytes("/wasm/viewer_bg.wasm", "wasm", "Loading viewer...");
       await mod.default({ module_or_path: wasm.buffer as ArrayBuffer });
@@ -250,6 +281,10 @@ function Index() {
       const s = sizeCanvas();
       v.resize(s.w, s.h, s.cw, s.ch);
       v.reset();
+      if (restartCameraPoseRef.current) {
+        v.set_camera_pose(restartCameraPoseRef.current);
+        restartCameraPoseRef.current = null;
+      }
       await applyViewerBackground(v, settingsRef.current.background).catch((error) => {
         console.warn("Background setup failed:", error);
         v.set_background(0);
@@ -302,6 +337,30 @@ function Index() {
       setRotation(Array.from(v.camera_rotation()));
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
+
+      // Android may suspend the page and invalidate its GPU surface. Rebuild the
+      // renderer on return, restoring the camera pose from the in-memory viewer.
+      let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+      const onResume = () => {
+        if (document.visibilityState !== "visible" || disposed || !viewer) return;
+        if (resumeTimer) clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(() => {
+          if (!disposed && viewer) restartViewerRef.current();
+        }, 250);
+      };
+      document.addEventListener("visibilitychange", onResume);
+      window.addEventListener("pageshow", onResume);
+      cleanups.push(() => {
+        document.removeEventListener("visibilitychange", onResume);
+        window.removeEventListener("pageshow", onResume);
+        if (resumeTimer) clearTimeout(resumeTimer);
+      });
+      const onContextLost = (event: Event) => {
+        event.preventDefault();
+        if (!disposed) restartViewerRef.current();
+      };
+      canvas.addEventListener("webglcontextlost", onContextLost);
+      cleanups.push(() => canvas.removeEventListener("webglcontextlost", onContextLost));
 
       // The stage covers the full preview area, including letterbox bars around the
       // aspect-ratio canvas. Route gestures through it so those bars remain draggable.
@@ -454,6 +513,11 @@ function Index() {
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
       <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
+      {loading.ready && <Button className="viewer-restart" variant="secondary" size="sm"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => restartViewerRef.current()} title="Rebuild the viewer using cached model data">
+        ↻ Restart Viewer
+      </Button>}
     </div>
     {loading.ready && <ViewerGizmo rotation={rotation} sun={sun} onSun={(patch) => setSun((value) => ({ ...value, ...patch }))}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
