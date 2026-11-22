@@ -116,7 +116,6 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
           <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
             options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
           <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
-          <Toggle label="Real-time shadows" checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
         </>}
 
         {activeTab === "camera" && <>
