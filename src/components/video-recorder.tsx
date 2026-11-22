@@ -188,20 +188,46 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
       return;
     }
-    const bitrate = bitrateBps(settings.bitrate);
+    const bitrate = Math.round(bitrateBps(settings.bitrate) * (settings.optimizeExport === "smaller" ? 0.75 : 1));
     const estimatedBytes = (bitrate * settings.duration) / 8;
     if (estimatedBytes > 256 * 1024 * 1024) {
       setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
       return;
     }
     const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-    let codec = "";
-    if (typeof VideoEncoder !== "undefined")
-      for (const c of ["avc1.640034", "avc1.4d0034", "avc1.42003e"]) {
-        const ok = await VideoEncoder.isConfigSupported({ codec: c, width, height, bitrate, framerate: settings.fps }).catch(() => null);
-        if (ok?.supported) { codec = c; break; }
+    const codecChoices = {
+      h264: { muxer: "avc" as const, candidates: ["avc1.640034", "avc1.4d0034", "avc1.42003e"] },
+      h265: { muxer: "hevc" as const, candidates: ["hvc1.1.6.L153.B0", "hev1.1.6.L153.B0", "hvc1.1.6.L93.B0"] },
+      av1: { muxer: "av1" as const, candidates: ["av01.0.10M.08", "av01.0.08M.08"] },
+      vp9: { muxer: "vp9" as const, candidates: ["vp09.00.51.08", "vp09.00.40.08", "vp09.00.10.08"] },
+    }[settings.codec];
+    let encoderConfig: VideoEncoderConfig | null = null;
+    if (typeof VideoEncoder !== "undefined") {
+      for (const candidate of codecChoices.candidates) {
+        const baseConfig: VideoEncoderConfig = {
+          codec: candidate, width, height, bitrate, framerate: settings.fps,
+          latencyMode: "quality", bitrateMode: "variable",
+          hardwareAcceleration: settings.optimizeExport === "faster" ? "prefer-hardware" : "no-preference",
+        };
+        let supported = await VideoEncoder.isConfigSupported(baseConfig).catch(() => null);
+        // Hardware acceleration is a preference, not a requirement. Retry with
+        // the browser's default encoder if this device cannot honor the hint.
+        if (!supported?.supported && settings.optimizeExport === "faster") {
+          const fallback: VideoEncoderConfig = { ...baseConfig, hardwareAcceleration: "no-preference" };
+          supported = await VideoEncoder.isConfigSupported(fallback).catch(() => null);
+          if (supported?.supported) encoderConfig = fallback;
+        }
+        if (supported?.supported) {
+          encoderConfig ??= baseConfig;
+          break;
+        }
       }
-    if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
+    }
+    if (!encoderConfig) {
+      setError(`This browser or device does not support ${settings.codec.toUpperCase()} encoding at the selected resolution. Choose another codec or lower the resolution.`);
+      return;
+    }
+    const muxerCodec = codecChoices.muxer;
     // Render at the viewport's existing drawing-buffer dimensions. The
     // export delivery size can be much larger (e.g. 1080x1920 on a phone),
     // which changes screen-space AO/depth sampling and can darken thin carpet
@@ -235,7 +261,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     ctrl.current = { paused: false, cancel: false };
     setRs("rendering"); setTab("render");
     const target = new ArrayBufferTarget();
-    const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
+    const muxer = new Muxer({ target, video: { codec: muxerCodec, width, height, frameRate: settings.fps }, fastStart: "in-memory" });
     // Preserve the encoder's own output color description. The input frame is
     // explicitly tagged as full-range sRGB below; guessing that the encoded
     // H.264 stream is limited-range BT.709 when the encoder omits metadata can
@@ -247,7 +273,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       },
       error: (er) => { encErr = er; },
     });
-    enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
+    enc.configure(encoderConfig);
     const us = 1e6 / settings.fps;
     const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
     if (settings.noiseReduction && !denoiser)
