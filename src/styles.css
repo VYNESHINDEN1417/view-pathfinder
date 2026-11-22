@@ -362,6 +362,15 @@ body {
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+/* Subtle warm amber falloff along the bottom of the Orbit Studio panel. */
+.studio-sheet {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--card)) 0%,
+    hsl(var(--card)) 76%,
+    color-mix(in srgb, hsl(var(--card)) 88%, hsl(28 78% 42%) 12%) 100%
+  );
+}
 @media (max-height: 500px) { .studio-open { --studio-panel-height: 48dvh; } .studio-open .viewer-stage { top: 64px; } .studio-open .viewer-record { top: 8px; right: 120px; } .studio-open .viewer-iron-trapdoor { top: 60px; right: 120px; } .studio-open .iron-trapdoor-panel { top: 112px; right: 120px; } }
 
 
