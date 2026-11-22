@@ -33,8 +33,8 @@ function Toggle({ label, checked, onChange, disabled }: { label: string; checked
   );
 }
 
-function BitrateControl({ value, onChange, disabled, duration }: {
-  value: number; onChange: (value: number) => void; disabled: boolean; duration: number;
+function BitrateControl({ value, onChange, disabled, duration, optimizeExport }: {
+  value: number; onChange: (value: number) => void; disabled: boolean; duration: number; optimizeExport: StudioSettings["optimizeExport"];
 }) {
   const presets = [12, 24, 40, 60, 80];
   const estimatedMb = (value * duration * (optimizeExport === "smaller" ? 0.75 : 1)) / 8;
