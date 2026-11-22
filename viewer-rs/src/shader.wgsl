@@ -263,7 +263,10 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let far_face_darkness = select(0.0, clamp(g.shadow_detail.w, 0.0, 1.0), g.ao_v2.x > 0.5);
   let sun_facing = clamp(dot(normalize(in.normal), l), 0.0, 1.0);
   let far_face_weight = 1.0 - smoothstep(0.0, 0.72, sun_facing);
-  let far_face_floor = 1.0 - far_face_darkness * 0.98;
+  // Preserve a readable ambient floor on textured stone and other block faces.
+  // Even at maximum slider strength, far-face shading may reduce ambient fill by
+  // no more than 35%; direct sunlight and the original texture albedo stay intact.
+  let far_face_floor = 1.0 - far_face_darkness * 0.35;
   let far_face_ambient = mix(1.0, far_face_floor, far_face_weight);
   let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
   let fill = 0.06 * max(dot(n, v), 0.0) * far_face_ambient;
