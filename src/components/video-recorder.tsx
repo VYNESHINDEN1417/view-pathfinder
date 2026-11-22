@@ -37,7 +37,7 @@ async function prepareExportBackground(canvas: HTMLCanvasElement, width: number,
   const targetHeight = targetRect.height * scaleX;
 
   if (imageCss && imageCss !== "none" && imageCss.includes("url(")) {
-    const match = imageCss.match(/url\\(["']?(.*?)["']?\\)/);
+    const match = imageCss.match(/url\(["']?(.*?)["']?\)/);
     if (!match?.[1]) return null;
     const image = new Image();
     image.src = new URL(match[1], window.location.href).href;
@@ -236,27 +236,14 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setRs("rendering"); setTab("render");
     const target = new ArrayBufferTarget();
     const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
-    // H.264 SDR output is tagged as BT.709 limited-range unless the encoder
-    // explicitly reports another output space. mp4-muxer writes the MP4 "colr"
-    // atom only when decoderConfig.colorSpace is present.
-    const fallbackVideoColorSpace = {
-      primaries: "bt709" as const,
-      transfer: "bt709" as const,
-      matrix: "bt709" as const,
-      fullRange: false,
-    };
+    // Preserve the encoder's own output color description. The input frame is
+    // explicitly tagged as full-range sRGB below; guessing that the encoded
+    // H.264 stream is limited-range BT.709 when the encoder omits metadata can
+    // mislabel the actual YUV range and make midtone materials look darker.
     let encErr: unknown = null;
     const enc = new VideoEncoder({
       output: (chunk, metadata) => {
-        const decoderConfig = metadata?.decoderConfig;
-        if (decoderConfig && !decoderConfig.colorSpace) {
-          muxer.addVideoChunk(chunk, {
-            ...metadata,
-            decoderConfig: { ...decoderConfig, colorSpace: fallbackVideoColorSpace },
-          });
-        } else {
-          muxer.addVideoChunk(chunk, metadata);
-        }
+        muxer.addVideoChunk(chunk, metadata);
       },
       error: (er) => { encErr = er; },
     });
