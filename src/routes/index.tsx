@@ -42,6 +42,29 @@ function clearAssetByteCache() {
   assetByteCacheSize = 0;
 }
 
+async function isCanvasMostlyWhite(canvas: HTMLCanvasElement): Promise<boolean> {
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(canvas);
+    const sample = document.createElement("canvas");
+    sample.width = 32;
+    sample.height = 32;
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(bitmap, 0, 0, 32, 32);
+    const pixels = context.getImageData(0, 0, 32, 32).data;
+    let nearWhite = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i] >= 245 && pixels[i + 1] >= 245 && pixels[i + 2] >= 245 && pixels[i + 3] >= 245) nearWhite++;
+    }
+    return nearWhite / (pixels.length / 4) >= 0.94;
+  } catch {
+    return false;
+  } finally {
+    bitmap?.close();
+  }
+}
+
 const BACKGROUND_IMAGES: Record<number, { url: string; name: string }> = {
   4: { url: "/backgrounds/3untitled.png", name: "Warm" },
   5: { url: "/backgrounds/IMG_20261117_190830_478.png", name: "RUSTY" },
@@ -106,9 +129,11 @@ function Index() {
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
   const sunShadowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
   const restartCameraPoseRef = useRef<Float32Array | null>(null);
   const restartViewerRef = useRef<() => void>(() => {});
   restartViewerRef.current = () => {
+    setRecoveryRequired(false);
     const current = viewerRef.current;
     if (current) {
       try { restartCameraPoseRef.current = new Float32Array(current.camera_pose()); }
@@ -205,8 +230,8 @@ function Index() {
             viewer.animate(time);
             viewer.frame();
           } catch (error) {
-            console.warn("Viewer frame failed; rebuilding renderer:", error);
-            restartViewerRef.current();
+            console.warn("Viewer frame failed; manual recovery required:", error);
+            setRecoveryRequired(true);
             return;
           }
           const nextRotation = Array.from(viewer.camera_rotation());
@@ -344,15 +369,31 @@ function Index() {
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
 
-      // Deliberately do not auto-restart when the app returns to the foreground.
-      // This keeps lifecycle behavior observable so the user can test the manual
-      // Restart Viewer control. Context-loss and explicit restart handling remain.
+      // Never rebuild automatically on resume. Only expose recovery when the canvas
+      // is actually blank-white or the renderer reports a failure.
+      let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+      const onVisibilityChange = () => {
+        if (document.visibilityState !== "visible") return;
+        if (resumeTimer) clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(async () => {
+          if (disposed || document.visibilityState !== "visible") return;
+          const white = await isCanvasMostlyWhite(canvas);
+          if (disposed) return;
+          if (white) setRecoveryRequired(true);
+          else schedule();
+        }, 650);
+      };
       const onContextLost = (event: Event) => {
         event.preventDefault();
-        if (!disposed) restartViewerRef.current();
+        if (!disposed) setRecoveryRequired(true);
       };
+      document.addEventListener("visibilitychange", onVisibilityChange);
       canvas.addEventListener("webglcontextlost", onContextLost);
-      cleanups.push(() => canvas.removeEventListener("webglcontextlost", onContextLost));
+      cleanups.push(() => {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        canvas.removeEventListener("webglcontextlost", onContextLost);
+        if (resumeTimer) clearTimeout(resumeTimer);
+      });
 
       // The stage covers the full preview area, including letterbox bars around the
       // aspect-ratio canvas. Route gestures through it so those bars remain draggable.
@@ -418,6 +459,7 @@ function Index() {
       viewer?.destroy(); viewer = null; viewerRef.current = null;
       console.warn("Viewer loading failed:", error);
       setLoading((state) => ({ ...state, ready: false, indeterminate: false, error: error instanceof Error ? error.message : "Your browser could not start the 3D viewer. Enable graphics acceleration and retry." }));
+      setRecoveryRequired(true);
     });
 
     return () => {
@@ -507,11 +549,17 @@ function Index() {
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
       <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
-      {loading.ready && <Button className="viewer-restart" variant="secondary" size="sm"
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={() => restartViewerRef.current()} title="Rebuild the viewer using cached model data">
-        ↻ Restart Viewer
-      </Button>}
+      {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
+        <div className="viewer-recovery-card">
+          <strong>Viewer needs recovery</strong>
+          <span>The 3D canvas stopped rendering.</span>
+          <Button variant="secondary" size="sm"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => restartViewerRef.current()} title="Rebuild the viewer using cached model data">
+            ↻ Restart Viewer
+          </Button>
+        </div>
+      </div>}
     </div>
     {loading.ready && <ViewerGizmo rotation={rotation} sun={sun} onSun={(patch) => setSun((value) => ({ ...value, ...patch }))}
       onOrbit={(dx, dy) => { viewerRef.current?.orbit_drag(dx, dy); scheduleRef.current(); }}
