@@ -289,7 +289,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
       recorder.onerror = () => { recorderError = true; };
       recorder.start(1000);
-      const startedAt = performance.now();
+      let startedAt: number | null = null;
       let pausedTotal = 0;
       let pauseStarted: number | null = null;
       for (let f = 0; f < total; f++) {
@@ -311,12 +311,13 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         drawExportBackdrop?.(frameContext);
         frameContext.drawImage(canvas, 0, 0, width, height);
         denoiser?.process(frameCanvas);
+        startedAt ??= performance.now();
         const deadline = startedAt + pausedTotal + (f * 1000) / settings.fps;
         const wait = deadline - performance.now();
         if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
         track.requestFrame();
         if (f % 3 === 0 || f === total - 1) {
-          const elapsed = Math.max(1, performance.now() - startedAt - pausedTotal);
+          const elapsed = Math.max(1, performance.now() - (startedAt ?? performance.now()) - pausedTotal);
           const fps = (f + 1) / (elapsed / 1000);
           setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
         }
