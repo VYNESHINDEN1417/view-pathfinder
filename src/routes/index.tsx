@@ -124,6 +124,7 @@ async function applyViewerBackground(viewer: import("@/lib/wasm/viewer/viewer").
 
 function Index() {
   const ref = useRef<HTMLCanvasElement>(null);
+  const backdropRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<import("@/lib/wasm/viewer/viewer").Viewer | null>(null);
   const scheduleRef = useRef<() => void>(() => {});
   const [rotation, setRotation] = useState<number[]>([0, 0, 0, 1]);
@@ -229,6 +230,26 @@ function Index() {
           try {
             viewer.animate(time);
             viewer.frame();
+            const stage = canvas.closest<HTMLElement>(".viewer-stage");
+            const backdrop = backdropRef.current;
+            if (stage?.closest(".studio-open") && backdrop) {
+              const rect = stage.getBoundingClientRect();
+              const dpr = Math.min(window.devicePixelRatio || 1, 2);
+              const width = Math.max(1, Math.round(rect.width * dpr));
+              const height = Math.max(1, Math.round(rect.height * dpr));
+              if (backdrop.width !== width || backdrop.height !== height) {
+                backdrop.width = width;
+                backdrop.height = height;
+              }
+              const context = backdrop.getContext("2d");
+              if (context) {
+                const scale = Math.max(width / canvas.width, height / canvas.height);
+                const drawWidth = canvas.width * scale;
+                const drawHeight = canvas.height * scale;
+                context.clearRect(0, 0, width, height);
+                context.drawImage(canvas, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+              }
+            }
           } catch (error) {
             console.warn("Viewer frame failed; manual recovery required:", error);
             setRecoveryRequired(true);
@@ -521,6 +542,7 @@ function Index() {
   };
 
   const frameRatio = studioLayout.open ? studioLayout.ratio : ratio;
+  useEffect(() => { scheduleRef.current(); }, [studioLayout.open, studioLayout.ratio]);
   return <main className={`ship-viewer background-${background} ${studioLayout.open ? "studio-open" : ""}`} data-scene-ready={loading.ready ? "true" : undefined}>
     <input ref={fileRef} type="file" accept=".zip,application/zip" hidden aria-label="Upload model ZIP"
       onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadModel(file); }} />
@@ -548,6 +570,7 @@ function Index() {
       </div>
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
+      <canvas ref={backdropRef} className="viewer-backdrop-canvas" aria-hidden="true" />
       <canvas key={attempt} ref={ref} className={`viewer-canvas ${frameRatio ? "framed" : ""}`} style={{ "--frame-ratio": frameRatio || 1 } as CSSProperties} aria-label="Interactive model" />
       {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
         <div className="viewer-recovery-card">
