@@ -272,9 +272,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // no more than 35%; direct sunlight and the original texture albedo stay intact.
   let far_face_floor = 1.0 - far_face_darkness * 0.35;
   let far_face_ambient = mix(1.0, far_face_floor, far_face_weight);
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
+  // Stone textures need a stronger neutral fill so their authored gray albedo
+  // remains readable instead of looking charcoal under otherwise direct light.
+  let ambient_base = select(0.43, 0.50, m.flags.z > 0.5);
+  let ambient = (ambient_base + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
   let fill = 0.06 * max(dot(n, v), 0.0) * far_face_ambient;
-  var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
+  let diffuse_response = select(0.38, 0.50, m.flags.z > 0.5);
+  var color = kd * (ambient + fill + diff * visibility * diffuse_response * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;
   let point_distance = length(to_point);
