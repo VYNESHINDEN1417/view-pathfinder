@@ -344,23 +344,9 @@ function Index() {
       tracker.update("ready", 1, 1, "Viewer ready");
       tracker.ready();
 
-      // Android may suspend the page and invalidate its GPU surface. Rebuild the
-      // renderer on return, restoring the camera pose from the in-memory viewer.
-      let resumeTimer: ReturnType<typeof setTimeout> | null = null;
-      const onResume = () => {
-        if (document.visibilityState !== "visible" || disposed || !viewer) return;
-        if (resumeTimer) clearTimeout(resumeTimer);
-        resumeTimer = setTimeout(() => {
-          if (!disposed && viewer) restartViewerRef.current();
-        }, 250);
-      };
-      document.addEventListener("visibilitychange", onResume);
-      window.addEventListener("pageshow", onResume);
-      cleanups.push(() => {
-        document.removeEventListener("visibilitychange", onResume);
-        window.removeEventListener("pageshow", onResume);
-        if (resumeTimer) clearTimeout(resumeTimer);
-      });
+      // Deliberately do not auto-restart when the app returns to the foreground.
+      // This keeps lifecycle behavior observable so the user can test the manual
+      // Restart Viewer control. Context-loss and explicit restart handling remain.
       const onContextLost = (event: Event) => {
         event.preventDefault();
         if (!disposed) restartViewerRef.current();
