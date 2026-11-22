@@ -343,6 +343,8 @@ body {
   .safe-t { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
 .viewer-stage { position: absolute; inset: 0; touch-action: none; }
+.viewer-restart { position: absolute; z-index: 12; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); min-height: 34px; padding: 0 11px; border: 1px solid oklch(1 0 0 / 18%); background: oklch(0.14 0.018 48 / 88%); color: white; font-size: 11px; font-weight: 650; box-shadow: 0 4px 18px oklch(0 0 0 / 28%); backdrop-filter: blur(12px); }
+.viewer-restart:active { transform: scale(0.97); }
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
 .studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
 .studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
