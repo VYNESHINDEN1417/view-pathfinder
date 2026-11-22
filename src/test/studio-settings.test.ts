@@ -3,6 +3,11 @@ import { defaultSettings, studioAspect, outputSize } from "@/components/studio/s
 import { totalFrames } from "@/lib/studio/keyframes";
 
 describe("Studio framing and output", () => {
+  it("defaults to MP4, H.264, and balanced export optimization", () => {
+    expect(defaultSettings.format).toBe("mp4");
+    expect(defaultSettings.codec).toBe("h264");
+    expect(defaultSettings.optimizeExport).toBe("balanced");
+  });
   it("enables export noise reduction by default", () => {
     expect(defaultSettings.noiseReduction).toBe(true);
   });
