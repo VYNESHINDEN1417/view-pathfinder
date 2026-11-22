@@ -3,13 +3,12 @@ import { defaultSettings, studioAspect, outputSize } from "@/components/studio/s
 import { totalFrames } from "@/lib/studio/keyframes";
 
 describe("Studio framing and output", () => {
-  it("defaults to MP4, H.264, and balanced export optimization", () => {
-    expect(defaultSettings.format).toBe("mp4");
+  it("defaults to H.264 and standard export speed", () => {
     expect(defaultSettings.codec).toBe("h264");
-    expect(defaultSettings.optimizeExport).toBe("balanced");
+    expect(defaultSettings.exportSpeed).toBe("standard");
   });
-  it("enables export noise reduction by default", () => {
-    expect(defaultSettings.noiseReduction).toBe(true);
+  it("keeps export noise reduction disabled by default", () => {
+    expect(defaultSettings.noiseReduction).toBe(false);
   });
   it("supports 90 fps output frame counts", () => {
     expect(totalFrames(6, 90)).toBe(540);
