@@ -124,11 +124,13 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
 
         {activeTab === "encoding" && <>
           <h3>Video Encoding</h3>
-          <Choice label="File format" value={s.format} disabled={locked} onChange={(v) => set("format", v)}
-            options={[{ v: "mp4", l: "MP4" }]} />
-          <p className="studio-setting-note">MP4 is currently supported. WebM and MOV are not enabled yet.</p>
+          <Choice label="File format" value={s.format} disabled={locked}
+            onChange={(v) => { set("format", v); set("codec", v === "webm" ? "vp9" : "h264"); }}
+            options={[{ v: "mp4", l: "MP4" }, { v: "webm", l: "WebM" }]} />
           <Choice label="Video codec" value={s.codec} disabled={locked} onChange={(v) => set("codec", v)}
-            options={[{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }, { v: "vp9", l: "VP9" }]} />
+            options={s.format === "webm"
+              ? [{ v: "vp8", l: "VP8" }, { v: "vp9", l: "VP9" }]
+              : [{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }]} />
           <Choice label="Optimize export" value={s.optimizeExport} disabled={locked} onChange={(v) => set("optimizeExport", v)}
             options={[{ v: "balanced", l: "Balanced" }, { v: "faster", l: "Faster" }, { v: "smaller", l: "Smaller file" }]} />
           <p className="studio-setting-note">Codec availability depends on browser and device support. Faster prefers hardware encoding; Smaller file lowers target bitrate by 25%.</p>
