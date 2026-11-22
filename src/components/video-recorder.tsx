@@ -37,7 +37,7 @@ async function prepareExportBackground(canvas: HTMLCanvasElement, width: number,
   const targetHeight = targetRect.height * scaleX;
 
   if (imageCss && imageCss !== "none" && imageCss.includes("url(")) {
-    const match = imageCss.match(/url\\(["']?(.*?)["']?\\)/);
+    const match = imageCss.match(/url\(["']?(.*?)["']?\)/);
     if (!match?.[1]) return null;
     const image = new Image();
     image.src = new URL(match[1], window.location.href).href;
