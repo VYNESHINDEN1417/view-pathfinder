@@ -618,3 +618,37 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 .shadow-settings-section-title{font-size:10px;font-weight:800;letter-spacing:.14em;opacity:.62;padding:10px 0 2px}
 .shadow-settings-divider{height:1px;background:var(--border,rgba(255,255,255,.16));margin:12px 0 4px}
+
+
+/* Orbit Studio compact timeline layout: keep the complete animation workflow visible. */
+.studio-sheet {
+  --studio-panel-height: min(54dvh, 560px);
+}
+.studio-sheet > header { padding-top: 5px; padding-bottom: 5px; }
+.studio-sheet > header h2 { font-size: 15px; }
+.studio-sheet > nav { padding-top: 4px; padding-bottom: 4px; }
+.studio-sheet .studio-tab { min-height: 40px; flex-direction: row; gap: 6px; font-size: 11px; }
+.studio-sheet .studio-tab svg { width: 16px; height: 16px; }
+.studio-sheet > .safe-x.safe-b { padding-top: 3px; }
+.studio-sheet .studio-timeline-compact .rounded-xl { border-radius: 9px; }
+.studio-sheet .studio-timeline-compact .studio-btn,
+.studio-sheet .studio-timeline-compact .studio-btn-primary,
+.studio-sheet .studio-timeline-compact .studio-btn-danger {
+  min-height: 36px;
+}
+.studio-sheet .grid.grid-cols-3 > .studio-btn,
+.studio-sheet .grid.grid-cols-3 > .studio-btn-primary {
+  min-height: 38px;
+  min-width: 0;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+.studio-sheet .grid.grid-cols-3 > button svg { width: 16px; height: 16px; }
+@media (max-width: 520px) {
+  .studio-open { --studio-panel-height: min(56dvh, 520px); }
+  .studio-sheet { --studio-panel-height: min(56dvh, 520px); }
+  .studio-sheet > .safe-x { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .studio-sheet .studio-timeline-compact .font-mono { font-size: 11px; }
+}
