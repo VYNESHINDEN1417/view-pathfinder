@@ -588,13 +588,17 @@ impl Viewer {
                 let s = m.specular.unwrap_or([0.2; 3]);
                 let tex = m.diffuse_texture.clone().filter(|t| !t.trim().is_empty());
                 let is_plank = tex.as_deref().is_some_and(|name| name.to_ascii_lowercase().contains("planks"));
+                let material_label = format!("{} {}", m.name.to_ascii_lowercase(), tex.as_deref().unwrap_or("").to_ascii_lowercase());
+                let is_stone = ["stone", "rock", "cobble", "andesite", "diorite", "granite", "deepslate"]
+                    .iter()
+                    .any(|token| material_label.contains(token));
                 (
                     MaterialU {
                         ambient: [a[0], a[1], a[2], 1.0],
                         diffuse: [d[0], d[1], d[2], m.dissolve.unwrap_or(1.0)],
                         specular: [s[0], s[1], s[2], m.shininess.unwrap_or(32.0)],
-                        // x = textured, y = wooden-plank contrast. Preserve authored stone texture colors.
-                        flags: [0.0, if is_plank { 1.0 } else { 0.0 }, 0.0, 0.0],
+                        // x = textured, y = wooden-plank contrast, z = stone-light response.
+                        flags: [0.0, if is_plank { 1.0 } else { 0.0 }, if is_stone { 1.0 } else { 0.0 }, 0.0],
                     },
                     tex,
                 )

@@ -71,8 +71,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     if (i >= count) { break; }
     let is_edge = i < edge_samples;
     let is_contact = i >= edge_samples && i < edge_samples + contact_samples;
-    let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact);
-    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact);
+    // AO V2 stays strictly local: broad overhang rays can turn unrelated depth
+    // samples into faint floating shadow boxes across open deck areas.
+    let ao_v2_local = g.ao_v2.x > 0.5 && g.effects.x < 0.5;
+    let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact || ao_v2_local);
+    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact || ao_v2_local);
     let angle = f32(i) * 2.399963;
     let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
     let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
@@ -86,10 +89,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
       // Overhang shading must remain local to the receiving surface. The old
       // 2.4x broad-distance allowance let distant, unrelated geometry create
       // large floating patches across open deck areas.
-      let max_distance = sample_reach * select(1.15, 1.7, is_contact || is_edge);
+      let max_distance = sample_reach * select(1.15, select(1.7, 1.22, ao_v2_local), is_contact || is_edge);
       let fade_start = sample_reach * select(0.55, 0.28, is_contact || is_edge);
       if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing = max(dot(normal, delta / distance) - 0.06, 0.0);
+        let facing_threshold = select(0.06, 0.14, ao_v2_local);
+        let facing = max(dot(normal, delta / distance) - facing_threshold, 0.0);
         let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
         let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
         let contribution = facing * fade * scale_weight;
@@ -238,9 +242,12 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
+  // Directional shadow-map shading belongs to Fancy Graphics. AO V2 has its
+  // own screen-space depth-ray occlusion; applying the shadow map while Fancy
+  // is off can falsely classify sun-facing stone faces as fully shadowed.
   let shadow_strength = select(1.0, g.shadow.x * g.shadow.y, g.effects.x > 0.5);
   var visibility = clamp(1.0 - (1.0 - shadow) * shadow_strength, 0.0, 1.0);
-  let shadows_enabled = (g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5;
+  let shadows_enabled = g.effects.x > 0.5 && ((g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5);
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
   // Ambient occlusion is a solid-surface effect. The AO depth prepass already
@@ -263,11 +270,18 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   let far_face_darkness = select(0.0, clamp(g.shadow_detail.w, 0.0, 1.0), g.ao_v2.x > 0.5);
   let sun_facing = clamp(dot(normalize(in.normal), l), 0.0, 1.0);
   let far_face_weight = 1.0 - smoothstep(0.0, 0.72, sun_facing);
-  let far_face_floor = 1.0 - far_face_darkness * 0.98;
+  // Preserve a readable ambient floor on textured stone and other block faces.
+  // Even at maximum slider strength, far-face shading may reduce ambient fill by
+  // no more than 35%; direct sunlight and the original texture albedo stay intact.
+  let far_face_floor = 1.0 - far_face_darkness * 0.35;
   let far_face_ambient = mix(1.0, far_face_floor, far_face_weight);
-  let ambient = (0.43 + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
+  // Stone textures need a stronger neutral fill so their authored gray albedo
+  // remains readable instead of looking charcoal under otherwise direct light.
+  let ambient_base = select(0.43, 0.50, m.flags.z > 0.5);
+  let ambient = (ambient_base + 0.09 * max(n.y, 0.0)) * ao * geometry_ao * far_face_ambient;
   let fill = 0.06 * max(dot(n, v), 0.0) * far_face_ambient;
-  var color = kd * (ambient + fill + diff * visibility * 0.38 * g.effects.z);
+  let diffuse_response = select(0.38, 0.50, m.flags.z > 0.5);
+  var color = kd * (ambient + fill + diff * visibility * diffuse_response * g.effects.z);
   // Localized colored light moving on an elliptical world-space orbit, independent of camera and sun.
   let to_point = g.point_light.xyz - in.world;
   let point_distance = length(to_point);
