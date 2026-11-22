@@ -1,4 +1,11 @@
+export type VideoFormat = "mp4";
+export type VideoCodec = "h264" | "h265" | "av1" | "vp9";
+export type ExportOptimization = "balanced" | "faster" | "smaller";
+
 export interface StudioSettings {
+  format: VideoFormat;
+  codec: VideoCodec;
+  optimizeExport: ExportOptimization;
   resolution: "720p" | "1080p" | "1440p" | "2160p";
   aspect: "9:16" | "16:9" | "1:1" | "21:9" | "4:3" | "custom";
   customAspect: [number, number];
@@ -16,6 +23,9 @@ export interface StudioSettings {
 }
 
 export const defaultSettings: StudioSettings = {
+  format: "mp4",
+  codec: "h264",
+  optimizeExport: "balanced",
   resolution: "1080p",
   aspect: "9:16",
   customAspect: [16, 9],
