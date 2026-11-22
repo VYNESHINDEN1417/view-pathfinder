@@ -33,11 +33,11 @@ function Toggle({ label, checked, onChange, disabled }: { label: string; checked
   );
 }
 
-function BitrateControl({ value, onChange, disabled, duration, optimizeExport }: {
-  value: number; onChange: (value: number) => void; disabled: boolean; duration: number; optimizeExport: StudioSettings["optimizeExport"];
+function BitrateControl({ value, onChange, disabled, duration }: {
+  value: number; onChange: (value: number) => void; disabled: boolean; duration: number;
 }) {
   const presets = [12, 24, 40, 60, 80];
-  const estimatedMb = (value * duration * (optimizeExport === "smaller" ? 0.75 : 1)) / 8;
+  const estimatedMb = (value * duration) / 8;
   return (
     <div className="studio-setting-field studio-bitrate">
       <div className="studio-setting-inline">
@@ -124,19 +124,14 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
 
         {activeTab === "encoding" && <>
           <h3>Video Encoding</h3>
-          <Choice label="File format" value={s.format} disabled={locked}
-            onChange={(v) => { set("format", v); set("codec", v === "webm" ? "vp9" : "h264"); }}
-            options={[{ v: "mp4", l: "MP4" }, { v: "webm", l: "WebM" }]} />
           <Choice label="Video codec" value={s.codec} disabled={locked} onChange={(v) => set("codec", v)}
-            options={s.format === "webm"
-              ? [{ v: "vp8", l: "VP8" }, { v: "vp9", l: "VP9" }]
-              : [{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }]} />
-          <Choice label="Optimize export" value={s.optimizeExport} disabled={locked} onChange={(v) => set("optimizeExport", v)}
-            options={[{ v: "balanced", l: "Balanced" }, { v: "faster", l: "Faster" }, { v: "smaller", l: "Smaller file" }]} />
-          <p className="studio-setting-note">{s.format === "webm"
-            ? "WebM uses real-time browser recording. Faster lowers bitrate by 20%; Smaller file lowers it by 25%."
-            : "Codec availability depends on browser and device support. Faster prefers hardware encoding; Smaller file lowers target bitrate by 25%."}</p>
-          <BitrateControl value={s.bitrate} duration={s.duration} optimizeExport={s.optimizeExport} disabled={locked} onChange={(v) => set("bitrate", v)} />
+            options={[{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }]} />
+          <Toggle label="Faster export" checked={s.exportSpeed === "faster"}
+            onChange={(v) => set("exportSpeed", v ? "faster" : "standard")} disabled={locked} />
+          <p className="studio-setting-note">{s.exportSpeed === "faster"
+            ? "Uses a lower internal render resolution and prefers hardware video encoding. The saved video keeps your selected output resolution."
+            : "Standard export uses the viewport's full render resolution for maximum visual detail."}</p>
+          <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
           <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
         </>}
       </section>
