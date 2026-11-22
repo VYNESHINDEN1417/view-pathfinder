@@ -214,7 +214,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       }
     }
     if (!encoderConfig) {
-      setError(\`This browser or device does not support \${settings.codec.toUpperCase()} encoding at the selected resolution. Choose another codec or lower the resolution.\`);
+      setError(`This browser or device does not support ${settings.codec.toUpperCase()} encoding at the selected resolution. Choose another codec or lower the resolution.`);
       return;
     }
     const muxerCodec = codecChoices.muxer;
