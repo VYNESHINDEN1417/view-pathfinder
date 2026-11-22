@@ -202,20 +202,20 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         if (ok?.supported) { codec = c; break; }
       }
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Match the viewport's render resolution so depth-buffer AO and shadow
-    // sampling produce the same lighting in the export as the live preview.
-    // Supersampling changes screen-space depth coverage and can over-darken AO V2.
-    const renderScale = 1.0;
-    const renderWidth = Math.round(width * renderScale);
-    const renderHeight = Math.round(height * renderScale);
+    // Render at the viewport's existing drawing-buffer dimensions. The
+    // export delivery size can be much larger (e.g. 1080x1920 on a phone),
+    // which changes screen-space AO/depth sampling and can darken thin carpet
+    // surfaces. Scale the finished viewport-matched frame only after rendering.
+    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+    const renderWidth = Math.max(1, prev.w);
+    const renderHeight = Math.max(1, prev.h);
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = width; frameCanvas.height = height;
     const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
     if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
     // Preserve CSS-backed viewport backgrounds behind the transparent WebGPU canvas.
     const drawExportBackdrop = await prepareExportBackground(canvas, width, height);
-    // Restore the live view after the temporary high-resolution render.
-    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+    // Restore the live view after the temporary export render.
     const restore = () => {
       canvas.width = prev.w; canvas.height = prev.h;
       v.resize(prev.w, prev.h, prev.cw, prev.ch);
@@ -223,7 +223,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       v.set_point_orbit_visible(blueLightPanelOpen);
       schedule();
     };
-    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, renderWidth, renderHeight);
+    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, prev.cw, prev.ch);
     // Export uses the same Rust renderer and fully settled lighting as the viewport.
     // Rebuild cached sun shadows before the first frame so a recent azimuth change
     // cannot leak a stale/partially updated shadow map into the recording.
