@@ -71,8 +71,11 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     if (i >= count) { break; }
     let is_edge = i < edge_samples;
     let is_contact = i >= edge_samples && i < edge_samples + contact_samples;
-    let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact);
-    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact);
+    // AO V2 stays strictly local: broad overhang rays can turn unrelated depth
+    // samples into faint floating shadow boxes across open deck areas.
+    let ao_v2_local = g.ao_v2.x > 0.5 && g.effects.x < 0.5;
+    let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact || ao_v2_local);
+    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact || ao_v2_local);
     let angle = f32(i) * 2.399963;
     let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
     let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
