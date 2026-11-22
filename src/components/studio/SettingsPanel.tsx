@@ -68,6 +68,7 @@ const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
 
 export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set; locked: boolean }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("output");
+  const [showMoreRatios, setShowMoreRatios] = useState(false);
 
   return (
     <div className="studio-settings-folder" onPointerDown={(event) => event.stopPropagation()}>
@@ -102,12 +103,16 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
           <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
             options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
           <Choice label="Aspect ratio" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
-            options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }, { v: "custom", l: "Custom" }]} />
-          {s.aspect === "custom" && <div className="ratio-input studio-custom-ratio">
-            <input type="number" aria-label="Aspect width" min="1" disabled={locked} value={s.customAspect[0]} onChange={(e) => set("customAspect", [Number(e.target.value), s.customAspect[1]])} />
-            <span>:</span>
-            <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
-          </div>}
+            options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }]} />
+          <div className="studio-more-ratios">
+            <Button type="button" variant="ghost" disabled={locked} aria-expanded={showMoreRatios}
+              className="studio-more-ratios-trigger" onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => setShowMoreRatios((value) => !value)}>
+              {showMoreRatios ? "Fewer ratios" : "More ratios"} <span aria-hidden="true">{showMoreRatios ? "⌃" : "⌄"}</span>
+            </Button>
+            {showMoreRatios && <Choice label="Additional ratios" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
+              options={[{ v: "4:5", l: "4:5" }, { v: "3:4", l: "3:4" }, { v: "2:3", l: "2:3" }, { v: "5:4", l: "5:4" }, { v: "3:2", l: "3:2" }, { v: "16:10", l: "16:10" }, { v: "2:1", l: "2:1" }, { v: "32:9", l: "32:9" }]} />}
+          </div>
           <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
             options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
           <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
