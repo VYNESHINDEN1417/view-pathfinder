@@ -37,7 +37,7 @@ function BitrateControl({ value, onChange, disabled, duration }: {
   value: number; onChange: (value: number) => void; disabled: boolean; duration: number;
 }) {
   const presets = [12, 24, 40, 60, 80];
-  const estimatedMb = (value * duration) / 8;
+  const estimatedMb = (value * duration * (optimizeExport === "smaller" ? 0.75 : 1)) / 8;
   return (
     <div className="studio-setting-field studio-bitrate">
       <div className="studio-setting-inline">
@@ -132,7 +132,7 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
           <Choice label="Optimize export" value={s.optimizeExport} disabled={locked} onChange={(v) => set("optimizeExport", v)}
             options={[{ v: "balanced", l: "Balanced" }, { v: "faster", l: "Faster" }, { v: "smaller", l: "Smaller file" }]} />
           <p className="studio-setting-note">Faster prefers hardware encoding. Smaller file lowers the target bitrate by 25%.</p>
-          <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
+          <BitrateControl value={s.bitrate} duration={s.duration} optimizeExport={s.optimizeExport} disabled={locked} onChange={(v) => set("bitrate", v)} />
           <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
         </>}
       </section>
