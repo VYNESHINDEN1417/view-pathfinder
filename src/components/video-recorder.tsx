@@ -347,7 +347,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       {rs === "idle" || rs === "done" ? <>
         <div className="rounded-xl border border-border bg-card p-4 text-sm">
           <p className="font-semibold">Output</p>
-          <p className="mt-1 font-mono text-muted-foreground">{out.width}×{out.height} · {settings.fps} fps · {settings.duration}s · {totalFrames(settings.duration, settings.fps)} frames</p>
+          <p className="mt-1 font-mono text-muted-foreground">{settings.format.toUpperCase()} · {settings.codec.toUpperCase()} · {out.width}×{out.height} · {settings.fps} fps · {settings.duration}s · {totalFrames(settings.duration, settings.fps)} frames</p>
           {keys.length < 2 && <p className="mt-2 text-primary">Add at least 2 keyframes to render.</p>}
         </div>
         <button className="studio-btn-primary h-16 w-full text-lg" onClick={() => void startRender()} disabled={keys.length < 2}><Clapperboard className="size-6" />Start Rendering</button>
