@@ -84,7 +84,8 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
             tabIndex={activeTab === tab.id ? 0 : -1}
             className={`studio-settings-tab ${activeTab === tab.id ? "studio-settings-tab-active" : ""}`}
             data-active={activeTab === tab.id}
-            onPointerDown={(event) => event.stopPropagation()}\n            onClick={() => setActiveTab(tab.id)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
           </button>
