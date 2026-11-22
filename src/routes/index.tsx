@@ -201,8 +201,14 @@ function Index() {
         raf = requestAnimationFrame((time) => {
           raf = 0;
           if (!viewer) return;
-          viewer.animate(time);
-          viewer.frame();
+          try {
+            viewer.animate(time);
+            viewer.frame();
+          } catch (error) {
+            console.warn("Viewer frame failed; rebuilding renderer:", error);
+            restartViewerRef.current();
+            return;
+          }
           const nextRotation = Array.from(viewer.camera_rotation());
           if (nextRotation.some((value, index) => Math.abs(value - lastRotation[index]) > 1e-5)) {
             lastRotation = nextRotation;
@@ -456,6 +462,8 @@ function Index() {
   };
 
   const uploadModel = async (file: File) => {
+    clearAssetByteCache();
+    restartCameraPoseRef.current = null;
     setUploading(true); setUploadError("");
     try {
       const archive = await readModelArchive(file, () => {});
@@ -498,13 +506,13 @@ function Index() {
           <Button className="scene-picker-option scene-picker-upload" onClick={() => fileRef.current?.click()} disabled={uploading}>
             <span className="scene-picker-option-icon">↑</span><span><strong>{uploading ? "Preparing model..." : "Add your own model"}</strong><small>Upload a model ZIP with its textures</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("wisconsin"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId("wisconsin"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">W</span><span><strong>Wisconsin</strong><small>USS Wisconsin · BB-64</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(false); setBuiltInId("iowa"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId("iowa"); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">I</span><span><strong>Iowa</strong><small>USS Iowa · BB-61</small></span>
           </Button>
-          <Button className="scene-picker-option" variant="secondary" onClick={() => { setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
+          <Button className="scene-picker-option" variant="secondary" onClick={() => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(true); setSceneSelected(true); setAttempt((value) => value + 1); }}>
             <span className="scene-picker-option-icon">＋</span><span><strong>Basic scene</strong><small>A classic Minecraft grass block in a clean workspace</small></span>
           </Button>
         </div>
@@ -528,7 +536,7 @@ function Index() {
       onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
-      onModel={(id) => { setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
+      onModel={(id) => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       ironTrapdoorBrightness={ironTrapdoorBrightness} onIronTrapdoorBrightness={(value) => void applyIronTrapdoorBrightness(value)}
