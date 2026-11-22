@@ -202,9 +202,10 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
         if (ok?.supported) { codec = c; break; }
       }
     if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Render above delivery resolution, then downsample once. This improves coverage
-    // of sub-pixel rigging (bars, chains, rails) without changing encoded dimensions.
-    const renderScale = 1.5;
+    // Match the viewport's render resolution so depth-buffer AO and shadow
+    // sampling produce the same lighting in the export as the live preview.
+    // Supersampling changes screen-space depth coverage and can over-darken AO V2.
+    const renderScale = 1.0;
     const renderWidth = Math.round(width * renderScale);
     const renderHeight = Math.round(height * renderScale);
     const frameCanvas = document.createElement("canvas");
