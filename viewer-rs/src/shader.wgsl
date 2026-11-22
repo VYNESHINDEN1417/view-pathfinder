@@ -39,23 +39,12 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
   let edge_reach = reach * 0.18;
   let contact_reach = reach * 0.42;
   let broad_reach = reach * 2.0;
-  let center = g.view_proj * vec4<f32>(world, 1.0);
-  // Estimate a conservative screen-space radius from all three world axes.
-  // Using only world-X makes the sampling footprint collapse or stretch as the
-  // camera rotates, which can associate unrelated deck pixels with this surface.
-  let edge_x = g.view_proj * vec4<f32>(world + vec3<f32>(edge_reach, 0.0, 0.0), 1.0);
-  let edge_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, edge_reach, 0.0), 1.0);
-  let edge_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, edge_reach), 1.0);
-  let contact_x = g.view_proj * vec4<f32>(world + vec3<f32>(contact_reach, 0.0, 0.0), 1.0);
-  let contact_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, contact_reach, 0.0), 1.0);
-  let contact_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, contact_reach), 1.0);
-  let broad_x = g.view_proj * vec4<f32>(world + vec3<f32>(broad_reach, 0.0, 0.0), 1.0);
-  let broad_y = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, broad_reach, 0.0), 1.0);
-  let broad_z = g.view_proj * vec4<f32>(world + vec3<f32>(0.0, 0.0, broad_reach), 1.0);
-  let center_ndc = center.xy / center.w;
-  let edge_radius_px = max(max(length((edge_x.xy / edge_x.w - center_ndc) * size * 0.5), length((edge_y.xy / edge_y.w - center_ndc) * size * 0.5)), length((edge_z.xy / edge_z.w - center_ndc) * size * 0.5));
-  let contact_radius_px = max(max(length((contact_x.xy / contact_x.w - center_ndc) * size * 0.5), length((contact_y.xy / contact_y.w - center_ndc) * size * 0.5)), length((contact_z.xy / contact_z.w - center_ndc) * size * 0.5));
-  let broad_radius_px = max(max(length((broad_x.xy / broad_x.w - center_ndc) * size * 0.5), length((broad_y.xy / broad_y.w - center_ndc) * size * 0.5)), length((broad_z.xy / broad_z.w - center_ndc) * size * 0.5));
+  // Build a deterministic hemisphere around the receiving surface in world space.
+  // Sampling points are projected only to locate their depth pixels; the AO radius
+  // itself never comes from a camera-dependent screen-space radius.
+  let helper_axis = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.y) > 0.95);
+  let tangent = normalize(cross(helper_axis, normal));
+  let bitangent = normalize(cross(normal, tangent));
 
   var blocked_vertical_edge = 0.0;
   var blocked_horizontal_edge = 0.0;
@@ -75,35 +64,46 @@ fn ambient_occlusion(pixel: vec2<f32>, world: vec3<f32>, normal: vec3<f32>) -> f
     // samples into faint floating shadow boxes across open deck areas.
     let ao_v2_local = g.ao_v2.x > 0.5 && g.effects.x < 0.5;
     let sample_reach = select(broad_reach, select(contact_reach, edge_reach, is_edge), is_edge || is_contact || ao_v2_local);
-    let sample_radius_px = select(broad_radius_px, select(contact_radius_px, edge_radius_px, is_edge), is_edge || is_contact || ao_v2_local);
     let angle = f32(i) * 2.399963;
     let radial = 0.35 + 0.65 * f32(i + 1u) / f32(count);
-    let offset = vec2<f32>(cos(angle), sin(angle)) * sample_radius_px * radial;
-    let coord = vec2<i32>(clamp(pixel + offset, vec2<f32>(0.0), size - 1.0));
-    let depth = textureLoad(scene_depth, coord, 0);
-    if (depth < 0.99999) {
-      let uv = (vec2<f32>(coord) + 0.5) / size;
-      let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
-      let delta = reconstructed.xyz / reconstructed.w - world;
-      let distance = length(delta);
-      // Overhang shading must remain local to the receiving surface. The old
-      // 2.4x broad-distance allowance let distant, unrelated geometry create
-      // large floating patches across open deck areas.
-      let max_distance = sample_reach * select(1.15, select(1.7, 1.22, ao_v2_local), is_contact || is_edge);
-      let fade_start = sample_reach * select(0.55, 0.28, is_contact || is_edge);
-      if (distance > sample_reach * 0.035 && distance < max_distance) {
-        let facing_threshold = select(0.06, 0.14, ao_v2_local);
-        let facing = max(dot(normal, delta / distance) - facing_threshold, 0.0);
-        let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
-        let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
-        let contribution = facing * fade * scale_weight;
-        if (is_edge) {
-          // Classify blocker direction in model space, independent of camera orbit.
-          let vertical_weight = smoothstep(0.35, 0.85, abs(delta.y) / max(distance, 0.0001));
-          blocked_vertical_edge += contribution * vertical_weight;
-          blocked_horizontal_edge += contribution * (1.0 - vertical_weight);
-        } else if (is_contact) { blocked_contact += contribution; }
-        else { blocked_overhang += contribution; }
+    let hemisphere_cos = (f32(i) + 0.5) / f32(count);
+    let hemisphere_sin = sqrt(max(1.0 - hemisphere_cos * hemisphere_cos, 0.0));
+    let ray_direction = normalize(
+      tangent * (cos(angle) * hemisphere_sin)
+      + bitangent * (sin(angle) * hemisphere_sin)
+      + normal * hemisphere_cos
+    );
+    let sample_world = world + ray_direction * sample_reach * radial;
+    let sample_clip = g.view_proj * vec4<f32>(sample_world, 1.0);
+    if (sample_clip.w > 0.0001) {
+      let sample_ndc = sample_clip.xy / sample_clip.w;
+      let sample_uv = sample_ndc * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5);
+      if (all(sample_uv > vec2<f32>(0.0)) && all(sample_uv < vec2<f32>(1.0))) {
+        let coord = clamp(vec2<i32>(sample_uv * size), vec2<i32>(0), vec2<i32>(size) - vec2<i32>(1));
+        let depth = textureLoad(scene_depth, coord, 0);
+        if (depth < 0.99999) {
+          let uv = (vec2<f32>(coord) + 0.5) / size;
+          let reconstructed = g.inverse_vp * vec4<f32>(uv * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), depth, 1.0);
+          let delta = reconstructed.xyz / reconstructed.w - world;
+          let distance = length(delta);
+          // Reject unrelated depth hits using a fixed world-space radius.
+          let max_distance = sample_reach * select(1.15, select(1.7, 1.22, ao_v2_local), is_contact || is_edge);
+          let fade_start = sample_reach * select(0.55, 0.28, is_contact || is_edge);
+          if (distance > sample_reach * 0.035 && distance < max_distance) {
+            let facing_threshold = select(0.06, 0.14, ao_v2_local);
+            let facing = max(dot(normal, delta / distance) - facing_threshold, 0.0);
+            let fade = 1.0 - smoothstep(fade_start, max_distance, distance);
+            let scale_weight = select(0.86, select(0.70, 0.62, is_edge), is_contact || is_edge);
+            let contribution = facing * fade * scale_weight;
+            if (is_edge) {
+              // Split edge controls by the blocker direction in model space.
+              let vertical_weight = smoothstep(0.35, 0.85, abs(delta.y) / max(distance, 0.0001));
+              blocked_vertical_edge += contribution * vertical_weight;
+              blocked_horizontal_edge += contribution * (1.0 - vertical_weight);
+            } else if (is_contact) { blocked_contact += contribution; }
+            else { blocked_overhang += contribution; }
+          }
+        }
       }
     }
   }
@@ -242,12 +242,13 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
     textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
-  // Directional shadow-map shading belongs to Fancy Graphics. AO V2 has its
-  // own screen-space depth-ray occlusion; applying the shadow map while Fancy
-  // is off can falsely classify sun-facing stone faces as fully shadowed.
-  let shadow_strength = select(1.0, g.shadow.x * g.shadow.y, g.effects.x > 0.5);
+  // Directional sun shadows are available with either Fancy Graphics or AO V2.
+  // AO V2 replaces ambient-occlusion shading, not the directional shadow map.
+  // Keep the existing shadow strength and render-mode gates shared by both.
+  let directional_shadows_active = g.effects.x > 0.5 || g.ao_v2.x > 0.5;
+  let shadow_strength = select(1.0, g.shadow.x * g.shadow.y, directional_shadows_active);
   var visibility = clamp(1.0 - (1.0 - shadow) * shadow_strength, 0.0, 1.0);
-  let shadows_enabled = g.effects.x > 0.5 && ((g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5);
+  let shadows_enabled = directional_shadows_active && ((g.screen.w > 0.5 && g.screen.w < 1.5) || g.screen.w > 2.5);
   if (!shadows_enabled || any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) || ndc.z < 0.0 || ndc.z > 1.0) { visibility = 1.0; }
   // A generous neutral sky floor keeps shaded blocks readable. Background never enters this path.
   // Ambient occlusion is a solid-surface effect. The AO depth prepass already
