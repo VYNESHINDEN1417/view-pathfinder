@@ -133,7 +133,9 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
               : [{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }]} />
           <Choice label="Optimize export" value={s.optimizeExport} disabled={locked} onChange={(v) => set("optimizeExport", v)}
             options={[{ v: "balanced", l: "Balanced" }, { v: "faster", l: "Faster" }, { v: "smaller", l: "Smaller file" }]} />
-          <p className="studio-setting-note">Codec availability depends on browser and device support. Faster prefers hardware encoding; Smaller file lowers target bitrate by 25%.</p>
+          <p className="studio-setting-note">{s.format === "webm"
+            ? "WebM uses real-time browser recording. Faster lowers bitrate by 20%; Smaller file lowers it by 25%."
+            : "Codec availability depends on browser and device support. Faster prefers hardware encoding; Smaller file lowers target bitrate by 25%."}</p>
           <BitrateControl value={s.bitrate} duration={s.duration} optimizeExport={s.optimizeExport} disabled={locked} onChange={(v) => set("bitrate", v)} />
           <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
         </>}
