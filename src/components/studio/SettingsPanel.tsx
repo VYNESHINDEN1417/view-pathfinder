@@ -58,12 +58,11 @@ function BitrateControl({ value, onChange, disabled, duration }: {
   );
 }
 
-type SettingsTab = "output" | "camera" | "lighting" | "encoding";
+type SettingsTab = "output" | "camera" | "encoding";
 
 const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: "output", label: "Output" },
   { id: "camera", label: "Camera" },
-  { id: "lighting", label: "Lighting" },
   { id: "encoding", label: "Encoding" },
 ];
 
@@ -112,6 +111,7 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
           <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
             options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
           <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
+          <Toggle label="Real-time shadows" checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
         </>}
 
         {activeTab === "camera" && <>
@@ -120,11 +120,6 @@ export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set;
             options={[{ v: 4, l: "4s" }, { v: 6, l: "6s" }, { v: 10, l: "10s" }, { v: 15, l: "15s" }, { v: 30, l: "30s" }, { v: 60, l: "1m" }]} />
           <Toggle label="Smooth easing" checked={s.smoothing} onChange={(v) => set("smoothing", v)} disabled={locked} />
           <Toggle label="Loop preview" checked={s.loop} onChange={(v) => set("loop", v)} />
-        </>}
-
-        {activeTab === "lighting" && <>
-          <h3>Lighting</h3>
-          <Toggle label="Real-time shadows" checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
         </>}
 
         {activeTab === "encoding" && <>
