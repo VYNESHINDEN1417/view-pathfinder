@@ -235,8 +235,30 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     setRs("rendering"); setTab("render");
     const target = new ArrayBufferTarget();
     const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
+    // H.264 SDR output is tagged as BT.709 limited-range unless the encoder
+    // explicitly reports another output space. mp4-muxer writes the MP4 "colr"
+    // atom only when decoderConfig.colorSpace is present.
+    const fallbackVideoColorSpace = {
+      primaries: "bt709" as const,
+      transfer: "bt709" as const,
+      matrix: "bt709" as const,
+      fullRange: false,
+    };
     let encErr: unknown = null;
-    const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (er) => { encErr = er; } });
+    const enc = new VideoEncoder({
+      output: (chunk, metadata) => {
+        const decoderConfig = metadata?.decoderConfig;
+        if (decoderConfig && !decoderConfig.colorSpace) {
+          muxer.addVideoChunk(chunk, {
+            ...metadata,
+            decoderConfig: { ...decoderConfig, colorSpace: fallbackVideoColorSpace },
+          });
+        } else {
+          muxer.addVideoChunk(chunk, metadata);
+        }
+      },
+      error: (er) => { encErr = er; },
+    });
     enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
     const us = 1e6 / settings.fps;
     const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
@@ -259,7 +281,12 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       drawExportBackdrop?.(frameContext);
       frameContext.drawImage(canvas, 0, 0, width, height);
       const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
-      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
+      const vf = new VideoFrame(frameSource, {
+        timestamp: Math.round(f * us),
+        duration: Math.round(us),
+        // The composited frame canvas contains SDR sRGB pixels.
+        colorSpace: { primaries: "bt709", transfer: "iec61966-2-1", matrix: "rgb", fullRange: true },
+      });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
       while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
