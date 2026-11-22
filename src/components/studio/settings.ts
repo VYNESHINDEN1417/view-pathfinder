@@ -1,4 +1,4 @@
-export type VideoCodec = "h264" | "h265" | "av1" | "vp8" | "vp9";
+export type VideoCodec = "h264" | "h265" | "av1";
 export type ExportSpeed = "standard" | "faster";
 
 export interface StudioSettings {
