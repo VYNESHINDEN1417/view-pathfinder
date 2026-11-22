@@ -140,7 +140,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     const renderHeight = Math.round(height * renderScale);
     const frameCanvas = document.createElement("canvas");
     frameCanvas.width = width; frameCanvas.height = height;
-    const frameContext = frameCanvas.getContext("2d", { alpha: true });
+    const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
     if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
     // Restore the live view after the temporary high-resolution render.
     const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
@@ -187,7 +187,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       frameContext.clearRect(0, 0, width, height);
       frameContext.drawImage(canvas, 0, 0, width, height);
       const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
-      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us) });
+      const vf = new VideoFrame(frameSource, { timestamp: Math.round(f * us), duration: Math.round(us), alpha: "discard" });
       enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
       vf.close();
       while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
