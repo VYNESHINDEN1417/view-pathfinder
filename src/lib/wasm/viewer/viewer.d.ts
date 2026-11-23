@@ -55,8 +55,6 @@ export class Viewer {
     roll(angle: number): void;
     set_ao_v2_contact_strength(strength: number): void;
     set_ao_v2_enabled(enabled: boolean): void;
-    /** Temporarily disable expensive viewport effects while the camera is moving. */
-    set_interactive_preview(enabled: boolean): void;
     /**
      * 0 = grey gradient, 1 = white, 2 = green, 3 = transparent, 4 = uploaded image.
      */
