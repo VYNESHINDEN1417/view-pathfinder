@@ -174,8 +174,12 @@ function Index() {
   };
   const noteCameraMotion = () => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
-    if (aoV2Enabled && adaptivePreview) applyAdaptiveScale(0.68);
+    const viewer = viewerRef.current;
+    const useInteractiveProfile = aoV2Enabled && adaptivePreview;
+    viewer?.set_interactive_preview(useInteractiveProfile);
+    if (useInteractiveProfile) applyAdaptiveScale(0.68);
     adaptiveTimerRef.current = setTimeout(() => {
+      viewerRef.current?.set_interactive_preview(false);
       applyAdaptiveScale(1);
       adaptiveTimerRef.current = null;
     }, 180);
@@ -199,6 +203,7 @@ function Index() {
     if (!aoV2Enabled || !adaptivePreview) {
       if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
       adaptiveTimerRef.current = null;
+      viewerRef.current?.set_interactive_preview(false);
       applyAdaptiveScale(1);
     }
   }, [aoV2Enabled, adaptivePreview]);
