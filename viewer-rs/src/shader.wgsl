@@ -236,11 +236,14 @@ fn fs_main(in: VsOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f
   // controls world-space edge precision; filtering stays sub-texel.
   let step = vec2<f32>(select(0.5, 0.75, g.effects.x > 0.5)) / vec2<f32>(textureDimensions(shadow_tex));
   let depth = ndc.z - 0.0015;
-  let shadow = 0.25 * (
-    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x, -step.y), depth) +
-    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x, -step.y), depth) +
-    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
-    textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
+  var shadow = 1.0;
+  if (g.ao_v2.z < 0.5) {
+    shadow = 0.25 * (
+      textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x, -step.y), depth) +
+      textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x, -step.y), depth) +
+      textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>(-step.x,  step.y), depth) +
+      textureSampleCompare(shadow_tex, shadow_samp, uv + vec2<f32>( step.x,  step.y), depth));
+  }
   if (m.flags.x > 0.5 && t.a * m.diffuse.a < 0.3) { discard; }
   // Directional sun shadows are available with either Fancy Graphics or AO V2.
   // AO V2 replaces ambient-occlusion shading, not the directional shadow map.
