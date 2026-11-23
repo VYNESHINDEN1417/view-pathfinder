@@ -178,13 +178,13 @@ function Index() {
       viewerRef.current?.set_interactive_preview(false);
       applyAdaptiveScale(1);
       adaptiveTimerRef.current = null;
-    }, 180);
+    }, 500);
   };
   const noteCameraMotion = () => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
     const useInteractiveProfile = aoV2Enabled && adaptivePreview;
     viewerRef.current?.set_interactive_preview(useInteractiveProfile);
-    if (useInteractiveProfile) applyAdaptiveScale(0.68);
+    if (useInteractiveProfile) applyAdaptiveScale(0.20);
     settleCameraMotion();
   };
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
