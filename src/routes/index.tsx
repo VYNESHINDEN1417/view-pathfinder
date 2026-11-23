@@ -154,7 +154,32 @@ function Index() {
   const [blueLightEnabled, setBlueLightEnabled] = useState(false);
   const [aoV2Enabled, setAoV2Enabled] = useState(false);
   const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
-  const [noiseReduction, setNoiseReduction] = useState(false);
+  const [noiseReduction, setNoiseReduction] = useState(false); // Export denoising remains independent.
+  const [adaptivePreview, setAdaptivePreview] = useState(true);
+  const adaptiveScaleRef = useRef(1);
+  const adaptiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyAdaptiveScale = (scale: number) => {
+    const canvas = ref.current;
+    const viewer = viewerRef.current;
+    if (!canvas || !viewer || adaptiveScaleRef.current === scale) return;
+    adaptiveScaleRef.current = scale;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5) * scale;
+    const width = Math.max(1, Math.round(rect.width * dpr));
+    const height = Math.max(1, Math.round(rect.height * dpr));
+    canvas.width = width;
+    canvas.height = height;
+    viewer.resize(width, height, rect.width, rect.height);
+    scheduleRef.current();
+  };
+  const noteCameraMotion = () => {
+    if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
+    if (aoV2Enabled && adaptivePreview) applyAdaptiveScale(0.68);
+    adaptiveTimerRef.current = setTimeout(() => {
+      applyAdaptiveScale(1);
+      adaptiveTimerRef.current = null;
+    }, 180);
+  };
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
@@ -170,6 +195,13 @@ function Index() {
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
   const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength });
+  useEffect(() => {
+    if (!aoV2Enabled || !adaptivePreview) {
+      if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
+      adaptiveTimerRef.current = null;
+      applyAdaptiveScale(1);
+    }
+  }, [aoV2Enabled, adaptivePreview]);
   useEffect(() => {
     settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength };
     const viewer = viewerRef.current;
@@ -550,7 +582,9 @@ function Index() {
       </div>
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
-      <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model" />
+      <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model"
+        onPointerDown={noteCameraMotion} onPointerMove={(event) => { if (event.buttons !== 0) noteCameraMotion(); }}
+        onPointerUp={noteCameraMotion} onPointerCancel={noteCameraMotion} onWheel={noteCameraMotion} />
       {studioLayout.open && frameRatio > 0 && <div className="viewer-crop-guide" style={{ "--frame-ratio": frameRatio } as CSSProperties} aria-hidden="true" />}
       {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
         <div className="viewer-recovery-card">
@@ -570,14 +604,14 @@ function Index() {
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic} rotation={rotation}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
-      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={(enabled) => { setAoV2Enabled(enabled); if (enabled) setAdaptivePreview(true); }} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} adaptivePreview={adaptivePreview} onAdaptivePreviewChange={setAdaptivePreview}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       ironTrapdoorBrightness={ironTrapdoorBrightness} onIronTrapdoorBrightness={(value) => void applyIronTrapdoorBrightness(value)}
-      shadowMode={options.shadowMode} blueLightPanelOpen={blueLightPanelOpen} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
+      shadowMode={options.shadowMode} blueLightPanelOpen={blueLightPanelOpen} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
       onLayout={setStudioLayout}
       name={model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
     {sceneSelected && <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
