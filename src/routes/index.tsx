@@ -156,6 +156,10 @@ function Index() {
   const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
   const [noiseReduction, setNoiseReduction] = useState(false); // Export denoising remains independent.
   const [adaptivePreview, setAdaptivePreview] = useState(true);
+  // Native pointer listeners are installed once when the viewer initializes.
+  // Keep their adaptive-preview settings current without rebuilding the viewer.
+  const adaptiveConfigRef = useRef({ aoV2Enabled, adaptivePreview });
+  adaptiveConfigRef.current = { aoV2Enabled, adaptivePreview };
   const adaptiveScaleRef = useRef(1);
   const adaptiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const applyAdaptiveScale = (scale: number) => {
@@ -181,7 +185,8 @@ function Index() {
   const noteCameraMotion = (held = false) => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
     adaptiveTimerRef.current = null;
-    const useInteractiveProfile = aoV2Enabled && adaptivePreview;
+    const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled } = adaptiveConfigRef.current;
+    const useInteractiveProfile = aoEnabled && previewEnabled;
     viewerRef.current?.set_interactive_preview(useInteractiveProfile);
     if (useInteractiveProfile) applyAdaptiveScale(0.05);
     // Pointer drags stay in preview mode until the final pointer is released.
