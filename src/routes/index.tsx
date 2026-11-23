@@ -174,18 +174,21 @@ function Index() {
   };
   const settleCameraMotion = () => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
-    adaptiveTimerRef.current = setTimeout(() => {
-      viewerRef.current?.set_interactive_preview(false);
-      applyAdaptiveScale(1);
-      adaptiveTimerRef.current = null;
-    }, 500);
+    adaptiveTimerRef.current = null;
+    viewerRef.current?.set_interactive_preview(false);
+    applyAdaptiveScale(1);
   };
-  const noteCameraMotion = () => {
+  const noteCameraMotion = (held = false) => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
+    adaptiveTimerRef.current = null;
     const useInteractiveProfile = aoV2Enabled && adaptivePreview;
     viewerRef.current?.set_interactive_preview(useInteractiveProfile);
-    if (useInteractiveProfile) applyAdaptiveScale(0.20);
-    settleCameraMotion();
+    if (useInteractiveProfile) applyAdaptiveScale(0.05);
+    // Pointer drags stay in preview mode until the final pointer is released.
+    // Discrete inputs such as wheel and gizmo actions get a brief settle window.
+    if (!held) {
+      adaptiveTimerRef.current = setTimeout(settleCameraMotion, 120);
+    }
   };
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
@@ -440,6 +443,7 @@ function Index() {
       // aspect-ratio canvas. Route gestures through it so those bars remain draggable.
       const inputSurface = canvas.parentElement ?? canvas;
       const tapOrigins = new Map<number, boolean>();
+      const activeCameraPointers = new Set<number>();
       const on = <K extends keyof HTMLElementEventMap>(
         t: K,
         f: (e: HTMLElementEventMap[K]) => void,
@@ -451,17 +455,22 @@ function Index() {
       on("pointerdown", (e) => {
         e.preventDefault();
         tapOrigins.set(e.pointerId, e.target === canvas);
+        activeCameraPointers.add(e.pointerId);
+        noteCameraMotion(true);
         inputSurface.setPointerCapture(e.pointerId);
         v.pointer_down(e.pointerId, e.clientX, e.clientY, e.pointerType === "mouse" ? e.button : 0);
       });
       on("pointermove", (e) => {
         v.pointer_move(e.pointerId, e.clientX, e.clientY);
+        if (e.buttons !== 0) noteCameraMotion(true);
         if (v.needs_redraw()) schedule();
       });
       on("pointerup", (e) => {
         const startedOnCanvas = tapOrigins.get(e.pointerId) === true;
         tapOrigins.delete(e.pointerId);
+        activeCameraPointers.delete(e.pointerId);
         const r = v.pointer_up(e.pointerId, e.clientX, e.clientY, performance.now());
+        if (activeCameraPointers.size === 0) settleCameraMotion();
         if (r === 1 && startedOnCanvas && !document.fullscreenElement) {
           const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
           try {
@@ -473,9 +482,15 @@ function Index() {
         }
         schedule();
       });
-      on("pointercancel", (e) => { tapOrigins.delete(e.pointerId); v.pointer_cancel(e.pointerId); });
+      on("pointercancel", (e) => {
+        tapOrigins.delete(e.pointerId);
+        activeCameraPointers.delete(e.pointerId);
+        v.pointer_cancel(e.pointerId);
+        if (activeCameraPointers.size === 0) settleCameraMotion();
+      });
       on("wheel", (e) => {
         e.preventDefault();
+        noteCameraMotion();
         const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
         v.wheel(e.deltaY * k);
         schedule();
@@ -594,9 +609,7 @@ function Index() {
       </div>
     </div>}
     <div className="viewer-stage" aria-label="Scene viewport">
-      <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model"
-        onPointerDown={noteCameraMotion} onPointerMove={(event) => { if (event.buttons !== 0) noteCameraMotion(); }}
-        onPointerUp={settleCameraMotion} onPointerCancel={settleCameraMotion} onWheel={noteCameraMotion} />
+      <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model" />
       {studioLayout.open && frameRatio > 0 && <div className="viewer-crop-guide" style={{ "--frame-ratio": frameRatio } as CSSProperties} aria-hidden="true" />}
       {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
         <div className="viewer-recovery-card">
