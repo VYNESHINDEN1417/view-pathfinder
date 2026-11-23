@@ -155,7 +155,6 @@ function Index() {
   const [aoV2Enabled, setAoV2Enabled] = useState(false);
   const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
   const [noiseReduction, setNoiseReduction] = useState(false);
-  const [noiseReduction, setNoiseReduction] = useState(false);
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
