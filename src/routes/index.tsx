@@ -153,7 +153,9 @@ function Index() {
   const [blueLightPanelOpen, setBlueLightPanelOpen] = useState(false);
   const [blueLightEnabled, setBlueLightEnabled] = useState(false);
   const [aoV2Enabled, setAoV2Enabled] = useState(false);
-  const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);\n  const [noiseReduction, setNoiseReduction] = useState(false);
+  const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
+  const [noiseReduction, setNoiseReduction] = useState(false);
+  const [noiseReduction, setNoiseReduction] = useState(false);
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
   const ratio = options.aspect === "custom" ? parseRatio(options.custom[0], options.custom[1]) : (ASPECTS.find((a) => a.id === options.aspect)?.ratio ?? 0);
@@ -569,14 +571,14 @@ function Index() {
       onTwist={(a) => { viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic} rotation={rotation}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
-      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={setAoV2Enabled} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
       onProjection={() => setOrthographic((value) => !value)} onSave={() => void saveImage()} />}
     {loading.ready && <VideoRecorder getViewer={() => viewerRef.current} getCanvas={() => ref.current} schedule={() => scheduleRef.current()}
       ironTrapdoorBrightness={ironTrapdoorBrightness} onIronTrapdoorBrightness={(value) => void applyIronTrapdoorBrightness(value)}
-      shadowMode={options.shadowMode} blueLightPanelOpen={blueLightPanelOpen} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
+      shadowMode={options.shadowMode} blueLightPanelOpen={blueLightPanelOpen} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction} noiseReduction={noiseReduction} onNoiseReductionChange={setNoiseReduction}
       onLayout={setStudioLayout}
       name={model?.name ?? (emptyScene ? "Basic scene" : BUILT_IN_MODELS.find((m) => m.id === builtInId)?.name) ?? "VYNESHINDEN"} />}
     {sceneSelected && <div className={`loading-overlay ${loading.ready ? "loading-complete" : ""}`} aria-live="polite">
