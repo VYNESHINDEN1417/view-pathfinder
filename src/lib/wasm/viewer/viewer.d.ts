@@ -68,6 +68,11 @@ export class Viewer {
     set_camera_pose(p: Float32Array): void;
     set_fancy(enabled: boolean, quality: number): void;
     /**
+     * Temporarily use a cheaper renderer profile while the camera is moving.
+     * Geometry, textures, materials and camera transforms remain unchanged.
+     */
+    set_interactive_preview(enabled: boolean): void;
+    /**
      * Adjust model exposure only; backgrounds are invariant.
      */
     set_light(intensity: number): void;
@@ -145,6 +150,7 @@ export interface InitOutput {
     readonly viewer_set_background_image: (a: number, b: number, c: number) => number;
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
+    readonly viewer_set_interactive_preview: (a: number, b: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
     readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
