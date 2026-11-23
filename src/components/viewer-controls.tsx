@@ -252,7 +252,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
       {denoiseMenuOpen && <div className="absolute right-0 top-full z-50 mt-2 min-w-[190px] rounded-lg border border-white/10 bg-zinc-950 p-3 text-white shadow-xl" role="group" aria-label="Denoising shortcut">
         <div className="mb-2 text-xs font-semibold tracking-wide text-white/65">RENDER QUALITY</div>
         <button type="button" role="switch" aria-checked={adaptivePreview} onClick={() => onAdaptivePreviewChange(!adaptivePreview)} className="flex w-full items-center justify-between gap-4 rounded-md px-1 py-2 text-sm hover:bg-white/5">
-          <span>Denoising</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${noiseReduction ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/55"}`}>{noiseReduction ? "ON" : "OFF"}</span>
+          <span>Denoising</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${adaptivePreview ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/55"}`}>{adaptivePreview ? "ON" : "OFF"}</span>
         </button>
         <div className="mt-1 text-[10px] leading-relaxed text-white/45">Uses a reduced-resolution live preview while rotating, then restores full clarity when the camera settles.</div>
         <button type="button" className="mt-2 w-full border-t border-white/10 pt-2 text-left text-xs text-white/55" onClick={() => setDenoiseMenuOpen(false)}>Close</button>
