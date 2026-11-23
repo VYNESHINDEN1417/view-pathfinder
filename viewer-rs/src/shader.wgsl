@@ -380,3 +380,9 @@ fn fs_bg(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   let bottom = vec3<f32>(0.0, 0.0, 0.0);
   return vec4<f32>(mix(bottom, top, t * t * (3.0 - 2.0 * t)), 1.0);
 }
+
+@fragment
+fn fs_model_composite(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+  let uv = pos.xy / max(g.screen.xy, vec2<f32>(1.0));
+  return textureSample(bg_tex, bg_samp, uv);
+}

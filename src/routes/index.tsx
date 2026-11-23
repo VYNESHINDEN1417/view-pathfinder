@@ -162,38 +162,45 @@ function Index() {
   adaptiveConfigRef.current = { aoV2Enabled, adaptivePreview };
   const adaptiveScaleRef = useRef(1);
   const adaptiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const adaptiveRafRef = useRef<number | null>(null);
   const applyAdaptiveScale = (scale: number) => {
-    const canvas = ref.current;
     const viewer = viewerRef.current;
-    if (!canvas || !viewer || adaptiveScaleRef.current === scale) return;
+    if (!viewer) return;
     adaptiveScaleRef.current = scale;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5) * scale;
-    const width = Math.max(1, Math.round(rect.width * dpr));
-    const height = Math.max(1, Math.round(rect.height * dpr));
-    canvas.width = width;
-    canvas.height = height;
-    viewer.resize(width, height, rect.width, rect.height);
+    viewer.set_interactive_preview_scale(scale);
     scheduleRef.current();
   };
   const settleCameraMotion = () => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
     adaptiveTimerRef.current = null;
-    viewerRef.current?.set_interactive_preview(false);
-    applyAdaptiveScale(1);
+    if (adaptiveRafRef.current !== null) cancelAnimationFrame(adaptiveRafRef.current);
+    const startedAt = performance.now();
+    const startScale = adaptiveScaleRef.current;
+    const recover = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / 1500);
+      const eased = 1 - Math.pow(1 - t, 3);
+      applyAdaptiveScale(startScale + (1 - startScale) * eased);
+      if (t < 1) adaptiveRafRef.current = requestAnimationFrame(recover);
+      else {
+        adaptiveRafRef.current = null;
+        viewerRef.current?.set_interactive_preview(false);
+        adaptiveScaleRef.current = 1;
+      }
+    };
+    adaptiveRafRef.current = requestAnimationFrame(recover);
   };
   const noteCameraMotion = (held = false) => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
     adaptiveTimerRef.current = null;
+    if (adaptiveRafRef.current !== null) cancelAnimationFrame(adaptiveRafRef.current);
+    adaptiveRafRef.current = null;
     const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled } = adaptiveConfigRef.current;
     const useInteractiveProfile = aoEnabled && previewEnabled;
-    viewerRef.current?.set_interactive_preview(useInteractiveProfile);
     if (useInteractiveProfile) applyAdaptiveScale(0.05);
+    else applyAdaptiveScale(1);
     // Pointer drags stay in preview mode until the final pointer is released.
     // Discrete inputs such as wheel and gizmo actions get a brief settle window.
-    if (!held) {
-      adaptiveTimerRef.current = setTimeout(settleCameraMotion, 120);
-    }
+    if (!held) adaptiveTimerRef.current = setTimeout(settleCameraMotion, 120);
   };
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;

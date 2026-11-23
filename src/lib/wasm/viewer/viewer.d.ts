@@ -70,6 +70,7 @@ export class Viewer {
      * Geometry, textures, materials and camera transforms remain unchanged.
      */
     set_interactive_preview(enabled: boolean): void;
+    set_interactive_preview_scale(scale: number): void;
     /**
      * Adjust model exposure only; backgrounds are invariant.
      */
