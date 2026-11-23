@@ -480,6 +480,7 @@ function Index() {
 
       const ro = new ResizeObserver(() => {
         const s = sizeCanvas();
+        adaptiveScaleRef.current = 1;
         v.resize(s.w, s.h, s.cw, s.ch);
         schedule();
       });
@@ -497,6 +498,9 @@ function Index() {
 
     return () => {
       disposed = true;
+      if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
+      adaptiveTimerRef.current = null;
+      adaptiveScaleRef.current = 1;
       controller.abort();
       viewerRef.current = null;
       scheduleRef.current = () => {};
