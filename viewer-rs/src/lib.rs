@@ -131,6 +131,7 @@ pub struct Viewer {
     shadow_components: [f32; 8], // directional, contact, overhang, legacy edge, AO V2 strength, far-face darkness, vertical edge, horizontal edge
     ao_v2_enabled: bool,
     ao_v2_contact_strength: f32,
+    interactive_preview: bool,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -698,6 +699,7 @@ impl Viewer {
             shadow_components: [1.0; 8],
             ao_v2_enabled: false,
             ao_v2_contact_strength: 1.0,
+            interactive_preview: false,
             orthographic: false,
             background: 0,
             dirty: true,
@@ -851,6 +853,15 @@ impl Viewer {
         self.dirty = true;
     }
     pub fn set_ao_v2_enabled(&mut self, enabled: bool) { self.ao_v2_enabled = enabled; self.dirty = true; }
+
+    /// Temporarily use a cheaper renderer profile while the camera is moving.
+    /// Geometry, textures, materials and camera transforms remain unchanged.
+    pub fn set_interactive_preview(&mut self, enabled: bool) {
+        if self.interactive_preview == enabled { return; }
+        self.interactive_preview = enabled;
+        if !enabled { self.shadow_dirty = true; }
+        self.dirty = true;
+    }
     pub fn set_ao_v2_contact_strength(&mut self, strength: f32) { self.ao_v2_contact_strength = strength.clamp(0.0, 2.0); self.dirty = true; }
 
     /// Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
@@ -1221,20 +1232,20 @@ impl Viewer {
             screen: [width as f32, height as f32, self.background as f32, (if self.shadow_mode == 0 { 0.0 } else { 1.0 }) + (if self.config.alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied { 2.0 } else { 0.0 })],
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
-            effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
-            shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
-            shadow_detail: [self.shadow_components[6], self.shadow_components[7], if self.ao_v2_enabled { self.shadow_components[4] } else { 0.0 }, self.shadow_components[5]],
+            effects: [if self.fancy && !self.interactive_preview { 1.0 } else { 0.0 }, if self.interactive_preview { 0.0 } else { self.fancy_quality as f32 }, self.sun_strength, self.radius * 0.012],
+            shadow: [if self.interactive_preview { 0.0 } else { self.shadow_strength }, if self.interactive_preview { 0.0 } else { self.shadow_components[0] }, if self.interactive_preview { 0.0 } else { self.shadow_components[1] }, if self.interactive_preview { 0.0 } else { self.shadow_components[2] }],
+            shadow_detail: [if self.interactive_preview { 0.0 } else { self.shadow_components[6] }, if self.interactive_preview { 0.0 } else { self.shadow_components[7] }, if self.ao_v2_enabled && !self.interactive_preview { self.shadow_components[4] } else { 0.0 }, if self.interactive_preview { 0.0 } else { self.shadow_components[5]}],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
             point_light: [orbit_x * point_azimuth.sin(), self.orbit_y, orbit_z * point_azimuth.cos(), self.radius * self.point_range],
             point_color: [self.point_color[0] * self.point_brightness, self.point_color[1] * self.point_brightness, self.point_color[2] * self.point_brightness, if self.point_enabled { self.point_intensity } else { 0.0 }],
-            ao_v2: [if self.ao_v2_enabled { 1.0 } else { 0.0 }, self.ao_v2_contact_strength, 0.0, 0.0],
+            ao_v2: [if self.ao_v2_enabled && !self.interactive_preview { 1.0 } else { 0.0 }, self.ao_v2_contact_strength, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&g));
 
         // Depth-only prepass is allocated only at full size when Fancy is enabled.
         // AO V2 performs screen-space ray tests even when Fancy Graphics is off,
         // so it must receive the same full-resolution opaque-scene depth prepass.
-        let needs_scene_depth = self.fancy || self.point_enabled || self.ao_v2_enabled;
+        let needs_scene_depth = !self.interactive_preview && (self.fancy || self.point_enabled || self.ao_v2_enabled);
         let ao_size = if needs_scene_depth { (width, height) } else { (1, 1) };
         let ao_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("model AO depth"), size: wgpu::Extent3d { width: ao_size.0, height: ao_size.1, depth_or_array_layers: 1 },
@@ -1259,7 +1270,7 @@ impl Viewer {
             pass.set_vertex_buffer(0, self.vbuf.slice(..)); pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint32);
             for d in &self.draws { pass.set_bind_group(1, &self.mats[d.material].bind, &[]); pass.draw_indexed(d.start..d.start + d.count, 0, 0..1); }
         }
-        if self.shadow_dirty && self.shadow_mode != 0 {
+        if self.shadow_dirty && self.shadow_mode != 0 && !self.interactive_preview {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("cached shadow generation"), color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: &self.shadow_view,
