@@ -174,7 +174,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
                 onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onSelect={() => onAoV2EnabledChange(!aoV2Enabled)}>{aoV2Enabled ? "✓ AO V2 · Geometry rays" : "AO V2 · Geometry rays"}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onOptions({ fancy: !options.fancy })}>{options.fancy ? "✓ Fancy Graphics" : "Fancy Graphics"}</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
@@ -238,8 +238,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
       aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
-    <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
-      aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
+    <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon" onClick={() => onAoV2EnabledChange(!aoV2Enabled)}
+      aria-label="AO V2" aria-pressed={aoV2Enabled} title={aoV2Enabled ? "Disable AO V2" : "Enable AO V2"}><Sparkles /></Button>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
       <SliderValueReadout value={brightness} min={0.25} max={3} step={0.05} label="brightness" onApply={onBrightness} />
