@@ -83,7 +83,7 @@ async function prepareExportBackground(canvas: HTMLCanvasElement, width: number,
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode, noiseReduction, onNoiseReductionChange }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   shadowMode: number;
@@ -93,7 +93,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
-  const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [settings, setSettings] = useState<StudioSettings>({ ...defaultSettings, noiseReduction });\n  useEffect(() => { setSettings((current) => current.noiseReduction === noiseReduction ? current : { ...current, noiseReduction }); }, [noiseReduction]);
   const [bitratePreferenceLoaded, setBitratePreferenceLoaded] = useState(false);
   useEffect(() => {
     try {
