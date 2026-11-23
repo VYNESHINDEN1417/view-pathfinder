@@ -172,17 +172,20 @@ function Index() {
     viewer.resize(width, height, rect.width, rect.height);
     scheduleRef.current();
   };
-  const noteCameraMotion = () => {
+  const settleCameraMotion = () => {
     if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
-    const viewer = viewerRef.current;
-    const useInteractiveProfile = aoV2Enabled && adaptivePreview;
-    viewer?.set_interactive_preview(useInteractiveProfile);
-    if (useInteractiveProfile) applyAdaptiveScale(0.68);
     adaptiveTimerRef.current = setTimeout(() => {
       viewerRef.current?.set_interactive_preview(false);
       applyAdaptiveScale(1);
       adaptiveTimerRef.current = null;
     }, 180);
+  };
+  const noteCameraMotion = () => {
+    if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
+    const useInteractiveProfile = aoV2Enabled && adaptivePreview;
+    viewerRef.current?.set_interactive_preview(useInteractiveProfile);
+    if (useInteractiveProfile) applyAdaptiveScale(0.68);
+    settleCameraMotion();
   };
   const [options, setOptions] = useState<ViewerOptions>({ background: 4, aspect: "fill", custom: [16, 9], resolution: 0, shadowMode: 1, shadowQuality: 1024, fancy: false, fancyQuality: 1 });
   const background = options.background;
@@ -593,7 +596,7 @@ function Index() {
     <div className="viewer-stage" aria-label="Scene viewport">
       <canvas key={attempt} ref={ref} className="viewer-canvas" aria-label="Interactive model"
         onPointerDown={noteCameraMotion} onPointerMove={(event) => { if (event.buttons !== 0) noteCameraMotion(); }}
-        onPointerUp={noteCameraMotion} onPointerCancel={noteCameraMotion} onWheel={noteCameraMotion} />
+        onPointerUp={settleCameraMotion} onPointerCancel={settleCameraMotion} onWheel={noteCameraMotion} />
       {studioLayout.open && frameRatio > 0 && <div className="viewer-crop-guide" style={{ "--frame-ratio": frameRatio } as CSSProperties} aria-hidden="true" />}
       {recoveryRequired && <div className="viewer-recovery-overlay" role="alertdialog" aria-live="assertive" aria-label="Viewer recovery required">
         <div className="viewer-recovery-card">
