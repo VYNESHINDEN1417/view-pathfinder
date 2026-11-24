@@ -112,6 +112,11 @@ export class Viewer {
      * Supplies encoded image bytes for a texture. Returns false if decoding failed (material keeps its color).
      */
     set_texture(name: string, bytes: Uint8Array): boolean;
+    /**
+     * Set the persistent viewport render scale without changing the interactive quality profile.
+     * This affects only the on-screen render target; offscreen captures keep their requested size.
+     */
+    set_viewport_resolution_scale(scale: number): void;
     snap_direction(x: number, y: number, z: number, time_ms: number): void;
     /**
      * Distinct texture file names referenced by the MTL file.
@@ -162,6 +167,7 @@ export interface InitOutput {
     readonly viewer_set_shadow_strength: (a: number, b: number) => void;
     readonly viewer_set_sun: (a: number, b: number, c: number, d: number) => void;
     readonly viewer_set_texture: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly viewer_set_viewport_resolution_scale: (a: number, b: number) => void;
     readonly viewer_snap_direction: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly viewer_texture_names: (a: number) => [number, number];
     readonly viewer_wheel: (a: number, b: number) => void;

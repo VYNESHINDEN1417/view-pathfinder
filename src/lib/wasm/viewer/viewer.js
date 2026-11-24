@@ -324,6 +324,14 @@ export class Viewer {
         return ret !== 0;
     }
     /**
+     * Set the persistent viewport render scale without changing the interactive quality profile.
+     * This affects only the on-screen render target; offscreen captures keep their requested size.
+     * @param {number} scale
+     */
+    set_viewport_resolution_scale(scale) {
+        wasm.viewer_set_viewport_resolution_scale(this.__wbg_ptr, scale);
+    }
+    /**
      * @param {number} x
      * @param {number} y
      * @param {number} z
