@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange, viewportResolution, onViewportResolutionChange, adaptivePreview, onAdaptivePreviewChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange, viewportResolution, onViewportResolutionChange, adaptivePreview, onAdaptivePreviewChange, viewportResolution, onViewportResolutionChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -157,6 +157,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   aoV2ContactStrength: number; onAoV2ContactStrengthChange: (value: number) => void;
   viewportResolution: number; onViewportResolutionChange: (value: number) => void;
   adaptivePreview: boolean; onAdaptivePreviewChange: (enabled: boolean) => void;
+  viewportResolution: number; onViewportResolutionChange: (value: number) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
@@ -172,6 +173,21 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         <DropdownMenuTrigger asChild><Button className="viewer-tool" variant="ghost" size="icon" aria-label="Settings" title="Settings"><Menu /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="viewer-settings-menu">
           <DropdownMenuItem onSelect={onUpload} disabled={uploading}><Upload size={16} />{uploading ? "Opening ZIP…" : "Upload model ZIP"}</DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Viewport</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu sun-intensity-menu">
+              <div className="min-w-[190px] space-y-3 p-2" onPointerDown={(event) => event.stopPropagation()}>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs font-semibold tracking-wide text-white/70">VIEWPORT RESOLUTION</span>
+                  <strong className="text-xs tabular-nums text-white">{Math.round(viewportResolution)}%</strong>
+                </div>
+                <Slider aria-label="Viewport resolution" min={5} max={100} step={1} value={[viewportResolution]}
+                  onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} />
+                <div className="flex justify-between text-[10px] text-white/40"><span>5% · Performance</span><span>100% · Native</span></div>
+                <p className="text-[10px] leading-relaxed text-white/45">Changes only the live viewport render resolution. Model data and image/video export resolution stay unchanged.</p>
+              </div>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           {models.map((m) => <DropdownMenuItem key={m.id} disabled={!customModel && activeModel === m.id} onSelect={() => onModel(m.id)}><RotateCcw size={16} />{m.name}{activeModel === m.id ? " (current)" : ""}</DropdownMenuItem>)}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Sun intensity</DropdownMenuSubTrigger>
