@@ -868,14 +868,22 @@ impl Viewer {
     /// Temporarily use a cheaper renderer profile while the camera is moving.
     /// Geometry, textures, materials and camera transforms remain unchanged.
     pub fn set_interactive_preview(&mut self, enabled: bool) {
-        self.set_interactive_preview_scale(if enabled { 0.05 } else { 1.0 });
+        // Keep the reduced-resolution model compositor active for the entire
+        // recovery animation, including the final 100% frame. Only this explicit
+        // disable call switches back to the normal full-resolution render path.
+        self.interactive_preview = enabled;
+        self.interactive_preview_scale = if enabled { 0.05 } else { 1.0 };
+        if !enabled { self.shadow_dirty = true; }
+        self.dirty = true;
     }
     pub fn set_interactive_preview_scale(&mut self, scale: f32) {
         let scale = scale.clamp(0.05, 1.0);
         if (self.interactive_preview_scale - scale).abs() < 0.0005 { return; }
         self.interactive_preview_scale = scale;
-        self.interactive_preview = scale < 0.9995;
-        if !self.interactive_preview { self.shadow_dirty = true; }
+        // Enter preview mode below full resolution, but do not leave it merely
+        // because the animated scale reaches 1.0. The caller disables it after
+        // the transition has completed, preventing a last-frame resolution snap.
+        if scale < 0.9995 { self.interactive_preview = true; }
         self.dirty = true;
     }
     pub fn set_ao_v2_contact_strength(&mut self, strength: f32) { self.ao_v2_contact_strength = strength.clamp(0.0, 2.0); self.dirty = true; }

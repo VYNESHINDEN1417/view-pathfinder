@@ -178,7 +178,7 @@ function Index() {
     const startScale = adaptiveScaleRef.current;
     const recover = (now: number) => {
       const t = Math.min(1, (now - startedAt) / 1500);
-      const eased = 1 - Math.pow(1 - t, 3);
+      const eased = t * t * (3 - 2 * t);
       applyAdaptiveScale(startScale + (1 - startScale) * eased);
       if (t < 1) adaptiveRafRef.current = requestAnimationFrame(recover);
       else {

@@ -150,6 +150,7 @@ export interface InitOutput {
     readonly viewer_set_camera_pose: (a: number, b: number, c: number) => void;
     readonly viewer_set_fancy: (a: number, b: number, c: number) => void;
     readonly viewer_set_interactive_preview: (a: number, b: number) => void;
+    readonly viewer_set_interactive_preview_scale: (a: number, b: number) => void;
     readonly viewer_set_light: (a: number, b: number) => void;
     readonly viewer_set_orthographic: (a: number, b: number) => void;
     readonly viewer_set_point_light: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;

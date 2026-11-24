@@ -220,6 +220,12 @@ export class Viewer {
         wasm.viewer_set_interactive_preview(this.__wbg_ptr, enabled);
     }
     /**
+     * @param {number} scale
+     */
+    set_interactive_preview_scale(scale) {
+        wasm.viewer_set_interactive_preview_scale(this.__wbg_ptr, scale);
+    }
+    /**
      * Adjust model exposure only; backgrounds are invariant.
      * @param {number} intensity
      */
