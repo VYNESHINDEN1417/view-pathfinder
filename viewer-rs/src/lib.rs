@@ -1228,8 +1228,10 @@ impl Viewer {
         let (m, d) = (self.msaa.clone(), self.depth.clone());
         let (w, h) = (self.config.width, self.config.height);
         let surface_view = frame.texture.create_view(&Default::default());
-        if self.interactive_preview {
-            let combined_scale = self.interactive_preview_scale * self.viewport_resolution_scale;
+        if self.interactive_preview || self.viewport_resolution_scale < 0.9995 {
+            // Persistent viewport scaling remains independent from camera-motion preview.
+            let adaptive_scale = if self.interactive_preview { self.interactive_preview_scale } else { 1.0 };
+            let combined_scale = adaptive_scale * self.viewport_resolution_scale;
             let rw = ((w as f32 * combined_scale).round() as u32).max(1);
             let rh = ((h as f32 * combined_scale).round() as u32).max(1);
             let model_color = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model color"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: self.config.format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[] });
