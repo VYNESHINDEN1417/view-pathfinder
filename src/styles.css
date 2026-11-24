@@ -892,115 +892,6 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 
 
-/* Pathfinder mobile HUD — clean, consistent orange-outline geometry. */
-@media (max-width: 700px) and (min-height: 501px) {
-  :root { --hud-orange: #FF7300; --hud-line: 2px; --hud-gap: 8px; }
-
-  .viewer-gizmo {
-    left: 50% !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
-    width: min(48vw, 340px) !important;
-    height: min(48vw, 340px) !important;
-    z-index: 5;
-  }
-
-  /* Common finish: consistent stroke, no old rounded-card shadow treatment. */
-  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
-  .viewer-projection, .viewer-blue-light-trigger,
-  .viewer-fancy, .viewer-fancy-graphics,
-  .viewer-shadow-strength, .viewer-brightness,
-  .viewer-viewport-control {
-    border: var(--hud-line) solid var(--hud-orange) !important;
-    border-radius: 0 !important;
-    background: rgb(28 23 19 / 24%) !important;
-    color: var(--hud-orange) !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* 8–7–6: a continuous-looking three-part slanted toolbar. */
-  .viewer-viewport-control {
-    position: absolute !important;
-    display: grid !important;
-    left: 2.5% !important; right: auto !important;
-    bottom: 31.5% !important;
-    width: 69% !important; height: 7.2% !important;
-    min-height: 56px;
-    padding: 6px 12px !important;
-    align-content: center; gap: 5px;
-    clip-path: polygon(0 0,100% 0,87% 100%,2% 100%);
-    z-index: 8;
-  }
-  .viewer-viewport-heading {
-    display: flex; justify-content: space-between;
-    color: var(--hud-orange); font-size: 10px; letter-spacing: .07em;
-  }
-  .viewer-viewport-heading strong { font-size: 11px; }
-  .viewer-viewport-control [data-orientation="horizontal"] { height: 14px; touch-action: pan-y; }
-  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 3px; background: rgb(255 115 0 / 28%); }
-  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: var(--hud-orange); }
-  .viewer-viewport-control [role="slider"] { width: 13px; height: 13px; border: 1px solid #ffe0c7; background: var(--hud-orange); }
-
-  .viewer-fancy-graphics, .viewer-fancy {
-    position: absolute !important;
-    top: auto !important; bottom: 31.5% !important;
-    height: 7.2% !important; min-height: 56px;
-    width: 10.5% !important;
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 0 !important; min-width: 0 !important;
-    z-index: 9;
-  }
-  .viewer-fancy-graphics { left: 21.5% !important; right: auto !important; clip-path: polygon(27% 0,100% 0,73% 100%,0 100%); }
-  .viewer-fancy { left: 47.5% !important; right: auto !important; clip-path: polygon(27% 0,100% 0,73% 100%,0 100%); }
-
-  /* 1–5: matching right-hand panels with consistent spacing and bevels. */
-  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
-  .viewer-projection, .viewer-blue-light-trigger {
-    position: absolute !important;
-    left: auto !important; right: 3% !important;
-    width: 29% !important; height: 6.8% !important;
-    min-height: 52px; padding: 0 !important;
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 0 !important;
-    z-index: 9;
-  }
-  .viewer-save { top: 67.2% !important; bottom: auto !important; clip-path: polygon(25% 0,100% 0,100% 100%,0 100%,10% 78%); }
-  .viewer-record { top: 74.5% !important; bottom: auto !important; clip-path: polygon(0 0,100% 0,100% 100%,10% 100%); }
-  .viewer-iron-trapdoor { top: 81.8% !important; bottom: auto !important; clip-path: polygon(0 0,100% 0,96% 100%,8% 100%); }
-  .viewer-projection { top: 89.1% !important; bottom: auto !important; clip-path: polygon(8% 0,100% 0,100% 100%,0 100%); }
-  .viewer-blue-light-trigger { top: 96.4% !important; bottom: auto !important; clip-path: polygon(22% 0,100% 0,100% 90%,92% 100%,0 100%); }
-
-  /* 9–10: tapered left panels. Extra points soften the inward sweep. */
-  .viewer-shadow-strength, .viewer-brightness {
-    position: absolute !important;
-    top: 76.2% !important; bottom: auto !important;
-    height: 22.3% !important; min-height: 165px;
-    padding: 10px 0 !important; gap: 8px;
-    z-index: 7;
-  }
-  .viewer-shadow-strength {
-    left: 2% !important; width: 16% !important;
-    clip-path: polygon(0 0,100% 0,94% 5%,88% 13%,83% 23%,80% 36%,80% 49%,83% 63%,89% 78%,100% 100%,8% 100%,5% 88%,3% 72%,2% 52%,1% 30%);
-  }
-  .viewer-brightness {
-    left: 16.5% !important; width: 18% !important;
-    clip-path: polygon(22% 0,100% 0,91% 7%,83% 17%,77% 29%,74% 42%,75% 55%,80% 70%,91% 86%,100% 100%,18% 100%,11% 88%,6% 73%,3% 56%,2% 38%,7% 20%);
-  }
-
-  .shadow-strength-slider[data-orientation="vertical"],
-  .brightness-slider[data-orientation="vertical"] { height: calc(100% - 48px); width: 22px; min-height: 95px; }
-  .shadow-strength-slider > span:first-child,
-  .brightness-slider > span:first-child { background: rgb(255 115 0 / 25%) !important; }
-  .shadow-strength-slider > span:first-child > span,
-  .brightness-slider > span:first-child > span { background: var(--hud-orange) !important; }
-  .shadow-strength-slider [role="slider"],
-  .brightness-slider [role="slider"] { border-color: var(--hud-orange) !important; }
-
-  .viewer-tool { border-radius: 0 !important; }
-  .viewer-tool svg { color: var(--hud-orange); width: 23px; height: 23px; }
-}
-
 /* Preserve the desktop control treatment. */
 @media (min-width: 701px) {
   .viewer-viewport-control { display: grid; }
@@ -1049,6 +940,9 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 /* SINGLE SOURCE OF TRUTH: mobile HUD geometry traced from the supplied 691×1536 reference. */
 @media (max-width: 700px) and (min-height: 501px) {
+  /* The AO button is absolutely positioned in the viewer, not inside its JSX wrapper. */
+  .viewer-fancy-wrap { position: static !important; }
+
   .viewer-settings { position:absolute !important; top:max(14px,env(safe-area-inset-top)) !important; left:3% !important; z-index:20 !important; }
   .viewer-gizmo {
     position:absolute !important; left:50% !important; bottom:max(5px,env(safe-area-inset-bottom)) !important;
