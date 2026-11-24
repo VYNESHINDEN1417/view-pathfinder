@@ -442,8 +442,8 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
     <Button className="viewer-tool viewer-record" variant="ghost" size="icon" aria-label="Orbit Studio" aria-pressed={open}
       title="Open Orbit Studio" onClick={() => setOpen((v) => !v)}><Video /></Button>
     <Button className="viewer-tool viewer-iron-trapdoor" variant="ghost" size="icon"
-      aria-label="Trapdoor Color slider" aria-expanded={ironTrapdoorPanelOpen}
-      title="Open Trapdoor Color slider" onClick={() => setIronTrapdoorPanelOpen((v) => !v)}><Sun /></Button>
+      aria-label="Trapdoor color" aria-expanded={ironTrapdoorPanelOpen}
+      title="Open Trapdoor color" onClick={() => setIronTrapdoorPanelOpen((v) => !v)}><Sun /></Button>
     {ironTrapdoorPanelOpen && <section className="iron-trapdoor-panel" aria-label="Iron trapdoor brightness control">
       <div className="iron-trapdoor-panel-heading"><strong>Iron trapdoor</strong><span>{ironTrapdoorBrightness.toFixed(2)}×</span></div>
       <Slider min={0.25} max={1.5} step={0.01} value={[ironTrapdoorBrightness]}
