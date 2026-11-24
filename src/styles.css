@@ -1030,3 +1030,110 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-viewport-control { display: grid; }
   .viewer-fancy-graphics { display: inline-flex; }
 }
+
+/* Screenshot-traced HUD geometry: proportions and silhouettes, not generic icon tiles. */
+@media (max-width: 700px) and (min-height: 501px) {
+  .viewer-gizmo {
+    width: min(48vw, 340px) !important;
+    height: min(48vw, 340px) !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    z-index: 3;
+  }
+
+  /* Strip 8 / 7 / 6: one continuous long quadrilateral, divided into three slanted bays. */
+  .viewer-viewport-control {
+    left: 2% !important; right: auto !important;
+    bottom: 31.5% !important;
+    width: 70% !important; height: 7.2% !important;
+    min-height: 58px;
+    padding: 7px 13px !important;
+    border: 2px solid #FF7300 !important;
+    border-radius: 0 !important;
+    background: rgb(255 115 0 / 5%) !important;
+    clip-path: polygon(0 0, 100% 0, 87% 100%, 2% 100%);
+    z-index: 8;
+  }
+  .viewer-viewport-heading { color: #FF7300; font-size: 10px; }
+  .viewer-viewport-control [data-orientation="horizontal"] { height: 14px; }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 3px; background: rgb(255 115 0 / 25%); }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: #FF7300; }
+
+  .viewer-fancy-graphics, .viewer-fancy {
+    top: auto !important; bottom: 31.5% !important;
+    height: 7.2% !important; min-height: 58px;
+    width: 10.2% !important;
+    border: 2px solid #FF7300 !important;
+    border-radius: 0 !important;
+    background: rgb(255 115 0 / 5%) !important;
+    color: #FF7300 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 9;
+  }
+  .viewer-fancy-graphics { left: 21.5% !important; right: auto !important; clip-path: polygon(27% 0,100% 0,73% 100%,0 100%); }
+  .viewer-fancy { left: 47.2% !important; right: auto !important; clip-path: polygon(28% 0,100% 0,72% 100%,0 100%); }
+
+  /* Right rail 1–5: five broad outlined panels, each with the hand-drawn bevel. */
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor, .viewer-projection, .viewer-blue-light-trigger {
+    left: auto !important; right: 3% !important;
+    width: 29% !important; height: 6.8% !important; min-height: 54px;
+    border: 2px solid #FF7300 !important;
+    border-radius: 0 !important;
+    background: rgb(255 115 0 / 5%) !important;
+    color: #FF7300 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: inline-flex; align-items: center; justify-content: center;
+    z-index: 9;
+  }
+  .viewer-save { top: 67.2% !important; bottom: auto !important; clip-path: polygon(25% 0,100% 0,100% 100%,0 100%,10% 78%); }
+  .viewer-record { top: 74.5% !important; bottom: auto !important; clip-path: polygon(0 0,100% 0,100% 100%,10% 100%); }
+  .viewer-iron-trapdoor { top: 81.8% !important; bottom: auto !important; clip-path: polygon(0 0,100% 0,96% 100%,8% 100%); }
+  .viewer-projection { top: 89.1% !important; bottom: auto !important; clip-path: polygon(8% 0,100% 0,100% 100%,0 100%); }
+  .viewer-blue-light-trigger { top: 96.4% !important; bottom: auto !important; clip-path: polygon(22% 0,100% 0,100% 90%,92% 100%,0 100%); }
+
+  /* Left rail 9 and 10 are tall curved/canted bays. Use faceted curves to preserve
+     the hand-drawn sweep while keeping the controls themselves interactive. */
+  .viewer-shadow-strength, .viewer-brightness {
+    top: 76.2% !important; bottom: auto !important;
+    height: 22.3% !important; min-height: 170px;
+    padding: 10px 0 !important;
+    border: 2px solid #FF7300 !important;
+    border-radius: 0 !important;
+    background: rgb(255 115 0 / 5%) !important;
+    color: #FF7300 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 7;
+  }
+  .viewer-shadow-strength {
+    left: 2% !important; width: 16% !important;
+    clip-path: polygon(0 0,100% 0,84% 14%,78% 40%,82% 68%,100% 100%,8% 100%,0 84%);
+  }
+  .viewer-brightness {
+    left: 16.5% !important; width: 18% !important;
+    clip-path: polygon(22% 0,100% 0,82% 12%,73% 40%,78% 70%,100% 100%,18% 100%,0 78%,0 28%);
+  }
+  .shadow-strength-slider[data-orientation="vertical"],
+  .brightness-slider[data-orientation="vertical"] { height: calc(100% - 48px); }
+  .shadow-strength-slider > span:first-child,
+  .brightness-slider > span:first-child { background: rgb(255 115 0 / 25%) !important; }
+  .shadow-strength-slider > span:first-child > span,
+  .brightness-slider > span:first-child > span { background: #FF7300 !important; }
+  .shadow-strength-slider [role="slider"],
+  .brightness-slider [role="slider"] { border-color: #FF7300 !important; }
+
+  .viewer-tool {
+    border: 2px solid #FF7300 !important;
+    border-radius: 0 !important;
+    background: rgb(255 115 0 / 5%) !important;
+    color: #FF7300 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .viewer-tool svg { color: #FF7300; }
+}
