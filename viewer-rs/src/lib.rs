@@ -109,6 +109,7 @@ pub struct Viewer {
     light_vp: Mat4,
     transition: Option<(Quat, Quat, f64)>,
     bg_pipeline: wgpu::RenderPipeline,
+    composite_pipeline: wgpu::RenderPipeline,
     bg_image_layout: wgpu::BindGroupLayout,
     bg_image_sampler: wgpu::Sampler,
     bg_image_texture: Option<wgpu::Texture>,
@@ -131,6 +132,8 @@ pub struct Viewer {
     shadow_components: [f32; 8], // directional, contact, overhang, legacy edge, AO V2 strength, far-face darkness, vertical edge, horizontal edge
     ao_v2_enabled: bool,
     ao_v2_contact_strength: f32,
+    interactive_preview: bool,
+    interactive_preview_scale: f32,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     mat_layout: wgpu::BindGroupLayout,
@@ -530,6 +533,14 @@ impl Viewer {
             cache: None,
         });
 
+        let composite_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("adaptive model composite"), layout: Some(&bg_layout),
+            vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs_bg"), compilation_options: Default::default(), buffers: &[] },
+            fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs_model_composite"), compilation_options: Default::default(), targets: &[Some(wgpu::ColorTargetState { format, blend: Some(wgpu::BlendState::ALPHA_BLENDING), write_mask: wgpu::ColorWrites::ALL })] }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState { format: DEPTH, depth_write_enabled: false, depth_compare: wgpu::CompareFunction::Always, stencil: Default::default(), bias: Default::default() }),
+            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() }, multiview: None, cache: None,
+        });
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: std::mem::size_of::<Globals>() as u64,
@@ -665,7 +676,7 @@ impl Viewer {
             pipeline,
             transparent_pipeline,
             shadow_pipeline, shadow_texture, shadow_view, shadow_bind, shadow_dirty: true, shadow_layout, shadow_sampler, shadow_mode: 1, twist: 0.0, light_vp, transition: None,
-            bg_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1,
+            bg_pipeline, composite_pipeline, bg_image_layout, bg_image_sampler, bg_image_texture: Some(bg_fallback), bg_image_bind, ao_pipeline, ao_layout, sun_direction: light_dir, sun_strength: 1.0, point_azimuth: 90.0, point_brightness: 1.0, point_intensity: 0.72, point_color: [0.16, 0.38, 1.0], point_range: 1.05, point_enabled: false, point_orbit_visible: false, fancy: false, fancy_quality: 1,
             globals_buf,
             globals_bind,
             mat_layout,
@@ -698,6 +709,8 @@ impl Viewer {
             shadow_components: [1.0; 8],
             ao_v2_enabled: false,
             ao_v2_contact_strength: 1.0,
+            interactive_preview: false,
+            interactive_preview_scale: 1.0,
             orthographic: false,
             background: 0,
             dirty: true,
@@ -851,6 +864,28 @@ impl Viewer {
         self.dirty = true;
     }
     pub fn set_ao_v2_enabled(&mut self, enabled: bool) { self.ao_v2_enabled = enabled; self.dirty = true; }
+
+    /// Temporarily use a cheaper renderer profile while the camera is moving.
+    /// Geometry, textures, materials and camera transforms remain unchanged.
+    pub fn set_interactive_preview(&mut self, enabled: bool) {
+        // Keep the reduced-resolution model compositor active for the entire
+        // recovery animation, including the final 100% frame. Only this explicit
+        // disable call switches back to the normal full-resolution render path.
+        self.interactive_preview = enabled;
+        self.interactive_preview_scale = if enabled { 0.05 } else { 1.0 };
+        if !enabled { self.shadow_dirty = true; }
+        self.dirty = true;
+    }
+    pub fn set_interactive_preview_scale(&mut self, scale: f32) {
+        let scale = scale.clamp(0.05, 1.0);
+        if (self.interactive_preview_scale - scale).abs() < 0.0005 { return; }
+        self.interactive_preview_scale = scale;
+        // Enter preview mode below full resolution, but do not leave it merely
+        // because the animated scale reaches 1.0. The caller disables it after
+        // the transition has completed, preventing a last-frame resolution snap.
+        if scale < 0.9995 { self.interactive_preview = true; }
+        self.dirty = true;
+    }
     pub fn set_ao_v2_contact_strength(&mut self, strength: f32) { self.ao_v2_contact_strength = strength.clamp(0.0, 2.0); self.dirty = true; }
 
     /// Set independent shadow, edge and AO controls. Values are clamped to 0.0..2.0.
@@ -944,7 +979,7 @@ impl Viewer {
             view_formats: &[],
         });
         let (cm, cd) = make_targets_sized(&self.device, format, render_width, render_height);
-        self.render_to(&texture.create_view(&Default::default()), render_width, render_height, cm.as_ref(), &cd, false);
+        self.render_to(&texture.create_view(&Default::default()), render_width, render_height, cm.as_ref(), &cd, false, true);
         let row_bytes = render_width * 4;
         let padded = (row_bytes + 255) & !255;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -1181,13 +1216,44 @@ impl Viewer {
         self.dirty = false;
         let (m, d) = (self.msaa.clone(), self.depth.clone());
         let (w, h) = (self.config.width, self.config.height);
-        self.render_to(&frame.texture.create_view(&Default::default()), w, h, m.as_ref(), &d, true);
+        let surface_view = frame.texture.create_view(&Default::default());
+        if self.interactive_preview {
+            let rw = ((w as f32 * self.interactive_preview_scale).round() as u32).max(1);
+            let rh = ((h as f32 * self.interactive_preview_scale).round() as u32).max(1);
+            let model_color = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model color"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: self.config.format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[] });
+            let model_color_view = model_color.create_view(&Default::default());
+            let model_msaa = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model MSAA"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: SAMPLES, dimension: wgpu::TextureDimension::D2, format: self.config.format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[] });
+            let model_msaa_view = model_msaa.create_view(&Default::default());
+            let model_depth = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model depth"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: SAMPLES, dimension: wgpu::TextureDimension::D2, format: DEPTH, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[] });
+            let model_depth_view = model_depth.create_view(&Default::default());
+            let globals = self.render_to(&model_color_view, rw, rh, Some(&model_msaa_view), &model_depth_view, true, false);
+            self.composite_adaptive_model(&surface_view, w, h, &model_color_view, globals, m.as_ref(), &d);
+        } else {
+            self.render_to(&surface_view, w, h, m.as_ref(), &d, true, true);
+        }
         if self.shadow_mode == 2 { self.shadow_dirty = true; }
         frame.present();
         true
     }
 
-    fn render_to(&mut self, view: &wgpu::TextureView, width: u32, height: u32, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView, include_editor_guides: bool) {
+    fn composite_adaptive_model(&mut self, surface: &wgpu::TextureView, width: u32, height: u32, model: &wgpu::TextureView, mut globals: Globals, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView) {
+        globals.screen[0] = width as f32; globals.screen[1] = height as f32;
+        self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
+        let model_bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("adaptive model bind"), layout: &self.bg_image_layout, entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(model) }, wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.bg_image_sampler) }] });
+        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("adaptive composite") });
+        let target = msaa.unwrap_or(surface);
+        {
+            let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor { label: Some("full resolution background"), color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: target, resolve_target: None, ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store } })], depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: depth, depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }), stencil_ops: None }), timestamp_writes: None, occlusion_query_set: None });
+            pass.set_pipeline(&self.bg_pipeline); pass.set_bind_group(0, &self.globals_bind, &[]); pass.set_bind_group(1, &self.bg_image_bind, &[]); pass.draw(0..3, 0..1);
+        }
+        {
+            let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor { label: Some("full resolution model composite"), color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: target, resolve_target: if msaa.is_some() { Some(surface) } else { None }, ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store } })], depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { view: depth, depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Discard }), stencil_ops: None }), timestamp_writes: None, occlusion_query_set: None });
+            pass.set_pipeline(&self.composite_pipeline); pass.set_bind_group(0, &self.globals_bind, &[]); pass.set_bind_group(1, &model_bind, &[]); pass.draw(0..3, 0..1);
+        }
+        self.queue.submit(Some(enc.finish()));
+    }
+
+    fn render_to(&mut self, view: &wgpu::TextureView, width: u32, height: u32, msaa: Option<&wgpu::TextureView>, depth: &wgpu::TextureView, include_editor_guides: bool, draw_background: bool) -> Globals {
         let aspect = width as f32 / height as f32;
         let eye = self.eye();
         let up = self.cam.rot * Vec3::Y;
@@ -1221,7 +1287,7 @@ impl Viewer {
             screen: [width as f32, height as f32, self.background as f32, (if self.shadow_mode == 0 { 0.0 } else { 1.0 }) + (if self.config.alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied { 2.0 } else { 0.0 })],
             light_vp: self.light_vp.to_cols_array_2d(),
             inverse_vp: vp.inverse().to_cols_array_2d(),
-            effects: [if self.fancy { 1.0 } else { 0.0 }, self.fancy_quality as f32, self.sun_strength, self.radius * 0.012],
+            effects: [if self.fancy && !(self.interactive_preview && !draw_background) { 1.0 } else { 0.0 }, if self.interactive_preview && !draw_background { 0.0 } else { self.fancy_quality as f32 }, self.sun_strength, self.radius * 0.012],
             shadow: [self.shadow_strength, self.shadow_components[0], self.shadow_components[1], self.shadow_components[2]],
             shadow_detail: [self.shadow_components[6], self.shadow_components[7], if self.ao_v2_enabled { self.shadow_components[4] } else { 0.0 }, self.shadow_components[5]],
             // Elliptical world-space orbit follows the model's long axis; azimuth remains 0–360°.
@@ -1300,9 +1366,7 @@ impl Viewer {
             // Always draw the background pass. In transparent mode fs_bg outputs
             // alpha 0; skipping this pass leaves the opaque black render-pass clear
             // color visible and hides the CSS background image.
-            pass.set_pipeline(&self.bg_pipeline);
-            pass.set_bind_group(1, &self.bg_image_bind, &[]);
-            pass.draw(0..3, 0..1);
+            if draw_background { pass.set_pipeline(&self.bg_pipeline); pass.set_bind_group(1, &self.bg_image_bind, &[]); pass.draw(0..3, 0..1); }
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(2, &self.shadow_bind, &[]);
             pass.set_bind_group(3, &ao_bind, &[]);
@@ -1336,6 +1400,7 @@ impl Viewer {
             }
         }
         self.queue.submit(Some(enc.finish()));
+        g
     }
 
     /// Explicitly release GPU resources.

@@ -223,6 +223,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // prevent the remaining renderer state from being put back.
       try { canvas.width = previous.w; canvas.height = previous.h; } catch (error) { console.error("Canvas restore failed", error); }
       try { v.resize(previous.w, previous.h, previous.cw, previous.ch); } catch (error) { console.error("Viewer resize restore failed", error); }
+      try { v.set_interactive_preview(false); } catch (error) { console.error("Adaptive preview restore failed", error); }
       try { v.set_shadow_mode(shadowMode); } catch (error) { console.error("Shadow restore failed", error); }
       try { v.set_point_orbit_visible(blueLightPanelOpen); } catch (error) { console.error("Orbit marker restore failed", error); }
       try { schedule(); } catch (error) { console.error("Viewer redraw after export failed", error); }

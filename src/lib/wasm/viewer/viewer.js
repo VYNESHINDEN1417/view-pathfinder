@@ -212,6 +212,20 @@ export class Viewer {
         wasm.viewer_set_fancy(this.__wbg_ptr, enabled, quality);
     }
     /**
+     * Temporarily use a cheaper renderer profile while the camera is moving.
+     * Geometry, textures, materials and camera transforms remain unchanged.
+     * @param {boolean} enabled
+     */
+    set_interactive_preview(enabled) {
+        wasm.viewer_set_interactive_preview(this.__wbg_ptr, enabled);
+    }
+    /**
+     * @param {number} scale
+     */
+    set_interactive_preview_scale(scale) {
+        wasm.viewer_set_interactive_preview_scale(this.__wbg_ptr, scale);
+    }
+    /**
      * Adjust model exposure only; backgrounds are invariant.
      * @param {number} intensity
      */
