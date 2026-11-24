@@ -1,7 +1,11 @@
+export type VideoCodec = "h264" | "h265" | "av1";
+export type ExportSpeed = "standard" | "faster";
+
 export interface StudioSettings {
+  codec: VideoCodec;
+  exportSpeed: ExportSpeed;
   resolution: "720p" | "1080p" | "1440p" | "2160p";
-  aspect: "9:16" | "16:9" | "1:1" | "21:9" | "4:3" | "custom";
-  customAspect: [number, number];
+  aspect: "9:16" | "16:9" | "1:1" | "21:9" | "4:3" | "4:5" | "3:4" | "2:3" | "5:4" | "3:2" | "16:10" | "2:1" | "32:9";
   fps: 24 | 30 | 60 | 90;
   duration: number;
   smoothing: boolean;
@@ -16,9 +20,10 @@ export interface StudioSettings {
 }
 
 export const defaultSettings: StudioSettings = {
+  codec: "h264",
+  exportSpeed: "standard",
   resolution: "1080p",
   aspect: "9:16",
-  customAspect: [16, 9],
   fps: 30,
   duration: 6,
   smoothing: true,
@@ -33,7 +38,7 @@ export const defaultSettings: StudioSettings = {
 };
 
 export function studioAspect(s: StudioSettings) {
-  const [w, h] = s.aspect === "custom" ? s.customAspect : s.aspect.split(":").map(Number);
+  const [w, h] = s.aspect.split(":").map(Number);
   return w && h && Number.isFinite(w / h) && w / h >= 0.1 && w / h <= 10 ? w / h : 16 / 9;
 }
 

@@ -298,7 +298,6 @@ body {
 .viewer-settings-scroll { max-height: min(70dvh, 420px); overflow-y: auto; }
 .ratio-input { display: flex; align-items: center; gap: 6px; padding: 8px; }
 .ratio-input input { width: 52px; height: 32px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--viewer-tool-border); background: var(--viewer-tool-hover); color: var(--viewer-label); font-size: 14px; }
-.viewer-canvas.framed { width: min(100vw, calc(100dvh * var(--frame-ratio))); height: min(100dvh, calc(100vw / var(--frame-ratio))); }
 .viewer-fancy { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(68px, calc(env(safe-area-inset-right) + 52px)); z-index: 4; }
 .sun-tracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .sun-tracks circle, .sun-tracks path { fill: none; stroke: var(--viewer-label); stroke-width: 2; opacity: 0.6; }
@@ -343,11 +342,57 @@ body {
   .safe-t { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
 .viewer-stage { position: absolute; inset: 0; touch-action: none; }
+.viewer-recovery-overlay {
+  position: absolute; inset: 0; z-index: 30; display: grid; place-items: center;
+  padding: 20px; background: rgb(0 0 0 / 48%);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.viewer-recovery-card {
+  display: grid; justify-items: center; gap: 9px; width: min(290px, 100%);
+  padding: 22px 20px; border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 16px; background: rgb(20 22 25 / 94%); color: #fff;
+  text-align: center; box-shadow: 0 12px 36px rgb(0 0 0 / 42%);
+}
+.viewer-recovery-card strong { font-size: 14px; letter-spacing: .02em; }
+.viewer-recovery-card span { color: rgb(255 255 255 / 68%); font-size: 11px; line-height: 1.4; }
+.viewer-recovery-card button { min-height: 38px; margin-top: 3px; }
 .studio-open { --studio-panel-height: min(48dvh, 520px); }
 .studio-open .viewer-stage { top: 0; bottom: var(--studio-panel-height); container-type: size; background: var(--viewer-background); }
-.studio-open .viewer-canvas.framed { position: absolute; width: min(100cqw, calc(100cqh * var(--frame-ratio))); height: min(100cqh, calc(100cqw / var(--frame-ratio))); }
+.studio-open .viewer-canvas {
+  position: absolute;
+  inset: 0;
+  left: 0;
+  top: 0;
+  transform: none;
+  width: 100%;
+  height: 100%;
+}
+.studio-open .viewer-crop-guide {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(100cqw, calc(100cqh * var(--frame-ratio)));
+  height: min(100cqh, calc(100cqw / var(--frame-ratio)));
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(255 137 48 / 95%);
+  outline: 1px solid rgb(255 137 48 / 28%);
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 75%);
+  transition: width 280ms ease, height 280ms ease;
+  pointer-events: none;
+}
 .studio-open .viewer-gizmo, .studio-open .viewer-brightness, .studio-open .viewer-projection { display: none; }
 .studio-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; height: var(--studio-panel-height); overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+/* Keep the original blue panel; add only a faint orange tint at its bottom edge. */
+.studio-sheet {
+  background-color: var(--card);
+  background-image: linear-gradient(
+    to top,
+    rgb(255 115 0 / 12%) 0%,
+    rgb(255 115 0 / 5%) 18%,
+    transparent 38%
+  );
+}
 @media (max-height: 500px) { .studio-open { --studio-panel-height: 48dvh; } .studio-open .viewer-stage { top: 64px; } .studio-open .viewer-record { top: 8px; right: 120px; } .studio-open .viewer-iron-trapdoor { top: 60px; right: 120px; } .studio-open .iron-trapdoor-panel { top: 112px; right: 120px; } }
 
 
@@ -618,3 +663,227 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 .shadow-settings-section-title{font-size:10px;font-weight:800;letter-spacing:.14em;opacity:.62;padding:10px 0 2px}
 .shadow-settings-divider{height:1px;background:var(--border,rgba(255,255,255,.16));margin:12px 0 4px}
+
+
+/* Orbit Studio compact timeline layout: keep the complete animation workflow visible. */
+.studio-sheet {
+  --studio-panel-height: min(54dvh, 560px);
+}
+.studio-sheet > header { padding-top: 5px; padding-bottom: 5px; }
+.studio-sheet > header h2 { font-size: 15px; }
+.studio-sheet > nav { padding-top: 4px; padding-bottom: 4px; }
+.studio-sheet .studio-tab { min-height: 40px; flex-direction: row; gap: 6px; font-size: 11px; }
+.studio-sheet .studio-tab svg { width: 16px; height: 16px; }
+.studio-sheet > .safe-x.safe-b { padding-top: 3px; }
+.studio-sheet .studio-timeline-compact .rounded-xl { border-radius: 9px; }
+.studio-sheet .studio-timeline-compact .studio-btn,
+.studio-sheet .studio-timeline-compact .studio-btn-primary,
+.studio-sheet .studio-timeline-compact .studio-btn-danger {
+  min-height: 36px;
+}
+.studio-sheet .grid.grid-cols-3 > .studio-btn,
+.studio-sheet .grid.grid-cols-3 > .studio-btn-primary {
+  min-height: 38px;
+  min-width: 0;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+.studio-sheet .grid.grid-cols-3 > button svg { width: 16px; height: 16px; }
+@media (max-width: 520px) {
+  .studio-open { --studio-panel-height: min(56dvh, 520px); }
+  .studio-sheet { --studio-panel-height: min(56dvh, 520px); }
+  .studio-sheet > .safe-x { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .studio-sheet .studio-timeline-compact .font-mono { font-size: 11px; }
+}
+
+/* Folder-style Orbit Studio settings: one category per shared content frame. */
+.studio-settings-folder {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  min-width: 0;
+}
+.studio-settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--muted) / .58);
+}
+.studio-settings-tab {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.studio-settings-tab[data-active="true"] {
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 1px 3px hsl(0 0% 0% / .16);
+}
+.studio-settings-tab:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.studio-settings-frame {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 205px;
+  padding: 11px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--card) / .72);
+}
+.studio-settings-frame h3 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+.studio-setting-field { display: grid; gap: 5px; min-width: 0; }
+.studio-setting-label { margin: 0; color: hsl(var(--muted-foreground)); font-size: 10px; font-weight: 700; }
+.studio-setting-choices { display: grid; gap: 4px; min-width: 0; }
+.studio-setting-choice {
+  min-width: 0 !important;
+  min-height: 30px !important;
+  height: 30px;
+  padding: 0 5px !important;
+  border-radius: 7px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+.studio-setting-toggle {
+  display: flex;
+  min-height: 35px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--muted) / .55);
+  color: hsl(var(--foreground));
+  font-size: 10px;
+  font-weight: 650;
+}
+.studio-setting-toggle [role="switch"] { transform: scale(.84); transform-origin: right center; }
+.studio-setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+.studio-setting-inline strong { color: hsl(var(--primary)); font-size: 11px; white-space: nowrap; }
+.studio-bitrate { gap: 7px; }
+.studio-bitrate [data-orientation="horizontal"] { height: 22px; touch-action: pan-y; }
+.studio-bitrate [role="slider"] { width: 15px; height: 15px; }
+.studio-bitrate-presets { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.studio-setting-note { margin: 0; color: hsl(var(--muted-foreground)); font-size: 9px; line-height: 1.3; }
+.studio-custom-ratio { padding-top: 2px; }
+@media (max-width: 520px) {
+  .studio-settings-folder { gap: 6px; }
+  .studio-settings-tabs { gap: 3px; padding: 3px; }
+  .studio-settings-tab { min-height: 32px; padding-inline: 2px; font-size: 9px; }
+  .studio-settings-frame { min-height: 190px; gap: 9px; padding: 9px; }
+  .studio-setting-choice { min-height: 28px !important; height: 28px; font-size: 9px !important; }
+  .studio-setting-toggle { min-height: 32px; padding: 4px 7px; font-size: 9px; }
+  .studio-setting-toggle [role="switch"] { transform: scale(.78); }
+}
+@media (max-width: 340px) {
+  .studio-settings-tab { font-size: 8px; }
+  .studio-settings-frame { padding: 7px; }
+}
+
+
+/* Orbit Studio settings: reliable touch targets and a warm orange selected state. */
+.studio-settings-folder,
+.studio-settings-folder * {
+  pointer-events: auto;
+}
+.studio-settings-tab-active,
+.studio-settings-tab[data-active="true"] {
+  border-color: hsl(28 100% 52% / .78);
+  background: hsl(28 100% 50% / .2);
+  color: hsl(32 100% 76%);
+  box-shadow: inset 0 0 0 1px hsl(28 100% 52% / .18), 0 0 10px hsl(28 100% 50% / .1);
+}
+.studio-setting-choice {
+  border: 1px solid hsl(var(--border) / .85) !important;
+  background: hsl(var(--muted) / .42) !important;
+  color: hsl(var(--foreground)) !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.studio-setting-choice-active,
+.studio-setting-choice[data-active="true"] {
+  border-color: hsl(28 100% 52% / .9) !important;
+  background: hsl(28 100% 50% / .22) !important;
+  color: hsl(32 100% 78%) !important;
+  box-shadow: inset 0 0 0 1px hsl(28 100% 52% / .2), 0 0 9px hsl(28 100% 50% / .12);
+}
+.studio-setting-toggle {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.studio-setting-toggle [role="switch"][data-state="checked"] {
+  background: hsl(28 100% 50%) !important;
+}
+.studio-settings-tab,
+.studio-setting-choice,
+.studio-setting-toggle [role="switch"] {
+  cursor: pointer;
+}
+
+
+/* Three clear settings folders with a strong tab/content divider. */
+.studio-settings-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 2px 7px;
+  border: 0;
+  border-bottom: 2px solid hsl(28 100% 50% / .48);
+  border-radius: 0;
+  background: transparent;
+}
+.studio-settings-tab {
+  min-height: 35px;
+  border: 1px solid hsl(var(--border) / .8);
+  border-radius: 8px 8px 5px 5px;
+  background: hsl(var(--muted) / .38);
+}
+.studio-settings-tab-active,
+.studio-settings-tab[data-active="true"] {
+  border-color: hsl(28 100% 52% / .95);
+  background: linear-gradient(180deg, hsl(28 100% 50% / .27), hsl(28 100% 50% / .12));
+  color: hsl(32 100% 78%);
+  box-shadow: inset 0 -2px 0 hsl(28 100% 52%), 0 0 10px hsl(28 100% 50% / .13);
+}
+.studio-settings-frame {
+  border-top: 0;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+@media (max-width: 520px) {
+  .studio-settings-tabs { gap: 4px; padding-bottom: 6px; }
+  .studio-settings-tab { min-height: 34px; font-size: 10px; }
+}
+
+/* Orbit Studio expanded aspect-ratio choices. */
+.studio-more-ratios { display: grid; gap: 7px; }
+.studio-more-ratios-trigger {
+  display: flex; width: 100%; min-height: 30px; align-items: center; justify-content: space-between;
+  padding: 0 9px; border: 1px solid hsl(28 100% 52% / .34); border-radius: 7px;
+  background: hsl(28 100% 50% / .08); color: hsl(32 100% 78%); font-size: 10px; font-weight: 750;
+}
+.studio-more-ratios-trigger:hover { background: hsl(28 100% 50% / .15); }

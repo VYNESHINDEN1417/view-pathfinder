@@ -175,132 +175,208 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   }, [previewing]);
   const togglePreview = () => { if (keys.length < 2) return; if (!previewing && time >= settings.duration) seek(0); setPreviewing((p) => !p); };
 
+  const renderInProgress = useRef(false);
+
   const startRender = async () => {
+    if (renderInProgress.current) return;
     const v = getViewer(), canvas = getCanvas();
     if (!v || !canvas || keys.length < 2) return;
+    renderInProgress.current = true;
     setPreviewing(false); setError("");
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(null);
+
     const size = outputSize(settings);
     const width = size.width & ~1, height = size.height & ~1;
     const pixels = width * height;
     if (settings.fps === 90 && pixels > 2_073_600) {
       setError("90 fps export is currently limited to 1080p. Switch to 60 fps for 1440p or 4K.");
+      renderInProgress.current = false;
       return;
     }
+
     const bitrate = bitrateBps(settings.bitrate);
     const estimatedBytes = (bitrate * settings.duration) / 8;
-    if (estimatedBytes > 256 * 1024 * 1024) {
-      setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration or bitrate, or export in shorter sections.");
+    const surfaceBytes = width * height * 4 * (settings.noiseReduction ? 3 : 2);
+    const memoryEstimate = estimatedBytes + surfaceBytes;
+    if (!Number.isFinite(memoryEstimate) || memoryEstimate > 256 * 1024 * 1024) {
+      setError("This export is estimated to exceed the 256 MB in-memory safety limit. Reduce duration, resolution, or bitrate, or export in shorter sections.");
+      renderInProgress.current = false;
       return;
     }
-    const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-    let codec = "";
-    if (typeof VideoEncoder !== "undefined")
-      for (const c of ["avc1.640034", "avc1.4d0034", "avc1.42003e"]) {
-        const ok = await VideoEncoder.isConfigSupported({ codec: c, width, height, bitrate, framerate: settings.fps }).catch(() => null);
-        if (ok?.supported) { codec = c; break; }
-      }
-    if (!codec) { setError("This browser can't encode video frame-by-frame. Try the latest Chrome, Edge or Safari."); return; }
-    // Render at the viewport's existing drawing-buffer dimensions. The
-    // export delivery size can be much larger (e.g. 1080x1920 on a phone),
-    // which changes screen-space AO/depth sampling and can darken thin carpet
-    // surfaces. Scale the finished viewport-matched frame only after rendering.
-    const prev = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
-    const renderWidth = Math.max(1, prev.w);
-    const renderHeight = Math.max(1, prev.h);
-    const frameCanvas = document.createElement("canvas");
-    frameCanvas.width = width; frameCanvas.height = height;
-    const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
-    if (!frameContext) { setError("Unable to prepare the anti-aliased export surface."); return; }
-    // Preserve CSS-backed viewport backgrounds behind the transparent WebGPU canvas.
-    const drawExportBackdrop = await prepareExportBackground(canvas, width, height);
-    // Restore the live view after the temporary export render.
-    const restore = () => {
-      canvas.width = prev.w; canvas.height = prev.h;
-      v.resize(prev.w, prev.h, prev.cw, prev.ch);
-      v.set_shadow_mode(shadowMode);
-      v.set_point_orbit_visible(blueLightPanelOpen);
-      schedule();
+
+    const previous = { w: canvas.width, h: canvas.height, cw: canvas.clientWidth, ch: canvas.clientHeight };
+    let rendererChanged = false;
+    let encoder: VideoEncoder | null = null;
+    let denoiser: ReturnType<typeof createExportDenoiser> = null;
+    let encoderError: unknown = null;
+    let finished = false;
+    let cancelled = false;
+
+    const restoreRenderer = () => {
+      if (!rendererChanged) return;
+      // Restore each part independently so one failed recovery call cannot
+      // prevent the remaining renderer state from being put back.
+      try { canvas.width = previous.w; canvas.height = previous.h; } catch (error) { console.error("Canvas restore failed", error); }
+      try { v.resize(previous.w, previous.h, previous.cw, previous.ch); } catch (error) { console.error("Viewer resize restore failed", error); }
+      try { v.set_shadow_mode(shadowMode); } catch (error) { console.error("Shadow restore failed", error); }
+      try { v.set_point_orbit_visible(blueLightPanelOpen); } catch (error) { console.error("Orbit marker restore failed", error); }
+      try { schedule(); } catch (error) { console.error("Viewer redraw after export failed", error); }
+      rendererChanged = false;
     };
-    canvas.width = renderWidth; canvas.height = renderHeight; v.resize(renderWidth, renderHeight, prev.cw, prev.ch);
-    // Export uses the same Rust renderer and fully settled lighting as the viewport.
-    // Rebuild cached sun shadows before the first frame so a recent azimuth change
-    // cannot leak a stale/partially updated shadow map into the recording.
-    v.refresh_sun_shadow();
-    if (!settings.shadows) v.set_shadow_mode(0);
-    // Editor orbit and source marker are guides, never part of rendered video.
-    v.set_point_orbit_visible(false);
-    const total = totalFrames(settings.duration, settings.fps);
-    ctrl.current = { paused: false, cancel: false };
+
+    setProg({ frame: 0, total: 0, fps: 0, eta: null });
     setRs("rendering"); setTab("render");
-    const target = new ArrayBufferTarget();
-    const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: settings.fps }, fastStart: "in-memory" });
-    // Preserve the encoder's own output color description. The input frame is
-    // explicitly tagged as full-range sRGB below; guessing that the encoded
-    // H.264 stream is limited-range BT.709 when the encoder omits metadata can
-    // mislabel the actual YUV range and make midtone materials look darker.
-    let encErr: unknown = null;
-    const enc = new VideoEncoder({
-      output: (chunk, metadata) => {
-        muxer.addVideoChunk(chunk, metadata);
-      },
-      error: (er) => { encErr = er; },
-    });
-    enc.configure({ codec, width, height, bitrate, framerate: settings.fps });
-    const us = 1e6 / settings.fps;
-    const denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
-    if (settings.noiseReduction && !denoiser)
-      setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
-    let activeMs = 0, last = performance.now();
-    for (let f = 0; f < total; f++) {
-      if (ctrl.current.cancel || encErr) break;
-      while (ctrl.current.paused && !ctrl.current.cancel) { await new Promise((r) => setTimeout(r, 100)); last = performance.now(); }
-      if (ctrl.current.cancel) break;
-      const t = f / settings.fps;
-      const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
-      if (!sampled) break;
-      v.set_camera_pose(new Float32Array(sampled));
-      v.frame();
-      // Give the browser a compositor turn after the GPU submission before the
-      // canvas is sampled. Export is offline-timed, so this does not drop frames.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      // H.264 has no alpha channel. Composite the WebGPU canvas onto an opaque
-      // sRGB frame here so premultiplied canvas RGB is not later mistaken for
-      // straight-alpha video pixels by the encoder.
-      frameContext.fillStyle = "#000000";
-      frameContext.fillRect(0, 0, width, height);
-      drawExportBackdrop?.(frameContext);
-      frameContext.drawImage(canvas, 0, 0, width, height);
-      const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
-      const vf = new VideoFrame(frameSource, {
-        timestamp: Math.round(f * us),
-        duration: Math.round(us),
-        // The composited frame canvas contains SDR sRGB pixels.
-        colorSpace: { primaries: "bt709", transfer: "iec61966-2-1", matrix: "rgb", fullRange: true },
-      });
-      enc.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
-      vf.close();
-      while (enc.encodeQueueSize > 4) await new Promise((r) => setTimeout(r, 1));
-      await new Promise((r) => setTimeout(r, 0));
-      const now = performance.now(); activeMs += now - last; last = now;
-      if (f % 3 === 0 || f === total - 1) {
-        const fps = (f + 1) / (activeMs / 1000);
-        setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
+    ctrl.current = { paused: false, cancel: false };
+
+    try {
+      const mp4Module = await import("mp4-muxer");
+      const codecChoices = {
+        h264: { muxer: "avc" as const, candidates: ["avc1.640034", "avc1.4d0034", "avc1.42003e"] },
+        h265: { muxer: "hevc" as const, candidates: ["hvc1.1.6.L153.B0", "hev1.1.6.L153.B0", "hvc1.1.6.L93.B0"] },
+        av1: { muxer: "av1" as const, candidates: ["av01.0.10M.08", "av01.0.08M.08"] },
+      }[settings.codec];
+
+      let encoderConfig: VideoEncoderConfig | null = null;
+      if (typeof VideoEncoder !== "undefined") {
+        for (const candidate of codecChoices.candidates) {
+          const baseConfig: VideoEncoderConfig = {
+            codec: candidate, width, height, bitrate, framerate: settings.fps,
+            latencyMode: settings.exportSpeed === "faster" ? "realtime" : "quality",
+            bitrateMode: "variable",
+            hardwareAcceleration: settings.exportSpeed === "faster" ? "prefer-hardware" : "no-preference",
+          };
+          let supported = await VideoEncoder.isConfigSupported(baseConfig).catch(() => null);
+          if (!supported?.supported && settings.exportSpeed === "faster") {
+            const fallback: VideoEncoderConfig = { ...baseConfig, hardwareAcceleration: "no-preference" };
+            supported = await VideoEncoder.isConfigSupported(fallback).catch(() => null);
+            if (supported?.supported) encoderConfig = fallback;
+          }
+          if (supported?.supported) { encoderConfig ??= baseConfig; break; }
+        }
       }
+      if (!encoderConfig) throw new Error("This browser or device does not support " + settings.codec.toUpperCase() + " encoding at the selected resolution. Choose another codec or lower the resolution.");
+
+      // Render against the viewport's drawing-buffer dimensions to preserve
+      // the established AO/depth sampling, then scale to the selected output.
+      const renderScale = settings.exportSpeed === "faster" ? 0.5 : 1;
+      const renderWidth = Math.max(1, Math.round(previous.w * renderScale));
+      const renderHeight = Math.max(1, Math.round(previous.h * renderScale));
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = width; frameCanvas.height = height;
+      const frameContext = frameCanvas.getContext("2d", { alpha: false, colorSpace: "srgb" });
+      if (!frameContext) throw new Error("Unable to prepare the anti-aliased export surface.");
+
+      const drawExportBackdrop = await prepareExportBackground(canvas, width, height);
+      if (ctrl.current.cancel) { cancelled = true; return; }
+
+      // Mark as changed before touching the canvas, so even a partial resize
+      // failure enters the recovery path.
+      rendererChanged = true;
+      canvas.width = renderWidth; canvas.height = renderHeight;
+      v.resize(renderWidth, renderHeight, previous.cw, previous.ch);
+      v.refresh_sun_shadow();
+      if (!settings.shadows) v.set_shadow_mode(0);
+      v.set_point_orbit_visible(false);
+
+      const total = totalFrames(settings.duration, settings.fps);
+      denoiser = settings.noiseReduction ? createExportDenoiser(width, height) : null;
+      if (settings.noiseReduction && !denoiser)
+        setError("Noise reduction is unavailable on this browser or device. Export will continue without it.");
+
+      const { Muxer, ArrayBufferTarget } = mp4Module;
+      const target = new ArrayBufferTarget();
+      const muxer = new Muxer({ target, video: { codec: codecChoices.muxer, width, height, frameRate: settings.fps }, fastStart: "in-memory" });
+      encoder = new VideoEncoder({
+        output: (chunk, metadata) => {
+          try { muxer.addVideoChunk(chunk, metadata); }
+          catch (error) { encoderError = error; ctrl.current.cancel = true; }
+        },
+        error: (error) => { encoderError = error; ctrl.current.cancel = true; },
+      });
+      encoder.configure(encoderConfig);
+
+      const us = 1e6 / settings.fps;
+      let activeMs = 0, last = performance.now();
+      for (let f = 0; f < total; f++) {
+        if (ctrl.current.cancel || encoderError) break;
+        while (ctrl.current.paused && !ctrl.current.cancel) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          last = performance.now();
+        }
+        if (ctrl.current.cancel) break;
+        const t = f / settings.fps;
+        const sampled = sampleCamera(keysRef.current, t, settings.smoothing);
+        if (!sampled) break;
+        v.set_camera_pose(new Float32Array(sampled));
+        v.frame();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        frameContext.fillStyle = "#000000";
+        frameContext.fillRect(0, 0, width, height);
+        drawExportBackdrop?.(frameContext);
+        frameContext.drawImage(canvas, 0, 0, width, height);
+        const frameSource = denoiser ? denoiser.process(frameCanvas) : frameCanvas;
+        const vf = new VideoFrame(frameSource, {
+          timestamp: Math.round(f * us),
+          duration: Math.round(us),
+          colorSpace: { primaries: "bt709", transfer: "iec61966-2-1", matrix: "rgb", fullRange: true },
+        });
+        try {
+          encoder.encode(vf, { keyFrame: f % (settings.fps * 2) === 0 });
+        } finally {
+          vf.close();
+        }
+        while (encoder.encodeQueueSize > 4 && !ctrl.current.cancel && !encoderError)
+          await new Promise((resolve) => setTimeout(resolve, 1));
+
+        const now = performance.now(); activeMs += now - last; last = now;
+        if (f % 3 === 0 || f === total - 1) {
+          const fps = (f + 1) / (activeMs / 1000);
+          setTime(t); setProg({ frame: f + 1, total, fps, eta: f > 5 ? (total - f - 1) / fps : null });
+        }
+      }
+
+      if (ctrl.current.cancel || encoderError) {
+        cancelled = true;
+        if (encoderError) throw new Error("Video encoding failed. Try a lower resolution or another codec.");
+        return;
+      }
+
+      await encoder.flush();
+      if (ctrl.current.cancel) { cancelled = true; return; }
+      if (encoderError) throw new Error("Video encoding failed. Try a lower resolution or another codec.");
+      encoder.close();
+      encoder = null;
+      muxer.finalize();
+      const blob = new Blob([target.buffer], { type: "video/mp4" });
+      setVideoUrl(URL.createObjectURL(blob));
+      finished = true;
+      setRs("done");
+    } catch (error) {
+      console.error("Orbit Studio export failed", error);
+      const message = error instanceof Error ? error.message : "An unexpected error interrupted video export.";
+      setError(message);
+      setRs("idle");
+      setProg({ frame: 0, total: 0, fps: 0, eta: null });
+    } finally {
+      try { denoiser?.destroy(); } catch (error) { console.error("Export denoiser cleanup failed", error); }
+      try {
+        if (encoder && encoder.state !== "closed") encoder.close();
+      } catch (error) { console.error("Video encoder cleanup failed", error); }
+      restoreRenderer();
+      if (!finished) setRs("idle");
+      if (cancelled) {
+        setRs("idle");
+        setProg({ frame: 0, total: 0, fps: 0, eta: null });
+      }
+      renderInProgress.current = false;
     }
-    denoiser?.destroy();
-    restore();
-    if (ctrl.current.cancel || encErr) {
-      enc.close(); setRs("idle"); setProg({ frame: 0, total: 0, fps: 0, eta: null });
-      if (encErr) setError("Video encoding failed. Try a lower resolution.");
-      return;
-    }
-    await enc.flush(); enc.close(); muxer.finalize();
-    setVideoUrl(URL.createObjectURL(new Blob([target.buffer], { type: "video/mp4" })));
-    setRs("done");
   };
-  const pauseResume = () => { ctrl.current.paused = !ctrl.current.paused; setRs(ctrl.current.paused ? "paused" : "rendering"); };
+  const pauseResume = () => {
+    ctrl.current.paused = !ctrl.current.paused;
+    setRs(ctrl.current.paused ? "paused" : "rendering");
+  };
   const pct = prog.total ? Math.round((prog.frame / prog.total) * 100) : 0;
   const out = outputSize(settings);
 
@@ -321,7 +397,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       {rs === "idle" || rs === "done" ? <>
         <div className="rounded-xl border border-border bg-card p-4 text-sm">
           <p className="font-semibold">Output</p>
-          <p className="mt-1 font-mono text-muted-foreground">{out.width}×{out.height} · {settings.fps} fps · {settings.duration}s · {totalFrames(settings.duration, settings.fps)} frames</p>
+          <p className="mt-1 font-mono text-muted-foreground">MP4 · {settings.codec.toUpperCase()} · {out.width}×{out.height} · {settings.fps} fps · {settings.duration}s · {totalFrames(settings.duration, settings.fps)} frames</p>
           {keys.length < 2 && <p className="mt-2 text-primary">Add at least 2 keyframes to render.</p>}
         </div>
         <button className="studio-btn-primary h-16 w-full text-lg" onClick={() => void startRender()} disabled={keys.length < 2}><Clapperboard className="size-6" />Start Rendering</button>

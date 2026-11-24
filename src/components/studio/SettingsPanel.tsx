@@ -1,4 +1,4 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -6,19 +6,16 @@ import type { StudioSettings } from "./settings";
 
 type Set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => void;
 
-function Choice<T extends string | number>({ label, desc, value, options, onChange, disabled }: {
-  label: string; desc?: string; value: T; options: { v: T; l: string }[]; onChange: (v: T) => void; disabled?: boolean;
+function Choice<T extends string | number>({ label, value, options, onChange, disabled }: {
+  label: string; value: T; options: { v: T; l: string }[]; onChange: (v: T) => void; disabled?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <div>
-        <p className="text-sm font-semibold">{label}</p>
-        {desc && <p className="text-sm text-muted-foreground">{desc}</p>}
-      </div>
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length > 4 ? 3 : options.length}, minmax(0,1fr))` }} role="radiogroup" aria-label={label}>
+    <div className="studio-setting-field">
+      <p className="studio-setting-label">{label}</p>
+      <div className="studio-setting-choices" style={{ gridTemplateColumns: `repeat(${options.length > 4 ? 3 : options.length}, minmax(0,1fr))` }} role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <Button variant="ghost" key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} disabled={disabled}
-            data-active={value === o.v} className="studio-btn" onClick={() => onChange(o.v)}>
+            data-active={value === o.v} className={`studio-setting-choice ${value === o.v ? "studio-setting-choice-active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={() => onChange(o.v)}>
             {o.l}
           </Button>
         ))}
@@ -27,14 +24,11 @@ function Choice<T extends string | number>({ label, desc, value, options, onChan
   );
 }
 
-function Toggle({ label, desc, checked, onChange, disabled }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+function Toggle({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <label className="flex min-h-[56px] items-center justify-between gap-4 rounded-xl border border-border bg-muted px-4 py-3">
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="block text-sm text-muted-foreground">{desc}</span>
-      </span>
-      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} className="scale-125 shrink-0" />
+    <label className="studio-setting-toggle" onPointerDown={(event) => event.stopPropagation()}>
+      <span>{label}</span>
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} className="shrink-0" />
     </label>
   );
 }
@@ -45,74 +39,123 @@ function BitrateControl({ value, onChange, disabled, duration }: {
   const presets = [12, 24, 40, 60, 80];
   const estimatedMb = (value * duration) / 8;
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">Video bitrate</p>
-          <p className="text-sm text-muted-foreground">Higher bitrate preserves more detail, with larger files.</p>
-        </div>
-        <strong className="shrink-0 font-mono text-lg text-primary">{value} Mbps</strong>
+    <div className="studio-setting-field studio-bitrate">
+      <div className="studio-setting-inline">
+        <p className="studio-setting-label">Video bitrate</p>
+        <strong>{value} Mbps</strong>
       </div>
       <Slider min={8} max={80} step={2} value={[value]} disabled={disabled}
         onValueChange={(values) => { const next = values[0]; if (next !== undefined) onChange(next); }}
         aria-label="Video bitrate in megabits per second" />
-      <div className="flex justify-between text-xs text-muted-foreground"><span>8 Mbps · Smaller</span><span>80 Mbps · Larger</span></div>
-      <div className="grid grid-cols-5 gap-2" aria-label="Bitrate presets">
+      <div className="studio-setting-choices studio-bitrate-presets" aria-label="Bitrate presets">
         {presets.map((preset) => (
           <Button key={preset} type="button" variant="ghost" disabled={disabled} data-active={value === preset}
-            className="studio-btn px-1 text-xs" onClick={() => onChange(preset)}>{preset}</Button>
+            className={`studio-setting-choice ${value === preset ? "studio-setting-choice-active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={() => onChange(preset)}>{preset}</Button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">Approx. {estimatedMb.toFixed(1)} MB for {duration}s, before audio and container overhead.</p>
+      <p className="studio-setting-note">Approx. {estimatedMb.toFixed(1)} MB at {duration}s</p>
     </div>
   );
 }
 
+type SettingsTab = "output" | "camera" | "encoding";
+
+const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+  { id: "output", label: "Output" },
+  { id: "camera", label: "Camera" },
+  { id: "encoding", label: "Encoding" },
+];
+
 export function SettingsPanel({ s, set, locked }: { s: StudioSettings; set: Set; locked: boolean }) {
-  const sections = [
-    { id: "video", title: "Video Output", body: (
-      <>
-        <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
-          options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
-        <Choice label="Aspect ratio" value={s.aspect} disabled={locked} onChange={(v) => set("aspect", v)}
-          options={[{ v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" }, { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" }, { v: "custom", l: "Custom" }]} />
-        {s.aspect === "custom" && <div className="ratio-input">
-          <input type="number" aria-label="Aspect width" min="1" disabled={locked} value={s.customAspect[0]} onChange={(e) => set("customAspect", [Number(e.target.value), s.customAspect[1]])} />
-          <span>:</span>
-          <input type="number" aria-label="Aspect height" min="1" disabled={locked} value={s.customAspect[1]} onChange={(e) => set("customAspect", [s.customAspect[0], Number(e.target.value)])} />
-        </div>}
-        <Choice label="Frame rate" desc="90 fps creates smoother motion; availability depends on your browser and device encoder." value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
-          options={[{ v: 24, l: "24 fps" }, { v: 30, l: "30 fps" }, { v: 60, l: "60 fps" }, { v: 90, l: "90 fps" }]} />
-      </>
-    ) },
-    { id: "camera", title: "Camera Animation", body: (
-      <>
-        <Choice label="Duration" value={s.duration} disabled={locked} onChange={(v) => set("duration", v)}
-          options={[{ v: 4, l: "4s" }, { v: 6, l: "6s" }, { v: 10, l: "10s" }, { v: 15, l: "15s" }, { v: 30, l: "30s" }, { v: 60, l: "1m" }]} />
-        <Toggle label="Smooth easing" desc="Ease in and out between keyframes." checked={s.smoothing} onChange={(v) => set("smoothing", v)} disabled={locked} />
-        <Toggle label="Loop preview" desc="Repeat the preview until stopped." checked={s.loop} onChange={(v) => set("loop", v)} />
-      </>
-    ) },
-    { id: "light", title: "Lighting and Shadows", body: (
-      <Toggle label="Real-time shadows" desc="Sun shadows on the ship in the video." checked={s.shadows} onChange={(v) => set("shadows", v)} disabled={locked} />
-    ) },
-    { id: "enc", title: "Encoding Quality", body: (
-      <>
-        <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
-        <Toggle label="Noise reduction" desc="Optional edge-preserving cleanup. Off by default to preserve original colors and fine details." checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
-      </>
-    ) },
-  ];
+  const [activeTab, setActiveTab] = useState<SettingsTab>("output");
+  const [showMoreRatios, setShowMoreRatios] = useState(false);
+
   return (
-    <Accordion type="single" collapsible defaultValue="video" className="space-y-2">
-      {sections.map((sec, i) => (
-        <AccordionItem key={sec.id} value={sec.id} className="rounded-xl border border-border bg-card px-4">
-          <AccordionTrigger className="min-h-[56px] text-base font-semibold hover:no-underline">
-            <span><span className="mr-2 font-mono text-muted-foreground">{i + 1}</span>{sec.title}</span>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pb-4">{sec.body}</AccordionContent>
-        </AccordionItem>
-      ))}
-    </Accordion>
+    <div className="studio-settings-folder" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="studio-settings-tabs" role="tablist" aria-label="Studio settings categories">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`studio-settings-tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls="studio-settings-frame"
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            className={`studio-settings-tab ${activeTab === tab.id ? "studio-settings-tab-active" : ""}`}
+            data-active={activeTab === tab.id}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <section
+        id="studio-settings-frame"
+        className="studio-settings-frame"
+        role="tabpanel"
+        aria-labelledby={`studio-settings-tab-${activeTab}`}
+      >
+        {activeTab === "output" && <>
+          <h3>Video Output</h3>
+          <Choice label="Resolution" value={s.resolution} disabled={locked} onChange={(v) => set("resolution", v)}
+            options={[{ v: "720p", l: "720p" }, { v: "1080p", l: "1080p" }, { v: "1440p", l: "2K" }, { v: "2160p", l: "4K" }]} />
+          <div className="studio-setting-field">
+            <p className="studio-setting-label">Aspect ratio</p>
+            <div className="studio-setting-choices" style={{ gridTemplateColumns: "repeat(3, minmax(0,1fr))" }} role="radiogroup" aria-label="Aspect ratio">
+              {[
+                { v: "9:16", l: "9:16" }, { v: "16:9", l: "16:9" }, { v: "1:1", l: "1:1" },
+                { v: "21:9", l: "21:9" }, { v: "4:3", l: "4:3" },
+                ...(showMoreRatios ? [
+                  { v: "4:5", l: "4:5" }, { v: "3:4", l: "3:4" }, { v: "2:3", l: "2:3" },
+                  { v: "5:4", l: "5:4" }, { v: "3:2", l: "3:2" }, { v: "16:10", l: "16:10" },
+                  { v: "2:1", l: "2:1" }, { v: "32:9", l: "32:9" },
+                ] : []),
+              ].map((option) => (
+                <Button key={option.v} type="button" variant="ghost" role="radio" aria-checked={s.aspect === option.v}
+                  disabled={locked} data-active={s.aspect === option.v}
+                  className={`studio-setting-choice ${s.aspect === option.v ? "studio-setting-choice-active" : ""}`}
+                  onPointerDown={(event) => event.stopPropagation()} onClick={() => set("aspect", option.v as StudioSettings["aspect"])}>
+                  {option.l}
+                </Button>
+              ))}
+            </div>
+            <div className="studio-more-ratios">
+              <Button type="button" variant="ghost" disabled={locked} aria-expanded={showMoreRatios}
+                className="studio-more-ratios-trigger" onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => setShowMoreRatios((value) => !value)}>
+                {showMoreRatios ? "Fewer ratios" : "More ratios"} <span aria-hidden="true">{showMoreRatios ? "⌃" : "⌄"}</span>
+              </Button>
+            </div>
+          </div>
+          <Choice label="Frame rate" value={s.fps} disabled={locked} onChange={(v) => set("fps", v)}
+            options={[{ v: 24, l: "24" }, { v: 30, l: "30" }, { v: 60, l: "60" }, { v: 90, l: "90" }]} />
+          <p className="studio-setting-note">Frame rate in fps · 90 fps depends on device encoder support.</p>
+        </>}
+
+        {activeTab === "camera" && <>
+          <h3>Camera Animation</h3>
+          <Choice label="Duration" value={s.duration} disabled={locked} onChange={(v) => set("duration", v)}
+            options={[{ v: 4, l: "4s" }, { v: 6, l: "6s" }, { v: 10, l: "10s" }, { v: 15, l: "15s" }, { v: 30, l: "30s" }, { v: 60, l: "1m" }]} />
+          <Toggle label="Smooth easing" checked={s.smoothing} onChange={(v) => set("smoothing", v)} disabled={locked} />
+          <Toggle label="Loop preview" checked={s.loop} onChange={(v) => set("loop", v)} />
+        </>}
+
+        {activeTab === "encoding" && <>
+          <h3>Video Encoding</h3>
+          <Choice label="Video codec" value={s.codec} disabled={locked} onChange={(v) => set("codec", v)}
+            options={[{ v: "h264", l: "H.264" }, { v: "h265", l: "H.265" }, { v: "av1", l: "AV1" }]} />
+          <Toggle label="Faster export" checked={s.exportSpeed === "faster"}
+            onChange={(v) => set("exportSpeed", v ? "faster" : "standard")} disabled={locked} />
+          <p className="studio-setting-note">{s.exportSpeed === "faster"
+            ? "Uses a lower internal render resolution and prefers hardware video encoding. The saved video keeps your selected output resolution."
+            : "Standard export uses the viewport's full render resolution for maximum visual detail."}</p>
+          <BitrateControl value={s.bitrate} duration={s.duration} disabled={locked} onChange={(v) => set("bitrate", v)} />
+          <Toggle label="Noise reduction" checked={s.noiseReduction} onChange={(v) => set("noiseReduction", v)} disabled={locked} />
+        </>}
+      </section>
+    </div>
   );
 }
