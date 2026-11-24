@@ -83,17 +83,20 @@ async function prepareExportBackground(canvas: HTMLCanvasElement, width: number,
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode, noiseReduction, onNoiseReductionChange }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   shadowMode: number;
   onLayout: (layout: { open: boolean; ratio: number }) => void;
   blueLightPanelOpen: boolean;
+  noiseReduction: boolean; onNoiseReductionChange: (enabled: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
-  const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [settings, setSettings] = useState<StudioSettings>({ ...defaultSettings, noiseReduction });
+  useEffect(() => { setSettings((current) => current.noiseReduction === noiseReduction ? current : { ...current, noiseReduction }); }, [noiseReduction]);
+  useEffect(() => { setSettings((current) => current.noiseReduction === noiseReduction ? current : { ...current, noiseReduction }); }, [noiseReduction]);
   const [bitratePreferenceLoaded, setBitratePreferenceLoaded] = useState(false);
   useEffect(() => {
     try {
@@ -127,6 +130,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const apply = (p: number[] | null) => { const v = getViewer(); if (p && v) { v.set_camera_pose(new Float32Array(p)); schedule(); } };
   const set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => {
     setSettings((s) => ({ ...s, [k]: v }));
+    if (k === "noiseReduction") onNoiseReductionChange(v as boolean);
     if (k === "duration") setTime((t) => Math.min(t, v as number));
   };
   const seek = (t: number) => { setTime(t); apply(sampleCamera(keysRef.current, t, settings.smoothing)); };

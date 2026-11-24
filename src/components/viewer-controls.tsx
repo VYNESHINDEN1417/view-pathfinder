@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange, noiseReduction, onNoiseReductionChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -155,9 +155,14 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
   aoV2Enabled: boolean; onAoV2EnabledChange: (enabled: boolean) => void;
   aoV2ContactStrength: number; onAoV2ContactStrengthChange: (value: number) => void;
+  noiseReduction: boolean; onNoiseReductionChange: (enabled: boolean) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
+  const [denoiseMenuOpen, setDenoiseMenuOpen] = useState(false);
+  const aoHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressAoClick = useRef(false);
+  const clearAoHold = () => { if (aoHoldTimer.current) clearTimeout(aoHoldTimer.current); aoHoldTimer.current = null; };
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
@@ -174,7 +179,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
                 onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onSelect={() => onAoV2EnabledChange(!aoV2Enabled)}>{aoV2Enabled ? "✓ AO V2 · Geometry rays" : "AO V2 · Geometry rays"}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onOptions({ fancy: !options.fancy })}>{options.fancy ? "✓ Fancy Graphics" : "Fancy Graphics"}</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
@@ -238,8 +243,21 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
       aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
-    <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
-      aria-label="Fancy Graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Sparkles /></Button>
+    <div className="relative">
+      <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon"
+        onPointerDown={(event) => { if (event.pointerType === "mouse" && event.button !== 0) return; clearAoHold(); suppressAoClick.current = false; aoHoldTimer.current = setTimeout(() => { suppressAoClick.current = true; setDenoiseMenuOpen(true); }, 500); }}
+        onPointerUp={clearAoHold} onPointerLeave={clearAoHold} onPointerCancel={clearAoHold}
+        onClick={() => { if (suppressAoClick.current) { suppressAoClick.current = false; return; } onAoV2EnabledChange(!aoV2Enabled); }}
+        aria-label="AO V2" aria-pressed={aoV2Enabled} title="Tap: AO V2 · Hold: Denoising"><Sparkles /></Button>
+      {denoiseMenuOpen && <div className="absolute right-0 top-full z-50 mt-2 min-w-[190px] rounded-lg border border-white/10 bg-zinc-950 p-3 text-white shadow-xl" role="group" aria-label="Denoising shortcut">
+        <div className="mb-2 text-xs font-semibold tracking-wide text-white/65">RENDER QUALITY</div>
+        <button type="button" role="switch" aria-checked={noiseReduction} onClick={() => onNoiseReductionChange(!noiseReduction)} className="flex w-full items-center justify-between gap-4 rounded-md px-1 py-2 text-sm hover:bg-white/5">
+          <span>Denoising</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${noiseReduction ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/55"}`}>{noiseReduction ? "ON" : "OFF"}</span>
+        </button>
+        <div className="mt-1 text-[10px] leading-relaxed text-white/45">Applies to video export noise reduction.</div>
+        <button type="button" className="mt-2 w-full border-t border-white/10 pt-2 text-left text-xs text-white/55" onClick={() => setDenoiseMenuOpen(false)}>Close</button>
+      </div>}
+    </div>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
       <SliderValueReadout value={brightness} min={0.25} max={3} step={0.05} label="brightness" onApply={onBrightness} />
