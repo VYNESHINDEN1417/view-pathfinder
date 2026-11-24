@@ -1113,8 +1113,8 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
   /* Shadow and brightness strips: side-by-side, tall and tapered. */
   .viewer-shadow-strength, .viewer-brightness {
-    position:absolute !important; top:36% !important; bottom:auto !important;
-    height:62% !important; min-height:0 !important; padding:10px 0 !important;
+    position:absolute !important; top:75% !important; bottom:auto !important;
+    height:23% !important; min-height:0 !important; padding:10px 0 !important;
     gap:8px; z-index:7; border:2px solid var(--hud-orange,#ff7300) !important;
     border-radius:0 !important; background:rgb(35 30 27 / 14%) !important;
     box-shadow:none !important; backdrop-filter:none !important;
