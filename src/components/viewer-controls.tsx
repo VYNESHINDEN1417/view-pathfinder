@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb, Layers } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb, Layers, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -160,7 +160,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
-  const [denoiseMenuOpen, setDenoiseMenuOpen] = useState(false);
+  const [denoiseMenuOpen, setDenoiseMenuOpen] = useState(false);\n  const [viewportPanelOpen, setViewportPanelOpen] = useState(false);
   const aoHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressAoClick = useRef(false);
   const clearAoHold = () => { if (aoHoldTimer.current) clearTimeout(aoHoldTimer.current); aoHoldTimer.current = null; };
@@ -260,9 +260,19 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>
     <Button className="viewer-tool viewer-fancy-graphics" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
       aria-label="Fancy graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Layers /></Button>
-    <div className="viewer-viewport-control" aria-label="Viewport resolution">
-      <div className="viewer-viewport-heading"><span>VIEWPORT</span><strong>{viewportResolution}%</strong></div>
-      <Slider min={5} max={100} step={5} value={[viewportResolution]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} aria-label="Viewport resolution" />
+    <div className="viewer-viewport-control-wrap">
+      <Button className="viewer-tool viewer-viewport-trigger" variant="ghost" size="icon"
+        onClick={() => setViewportPanelOpen((open) => !open)}
+        aria-label="Viewport resolution settings" aria-expanded={viewportPanelOpen}
+        title={`Viewport resolution: ${viewportResolution}%`}><Gauge /></Button>
+      {viewportPanelOpen && <section className="viewer-viewport-popover" aria-label="Viewport resolution control">
+        <div className="viewer-viewport-heading"><span>VIEWPORT RESOLUTION</span><strong>{viewportResolution}%</strong></div>
+        <Slider min={5} max={100} step={5} value={[viewportResolution]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} aria-label="Viewport resolution" />
+        <div className="viewer-viewport-presets">
+          {[25, 50, 75, 100].map((value) => <button key={value} type="button" data-active={viewportResolution === value} onClick={() => onViewportResolutionChange(value)}>{value}%</button>)}
+        </div>
+        <p>Changes viewport rendering only. Model data and exports remain unchanged.</p>
+      </section>}
     </div>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
