@@ -1056,3 +1056,39 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-fancy-graphics { left:21.5% !important; bottom:31.5% !important; width:20% !important; }
   .viewer-fancy { left:47.5% !important; bottom:31.5% !important; width:20% !important; }
 }
+
+
+/* Final mobile HUD geometry pass: keep every right-rail control inside the viewport. */
+@media (max-width:700px) and (min-height:501px) {
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor, .viewer-projection, .viewer-blue-light-trigger {
+    right: 3% !important;
+    left: auto !important;
+    width: 24% !important;
+    height: 6.2% !important;
+    min-height: 44px !important;
+  }
+  .viewer-save { top: 30% !important; bottom: auto !important; }
+  .viewer-record { top: 37.2% !important; bottom: auto !important; }
+  .viewer-iron-trapdoor { top: 44.4% !important; bottom: auto !important; }
+  .viewer-projection { top: 51.6% !important; bottom: auto !important; }
+  .viewer-blue-light-trigger { top: 58.8% !important; bottom: auto !important; }
+  .viewer-gizmo {
+    left: 50% !important; bottom: max(6px, env(safe-area-inset-bottom)) !important;
+    width: min(39vw, 270px) !important; height: min(39vw, 270px) !important;
+    z-index: 5;
+  }
+  .viewer-shadow-strength, .viewer-brightness {
+    top: auto !important; bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    height: 25% !important; min-height: 145px !important;
+  }
+  .viewer-shadow-strength { left: 2% !important; width: 13% !important; }
+  .viewer-brightness { left: 16% !important; width: 13% !important; }
+  .viewer-viewport-control-wrap, .viewer-fancy-graphics, .viewer-fancy {
+    bottom: 29% !important; height: 6.5% !important; min-height: 46px !important;
+  }
+  .viewer-viewport-control-wrap { left: 2.5% !important; width: 17% !important; }
+  .viewer-fancy-graphics { left: 21% !important; width: 17% !important; }
+  .viewer-fancy { left: 40% !important; width: 17% !important; }
+  .viewer-settings { top: max(12px, env(safe-area-inset-top)) !important; left: 3% !important; }
+  .viewer-tool svg { width: 21px; height: 21px; }
+}
