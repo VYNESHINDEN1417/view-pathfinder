@@ -991,25 +991,25 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-record {
     top: 71.16% !important; bottom: auto !important;
     width: 32.9% !important; height: 4.95% !important;
-    clip-path: polygon(0 0,100% 0,100% 100%,30.2% 100%);
+    clip-path: polygon(0 0,100% 0,100% 100%,30.2% 100%,25% 90%,20% 80%,15% 68%,10% 55%,6% 42%,3% 28%,1% 14%);
   }
   /* 3 — Trapdoor Color. */
   .viewer-iron-trapdoor {
     top: 78.19% !important; bottom: auto !important;
     width: 20.3% !important; height: 4.88% !important;
-    clip-path: polygon(0 0,100% 0,100% 100%,14% 100%);
+    clip-path: polygon(0 0,100% 0,100% 100%,14% 100%,11% 82%,8% 64%,5% 45%,2% 25%);
   }
   /* 4 — Orthograph. */
   .viewer-projection {
     top: 85.22% !important; bottom: auto !important;
     width: 19.3% !important; height: 4.88% !important;
-    clip-path: polygon(10.2% 0,100% 0,100% 100%,0 100%);
+    clip-path: polygon(10.2% 0,100% 0,100% 100%,0 100%,2% 82%,5% 63%,8% 43%,10% 22%);
   }
   /* 5 — Blue Sun. */
   .viewer-blue-light-trigger {
     top: 92.25% !important; bottom: auto !important;
     width: 27.8% !important; height: 4.62% !important;
-    clip-path: polygon(24.3% 0,100% 0,100% 100%,0 100%);
+    clip-path: polygon(24.3% 0,100% 0,100% 100%,0 100%,5% 84%,11% 67%,16% 50%,20% 33%,23% 16%);
   }
 
   /* 6–8 — three adjoining parallelograms across the top of the lower HUD. */
@@ -1098,20 +1098,42 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
       20% 91%,10% 78%,3% 64%,0 50%,3% 37%,12% 22%,22% 10%
     );
   }
-  .shadow-strength-slider[data-orientation="vertical"],
-  .brightness-slider[data-orientation="vertical"] {
-    height: calc(100% - 48px) !important;
-    width: 22px !important;
-    min-height: 0 !important;
-    touch-action: none;
+  .viewer-arc-slider {
+    position: absolute !important;
+    inset: 38px 7px 8px !important;
+    width: calc(100% - 14px) !important;
+    height: calc(100% - 46px) !important;
+    overflow: visible !important;
+    touch-action: none !important;
+    cursor: grab;
+    z-index: 2;
   }
-  .viewer-shadow-strength [data-orientation="vertical"] [role="slider"],
-  .viewer-brightness [data-orientation="vertical"] [role="slider"] {
-    width: 15px !important;
-    height: 15px !important;
-    border: 2px solid #ffb16e !important;
-    background: #ff7300 !important;
-    box-shadow: 0 0 0 3px rgb(255 115 0 / 14%) !important;
+  .viewer-arc-slider:active { cursor: grabbing; }
+  .viewer-arc-slider-track {
+    fill: none;
+    stroke: rgb(255 115 0 / 32%);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+  }
+  .viewer-arc-slider-progress {
+    fill: none;
+    stroke: #ff7300;
+    stroke-width: 2.8;
+    stroke-linecap: round;
+  }
+  .viewer-arc-slider-thumb {
+    fill: #ff1616;
+    stroke: #ff8a32;
+    stroke-width: 1.4;
+    filter: drop-shadow(0 0 3px rgb(255 80 0 / 35%));
+  }
+  .viewer-arc-slider[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+  .viewer-shadow-strength > .viewer-value-readout,
+  .viewer-shadow-strength > .shadow-settings-trigger,
+  .viewer-brightness > .viewer-value-readout,
+  .viewer-brightness > svg:not(.viewer-arc-slider) {
+    position: relative;
+    z-index: 4;
   }
   .viewer-tool svg { color: #ff8a32 !important; width: 23px !important; height: 23px !important; }
 }
