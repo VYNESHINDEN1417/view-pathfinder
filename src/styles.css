@@ -890,145 +890,143 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 
 
-/* Exact mobile layout mapped from the user's numbered wireframe.
-   8 / 7 / 6 across the upper row; 1–5 down the right;
-   9 / 10 down the left; XYZ gizmo centered between them. */
+
+/* Hand-traced orange polygon controls from the supplied Pathfinder sketch.
+   Shapes use the drawing's chamfers and diagonal cuts, not rounded-card buttons. */
 @media (max-width: 700px) {
+  :root { --wire-orange: #FF7300; --wire-fill: rgb(30 24 19 / 40%); }
   .viewer-gizmo {
     left: 50% !important;
     bottom: max(8px, env(safe-area-inset-bottom)) !important;
-    width: min(46vw, 310px) !important;
-    height: min(46vw, 310px) !important;
+    width: min(48vw, 310px) !important;
+    height: min(48vw, 310px) !important;
     z-index: 3;
   }
 
-  /* Right rail: 1 Take picture, 2 Orbit Studio, 3 Trapdoor color,
-     4 Orthographic, 5 Blue sun. */
+  /* Shared outlined, angular button treatment. */
   .viewer-save, .viewer-record, .viewer-iron-trapdoor,
-  .viewer-projection, .viewer-blue-light-trigger {
-    top: auto !important;
-    right: max(2%, env(safe-area-inset-right)) !important;
-    left: auto !important;
-    width: clamp(48px, 9.5vw, 66px) !important;
-    height: clamp(48px, 9.5vw, 66px) !important;
-    padding: 0;
-    z-index: 7;
-  }
-  .viewer-save { --wire-step: 4; }
-  .viewer-record { --wire-step: 3; }
-  .viewer-iron-trapdoor { --wire-step: 2; }
-  .viewer-projection { --wire-step: 1; }
-  .viewer-blue-light-trigger { --wire-step: 0; }
-  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
-  .viewer-projection, .viewer-blue-light-trigger {
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--wire-step) * 76px) !important;
-  }
-
-  /* Upper row, left to right: 8 Viewport resolution, 7 Fancy graphics,
-     6 AO V2. AO V2 is the existing .viewer-fancy control. */
+  .viewer-projection, .viewer-blue-light-trigger,
+  .viewer-fancy, .viewer-fancy-graphics,
+  .viewer-shadow-strength, .viewer-brightness,
   .viewer-viewport-control {
-    position: absolute;
-    display: grid;
-    left: max(2%, env(safe-area-inset-left));
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 4 * 76px);
-    width: 39%;
-    height: clamp(48px, 9.5vw, 66px);
-    align-content: center;
-    gap: 6px;
-    padding: 7px 10px;
-    z-index: 6;
-    border: 1px solid rgb(255 132 35 / 62%);
-    border-radius: 10px;
-    color: #ffd0a6;
-    background: linear-gradient(145deg, rgb(255 115 0 / 25%), rgb(42 31 23 / 68%) 70%);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: 0 4px 14px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 190 120 / 18%);
+    border: 2px solid var(--wire-orange) !important;
+    border-radius: 0 !important;
+    background: var(--wire-fill) !important;
+    color: var(--wire-orange) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
-  .viewer-viewport-heading {
-    display: flex;
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
+  .viewer-projection, .viewer-blue-light-trigger,
+  .viewer-fancy, .viewer-fancy-graphics {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 5px;
-    font-size: 9px;
-    line-height: 1;
-    letter-spacing: .07em;
-  }
-  .viewer-viewport-heading strong { font-size: 11px; font-variant-numeric: tabular-nums; }
-  .viewer-viewport-control [data-orientation="horizontal"] { height: 18px; touch-action: pan-y; }
-  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 160 85 / 30%); }
-  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: linear-gradient(90deg, #ffb15c, #ff6900); }
-  .viewer-viewport-control [role="slider"] { width: 14px; height: 14px; border: 1px solid #fff0df; background: #ffd0a6; }
-
-  .viewer-fancy-graphics, .viewer-fancy {
-    position: absolute !important;
-    top: auto !important;
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 4 * 76px) !important;
-    left: auto !important;
-    right: auto !important;
-    width: clamp(48px, 9.5vw, 66px) !important;
-    height: clamp(48px, 9.5vw, 66px) !important;
+    justify-content: center;
+    padding: 0 !important;
+    min-width: 0 !important;
     z-index: 7;
   }
-  .viewer-fancy-graphics { left: 44% !important; }
-  .viewer-fancy { left: 56% !important; }
+  .viewer-tool svg { width: 23px; height: 23px; }
 
-  /* Left rail: 9 Shadow strength, 10 Brightness. */
-  .viewer-shadow-strength, .viewer-brightness {
+  /* Right side: five individual skewed/trapezoid polygons, numbered top to bottom. */
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
+  .viewer-projection, .viewer-blue-light-trigger {
     top: auto !important;
-    bottom: max(8px, env(safe-area-inset-bottom)) !important;
-    width: clamp(36px, 11vw, 76px) !important;
-    height: min(28vh, 290px) !important;
-    min-height: 170px;
-    padding: 10px 0;
-    gap: 10px;
-    z-index: 4;
-    border-radius: 10px;
-    clip-path: polygon(0 0, 100% 0, 100% 88%, 78% 100%, 0 100%);
+    right: 3% !important;
+    left: auto !important;
+    width: 29% !important;
+    height: clamp(46px, 8.2vh, 64px) !important;
+    clip-path: polygon(30% 0, 100% 0, 100% 100%, 0 100%, 10% 84%);
   }
-  .viewer-shadow-strength { left: max(2%, env(safe-area-inset-left)) !important; }
-  .viewer-brightness { left: 14% !important; }
-  .shadow-strength-slider[data-orientation="vertical"],
-  .brightness-slider[data-orientation="vertical"] {
-    height: calc(100% - 42px);
-    width: 22px;
-    min-height: 110px;
-  }
-  .viewer-value-readout { top: -22px; font-size: 10px; }
-  .viewer-value-input { top: -25px; }
+  .viewer-save { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 4 * (clamp(46px, 8.2vh, 64px) + 7px)) !important; }
+  .viewer-record { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 3 * (clamp(46px, 8.2vh, 64px) + 7px)) !important; }
+  .viewer-iron-trapdoor { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 2 * (clamp(46px, 8.2vh, 64px) + 7px)) !important; }
+  .viewer-projection { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 1 * (clamp(46px, 8.2vh, 64px) + 7px)) !important; }
+  .viewer-blue-light-trigger { bottom: max(10px, env(safe-area-inset-bottom)) !important; }
 
-  .viewer-tool svg { width: 22px; height: 22px; }
-}
-
-/* Desktop retains the familiar floating controls while exposing both added controls. */
-@media (min-width: 701px) {
+  /* Upper segmented bar: 8 viewport resolution, 7 Fancy Graphics, 6 AO V2.
+     Each segment has the same diagonal language as the hand-drawn connected strip. */
   .viewer-viewport-control {
-    position: absolute;
-    display: grid;
-    top: max(68px, calc(env(safe-area-inset-top) + 52px));
-    left: max(16px, env(safe-area-inset-left));
-    width: 190px;
-    min-height: 48px;
+    position: absolute !important;
+    display: grid !important;
+    left: 2% !important;
+    right: auto !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 4 * (clamp(46px, 8.2vh, 64px) + 7px)) !important;
+    width: 66% !important;
+    height: clamp(48px, 8.2vh, 64px) !important;
+    padding: 6px 12px !important;
     align-content: center;
     gap: 5px;
-    padding: 7px 10px;
-    z-index: 5;
-    border: 1px solid rgb(255 132 35 / 48%);
-    border-radius: 10px;
-    color: #ffd0a6;
-    background: rgb(25 22 20 / 70%);
-    backdrop-filter: blur(14px);
+    clip-path: polygon(0 0, 100% 0, 86% 100%, 2% 100%);
+    z-index: 6;
   }
   .viewer-viewport-heading { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: .08em; }
   .viewer-viewport-heading strong { font-size: 11px; }
-  .viewer-viewport-control [data-orientation="horizontal"] { height: 18px; }
+  .viewer-viewport-control [data-orientation="horizontal"] { height: 14px; touch-action: pan-y; }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 115 0 / 30%); }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: var(--wire-orange); }
+  .viewer-viewport-control [role="slider"] { width: 13px; height: 13px; border: 1px solid #fff0df; background: var(--wire-orange); }
+
+  .viewer-fancy-graphics, .viewer-fancy {
+    top: auto !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 4 * (clamp(46px, 8.2vh, 64px) + 7px)) !important;
+    width: 16% !important;
+    height: clamp(48px, 8.2vh, 64px) !important;
+  }
   .viewer-fancy-graphics {
-    position: absolute;
-    display: inline-flex;
-    top: max(68px, calc(env(safe-area-inset-top) + 52px));
-    right: max(120px, calc(env(safe-area-inset-right) + 104px));
-    left: auto;
-    bottom: auto;
+    left: 52% !important;
+    right: auto !important;
+    clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
+  }
+  .viewer-fancy {
+    left: 67% !important;
+    right: auto !important;
+    clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  /* Left pair: 9 shadow and 10 brightness, tall tapered polygons with cut lower corners. */
+  .viewer-shadow-strength, .viewer-brightness {
+    top: auto !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    width: 13% !important;
+    height: min(27vh, 230px) !important;
+    min-height: 150px;
+    padding: 9px 0 !important;
+    gap: 9px;
+    color: var(--wire-orange) !important;
+    background: var(--wire-fill) !important;
+    border: 2px solid var(--wire-orange) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     z-index: 4;
   }
+  .viewer-shadow-strength {
+    left: 3% !important;
+    clip-path: polygon(0 0, 100% 0, 82% 100%, 8% 100%);
+  }
+  .viewer-brightness {
+    left: 15% !important;
+    width: 17% !important;
+    clip-path: polygon(18% 0, 100% 0, 100% 100%, 25% 100%, 0 18%);
+  }
+  .shadow-strength-slider[data-orientation="vertical"],
+  .brightness-slider[data-orientation="vertical"] {
+    height: calc(100% - 46px);
+    width: 22px;
+    min-height: 95px;
+  }
+  .shadow-strength-slider > span:first-child { background: rgb(255 115 0 / 28%) !important; }
+  .shadow-strength-slider > span:first-child > span,
+  .brightness-slider > span:first-child > span { background: var(--wire-orange) !important; }
+  .shadow-strength-slider [role="slider"],
+  .brightness-slider [role="slider"] { background: #ffd0a6 !important; border-color: var(--wire-orange) !important; }
+  .viewer-value-readout { top: -22px; font-size: 10px; }
+  .viewer-value-input { top: -25px; }
+}
+
+/* Desktop keeps its existing floating arrangement; polygon sketch is mobile-first. */
+@media (min-width: 701px) {
+  .viewer-viewport-control { display: grid; }
+  .viewer-fancy-graphics { display: inline-flex; }
 }
