@@ -144,7 +144,7 @@ function BlueLightPanel({ value, rotation, onChange, onClose, enabled, onToggle 
   </div>;
 }
 
-export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange, adaptivePreview, onAdaptivePreviewChange }: {
+export function ViewerControls({ options, brightness, shadowStrength, shadowComponents, orthographic, rotation, saving, error, onOptions, onBrightness, onShadowStrength, onShadowComponents, onProjection, onSave, uploading, customModel, onUpload, models, activeModel, onModel, sunIntensity, onSunIntensity, blueLight, onBlueLightChange, blueLightEnabled, onBlueLightEnabledChange, blueLightPanelOpen, onBlueLightPanelOpenChange, aoV2Enabled, onAoV2EnabledChange, aoV2ContactStrength, onAoV2ContactStrengthChange, viewportResolution, onViewportResolutionChange, adaptivePreview, onAdaptivePreviewChange }: {
   options: ViewerOptions; brightness: number; shadowStrength: number; shadowComponents: ShadowComponents; orthographic: boolean; rotation: number[]; saving: boolean; error: string;
   onOptions: (patch: Partial<ViewerOptions>) => void; onBrightness: (value: number) => void; onShadowStrength: (value: number) => void; onShadowComponents: (patch: Partial<ShadowComponents>) => void;
   onProjection: () => void; onSave: () => void;
@@ -155,6 +155,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   blueLightPanelOpen: boolean; onBlueLightPanelOpenChange: (open: boolean) => void;
   aoV2Enabled: boolean; onAoV2EnabledChange: (enabled: boolean) => void;
   aoV2ContactStrength: number; onAoV2ContactStrengthChange: (value: number) => void;
+  viewportResolution: number; onViewportResolutionChange: (value: number) => void;
   adaptivePreview: boolean; onAdaptivePreviewChange: (enabled: boolean) => void;
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
@@ -186,6 +187,24 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
               <DropdownMenuRadioGroup value={String(options.fancyQuality)} onValueChange={(v) => onOptions({ fancyQuality: Number(v) })}>
                 {["Low", "Medium", "High"].map((label, id) => <DropdownMenuRadioItem key={id} value={String(id)}>{label}</DropdownMenuRadioItem>)}
               </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Viewport resolution</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu sun-intensity-menu">
+              <div className="px-3 py-2 space-y-3" onPointerDown={(event) => event.stopPropagation()}>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="text-white/65">Render scale</span>
+                  <strong className="text-white tabular-nums">{viewportResolution}%</strong>
+                </div>
+                <Slider aria-label="Viewport resolution" min={5} max={100} step={5} value={[viewportResolution]}
+                  onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} />
+                <div className="flex justify-between text-[10px] text-white/40"><span>5% · Performance</span><span>100% · Full</span></div>
+                <div className="grid grid-cols-4 gap-1">
+                  {[25, 50, 75, 100].map((value) => <button key={value} type="button" className={`rounded px-2 py-1 text-[11px] ${viewportResolution === value ? "bg-white/15 text-white" : "text-white/55 hover:bg-white/5"}`} onClick={() => onViewportResolutionChange(value)}>{value}%</button>)}
+                </div>
+                <p className="text-[10px] leading-relaxed text-white/40">Affects viewport rendering only. Model data and image/video exports stay unchanged.</p>
+              </div>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
