@@ -228,6 +228,10 @@ function Index() {
     }
   }, [aoV2Enabled, adaptivePreview, viewportResolution]);
   useEffect(() => {
+    applyAdaptiveScale(viewportResolution / 100);
+    if (viewportResolution >= 99.95) viewerRef.current?.set_interactive_preview(false);
+  }, [viewportResolution]);
+  useEffect(() => {
     settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength, viewportResolution };
     const viewer = viewerRef.current;
     if (!viewer) return;
