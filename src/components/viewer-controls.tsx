@@ -44,27 +44,34 @@ function ArcSlider({ value, min, max, onChange, disabled, label, variant }: {
   value: number; min: number; max: number; onChange: (value: number) => void;
   disabled?: boolean; label: string; variant: "outer" | "inner";
 }) {
-  const curve = variant === "outer"
-    ? [[85, 2], [18, 10], [4, 77], [78, 98]]
-    : [[92, 2], [28, 12], [12, 78], [90, 98]];
+  // Slider paths are traced from the inner orange contour of the supplied wireframe.
+  const points = variant === "outer"
+    ? [[90.32,1.01],[70.97,11.36],[55.48,22.98],[45.16,35.35],[40,48.74],[40,58.84],[41.29,64.14],[46.45,74.24],[56.13,85.1],[64.52,91.92],[74.84,98.23]]
+    : [[88.52,1.01],[77.51,4.29],[65.07,9.09],[54.55,14.39],[45.93,19.95],[38.76,26.01],[32.06,33.84],[28.71,39.65],[26.32,46.21],[25.84,59.34],[28.23,66.92],[32.06,73.74],[37.8,80.56],[44.98,86.87],[55.02,93.43],[66.03,98.74]];
+  const lengths = points.slice(1).map((p, i) => Math.hypot(p[0]-points[i][0], p[1]-points[i][1]));
+  const totalLength = lengths.reduce((sum, length) => sum + length, 0);
   const pointAt = (t: number) => {
-    const u = 1 - t;
-    const [p0, p1, p2, p3] = curve;
-    return {
-      x: u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
-      y: u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1],
-    };
+    let remaining = Math.max(0, Math.min(1, t)) * totalLength;
+    for (let i = 0; i < lengths.length; i++) {
+      const length = lengths[i];
+      if (remaining <= length || i === lengths.length - 1) {
+        const ratio = length ? remaining / length : 0;
+        return { x: points[i][0] + (points[i+1][0]-points[i][0])*ratio, y: points[i][1] + (points[i+1][1]-points[i][1])*ratio };
+      }
+      remaining -= length;
+    }
+    return { x: points[points.length-1][0], y: points[points.length-1][1] };
   };
   const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
   const thumb = pointAt(t);
-  const d = `M ${curve[0][0]} ${curve[0][1]} C ${curve[1][0]} ${curve[1][1]}, ${curve[2][0]} ${curve[2][1]}, ${curve[3][0]} ${curve[3][1]}`;
+  const d = points.map((p, i) => `${i ? "L" : "M"} ${p[0]} ${p[1]}`).join(" ");
   const updateFromPointer = (event: React.PointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const px = (event.clientX - rect.left) / rect.width * 100;
     const py = (event.clientY - rect.top) / rect.height * 100;
     let bestT = 0, bestDistance = Number.POSITIVE_INFINITY;
-    for (let i = 0; i <= 200; i++) {
-      const candidateT = i / 200;
+    for (let i = 0; i <= 300; i++) {
+      const candidateT = i / 300;
       const p = pointAt(candidateT);
       const distance = (p.x - px) ** 2 + (p.y - py) ** 2;
       if (distance < bestDistance) { bestDistance = distance; bestT = candidateT; }
@@ -72,7 +79,7 @@ function ArcSlider({ value, min, max, onChange, disabled, label, variant }: {
     onChange(Number((min + bestT * (max - min)).toFixed(4)));
   };
   const adjust = (delta: number) => onChange(Math.min(max, Math.max(min, value + delta)));
-  return <svg className={`viewer-arc-slider viewer-arc-slider-${variant}`} viewBox="0 0 100 100"
+  return <svg className={`viewer-arc-slider viewer-arc-slider-${variant}`} viewBox="0 0 100 100" preserveAspectRatio="none"
     role="slider" tabIndex={disabled ? -1 : 0} aria-label={label} aria-valuemin={min}
     aria-valuemax={max} aria-valuenow={value} aria-disabled={disabled || undefined}
     onPointerDown={(event) => { if (disabled) return; event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); updateFromPointer(event); }}
@@ -213,6 +220,18 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
   const valid = parseRatio(Number(draft[0]), Number(draft[1])) > 0;
   const stop = (e: React.KeyboardEvent) => e.stopPropagation();
   return <>
+    <svg className="viewer-wireframe" viewBox="0 0 814 1536" preserveAspectRatio="none" aria-hidden="true">
+      <g fill="#ff7300" fillRule="evenodd">
+        <path d="M508,1066 788,1066 788,968 637,967Z M519,1061 637,971 785,972 784,1063 520,1063Z" />
+        <path d="M788,1166 788,1093 785,1092 521,1093 563,1123 588,1148 603,1168 787,1168Z M532,1097 784,1096 785,1163 783,1165 605,1165 573,1128 549,1108Z" />
+        <path d="M622,1200 636,1236 645,1276 787,1276 787,1200Z M628,1204 782,1203 785,1205 785,1271 782,1273 648,1273 646,1271 645,1260 637,1229Z" />
+        <path d="M645,1310 645,1327 642,1347 632,1385 787,1385 787,1310Z M648,1314 784,1313 785,1380 783,1382 638,1382 636,1380 645,1348Z" />
+        <path d="M561,1486 787,1487 787,1417 618,1416 592,1455Z M570,1483 595,1456 620,1419 782,1419 785,1421 785,1482 783,1484Z" />
+        <path d="M23,1065 135,1065 138,1067 144,1065 467,1066 544,1007 23,1006Z M314,1061 334,1045 372,1009 534,1010 526,1018 465,1063Z M147,1061 198,1009 363,1010 323,1049 310,1058 308,1062 152,1063Z M25,1059 27,1009 188,1010 188,1013 140,1062 27,1062Z" />
+        <path d="M90,1091 80,1104 60,1141 45,1178 33,1220 27,1253 24,1285 24,1323 29,1368 36,1400 46,1433 70,1487 155,1487 143,1471 125,1439 107,1392 101,1368 95,1326 95,1282 101,1240 107,1216 121,1178 141,1140 159,1114 179,1091Z M91,1094 170,1095 140,1136 116,1182 100,1231 92,1284 92,1324 94,1345 102,1385 117,1428 130,1455 146,1480 146,1484 73,1484 71,1482 53,1443 43,1414 31,1361 27,1323 27,1284 31,1246 37,1216 43,1194 58,1153 77,1115Z" />
+        <path d="M208,1091 182,1118 162,1145 144,1177 130,1211 122,1240 116,1276 115,1311 118,1347 125,1380 139,1420 162,1463 180,1487 271,1487 258,1476 226,1442 208,1415 196,1390 187,1364 181,1334 181,1273 187,1244 195,1220 208,1193 224,1168 242,1147 270,1122 300,1103 324,1092Z M209,1094 308,1095 285,1108 259,1127 237,1148 219,1170 204,1194 190,1225 183,1248 178,1274 177,1326 182,1356 190,1383 202,1410 217,1435 238,1461 261,1482 259,1484 182,1484 178,1480 172,1472 168,1465 165,1462 164,1459 157,1449 145,1426 143,1422 141,1415 138,1410 135,1399 133,1396 133,1394 131,1390 131,1387 129,1383 128,1376 127,1375 126,1369 125,1368 125,1363 123,1359 123,1353 122,1352 121,1340 120,1339 120,1333 119,1332 119,1309 118,1308 118,1299 119,1298 119,1276 120,1275 120,1269 121,1268 121,1262 122,1261 122,1255 123,1254 123,1249 124,1248 124,1245 125,1244 125,1240 126,1239 126,1236 127,1235 129,1224 131,1221 131,1218 132,1217 135,1206 137,1203 137,1201 139,1198 139,1196 141,1193 143,1186 154,1164 156,1162 163,1149 168,1143 169,1140 172,1137 174,1133 178,1129 178,1128 186,1119 186,1118Z" />
+      </g>
+    </svg>
     <div className="viewer-settings">
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button className="viewer-tool" variant="ghost" size="icon" aria-label="Settings" title="Settings"><Menu /></Button></DropdownMenuTrigger>
