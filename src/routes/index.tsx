@@ -180,7 +180,7 @@ function Index() {
     const recover = (now: number) => {
       const t = Math.min(1, (now - startedAt) / 1500);
       const eased = t * t * (3 - 2 * t);
-      const targetScale = adaptiveConfigRef.current.viewportResolution / 100;
+      const targetScale = 1.0;
       applyAdaptiveScale(startScale + (targetScale - startScale) * eased);
       if (t < 1) adaptiveRafRef.current = requestAnimationFrame(recover);
       else {
@@ -198,8 +198,8 @@ function Index() {
     adaptiveRafRef.current = null;
     const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled, viewportResolution: manualPercent } = adaptiveConfigRef.current;
     const useInteractiveProfile = aoEnabled && previewEnabled;
-    if (useInteractiveProfile) applyAdaptiveScale(Math.min(0.05, manualPercent / 100));
-    else applyAdaptiveScale(manualPercent / 100);
+    if (useInteractiveProfile) applyAdaptiveScale(0.05);
+    else applyAdaptiveScale(1.0);
     // Pointer drags stay in preview mode until the final pointer is released.
     // Discrete inputs such as wheel and gizmo actions get a brief settle window.
     if (!held) adaptiveTimerRef.current = setTimeout(settleCameraMotion, 120);
@@ -223,13 +223,11 @@ function Index() {
     if (!aoV2Enabled || !adaptivePreview) {
       if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
       adaptiveTimerRef.current = null;
-      if (viewportResolution >= 99.95) viewerRef.current?.set_interactive_preview(false);
-      applyAdaptiveScale(viewportResolution / 100);
+      viewerRef.current?.set_viewport_resolution_scale(viewportResolution / 100);
     }
   }, [aoV2Enabled, adaptivePreview, viewportResolution]);
   useEffect(() => {
-    applyAdaptiveScale(viewportResolution / 100);
-    if (viewportResolution >= 99.95) viewerRef.current?.set_interactive_preview(false);
+    viewerRef.current?.set_viewport_resolution_scale(viewportResolution / 100);
   }, [viewportResolution]);
   useEffect(() => {
     settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength, viewportResolution };
@@ -397,7 +395,7 @@ function Index() {
       v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
       v.set_ao_v2_enabled(settingsRef.current.aoV2Enabled);
       v.set_ao_v2_contact_strength(settingsRef.current.aoV2ContactStrength);
-      v.set_interactive_preview_scale(settingsRef.current.viewportResolution / 100);
+      v.set_viewport_resolution_scale(settingsRef.current.viewportResolution / 100);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
