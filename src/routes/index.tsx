@@ -185,7 +185,7 @@ function Index() {
       if (t < 1) adaptiveRafRef.current = requestAnimationFrame(recover);
       else {
         adaptiveRafRef.current = null;
-        if (adaptiveConfigRef.current.viewportResolution >= 99.95) viewerRef.current?.set_interactive_preview(false);
+        viewerRef.current?.set_interactive_preview(false);
         adaptiveScaleRef.current = targetScale;
       }
     };
@@ -196,7 +196,7 @@ function Index() {
     adaptiveTimerRef.current = null;
     if (adaptiveRafRef.current !== null) cancelAnimationFrame(adaptiveRafRef.current);
     adaptiveRafRef.current = null;
-    const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled, viewportResolution: manualPercent } = adaptiveConfigRef.current;
+    const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled } = adaptiveConfigRef.current;
     const useInteractiveProfile = aoEnabled && previewEnabled;
     if (useInteractiveProfile) applyAdaptiveScale(0.05);
     else applyAdaptiveScale(1.0);
@@ -223,9 +223,9 @@ function Index() {
     if (!aoV2Enabled || !adaptivePreview) {
       if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
       adaptiveTimerRef.current = null;
-      viewerRef.current?.set_viewport_resolution_scale(viewportResolution / 100);
+      viewerRef.current?.set_interactive_preview(false);
     }
-  }, [aoV2Enabled, adaptivePreview, viewportResolution]);
+  }, [aoV2Enabled, adaptivePreview]);
   useEffect(() => {
     viewerRef.current?.set_viewport_resolution_scale(viewportResolution / 100);
   }, [viewportResolution]);
