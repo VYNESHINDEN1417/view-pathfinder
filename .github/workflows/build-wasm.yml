@@ -57,3 +57,4 @@ jobs:
           fi
 
 # Rebuild after removing procedural stone color variation for export parity.
+# Rebuild after adding the adaptive AO V2 navigation render profile.

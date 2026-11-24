@@ -83,17 +83,20 @@ async function prepareExportBackground(canvas: HTMLCanvasElement, width: number,
 type RenderState = "idle" | "rendering" | "paused" | "done";
 
 /** Orbit Studio overlay driving the Rust camera; video is encoded offline frame by frame, so heavy shading never drops frames. */
-export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode }: {
+export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdoorBrightness, onIronTrapdoorBrightness, onLayout, blueLightPanelOpen, shadowMode, noiseReduction, onNoiseReductionChange }: {
   getViewer: () => Viewer | null; getCanvas: () => HTMLCanvasElement | null; schedule: () => void; name: string;
   ironTrapdoorBrightness: number; onIronTrapdoorBrightness: (value: number) => void;
   shadowMode: number;
   onLayout: (layout: { open: boolean; ratio: number }) => void;
   blueLightPanelOpen: boolean;
+  noiseReduction: boolean; onNoiseReductionChange: (enabled: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [ironTrapdoorPanelOpen, setIronTrapdoorPanelOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("animate");
-  const [settings, setSettings] = useState<StudioSettings>(defaultSettings);
+  const [settings, setSettings] = useState<StudioSettings>({ ...defaultSettings, noiseReduction });
+  useEffect(() => { setSettings((current) => current.noiseReduction === noiseReduction ? current : { ...current, noiseReduction }); }, [noiseReduction]);
+  useEffect(() => { setSettings((current) => current.noiseReduction === noiseReduction ? current : { ...current, noiseReduction }); }, [noiseReduction]);
   const [bitratePreferenceLoaded, setBitratePreferenceLoaded] = useState(false);
   useEffect(() => {
     try {
@@ -127,6 +130,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
   const apply = (p: number[] | null) => { const v = getViewer(); if (p && v) { v.set_camera_pose(new Float32Array(p)); schedule(); } };
   const set = <K extends keyof StudioSettings>(k: K, v: StudioSettings[K]) => {
     setSettings((s) => ({ ...s, [k]: v }));
+    if (k === "noiseReduction") onNoiseReductionChange(v as boolean);
     if (k === "duration") setTime((t) => Math.min(t, v as number));
   };
   const seek = (t: number) => { setTime(t); apply(sampleCamera(keysRef.current, t, settings.smoothing)); };
@@ -219,6 +223,7 @@ export function VideoRecorder({ getViewer, getCanvas, schedule, name, ironTrapdo
       // prevent the remaining renderer state from being put back.
       try { canvas.width = previous.w; canvas.height = previous.h; } catch (error) { console.error("Canvas restore failed", error); }
       try { v.resize(previous.w, previous.h, previous.cw, previous.ch); } catch (error) { console.error("Viewer resize restore failed", error); }
+      try { v.set_interactive_preview(false); } catch (error) { console.error("Adaptive preview restore failed", error); }
       try { v.set_shadow_mode(shadowMode); } catch (error) { console.error("Shadow restore failed", error); }
       try { v.set_point_orbit_visible(blueLightPanelOpen); } catch (error) { console.error("Orbit marker restore failed", error); }
       try { schedule(); } catch (error) { console.error("Viewer redraw after export failed", error); }
