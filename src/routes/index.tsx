@@ -156,6 +156,7 @@ function Index() {
   const [aoV2ContactStrength, setAoV2ContactStrength] = useState(1.85);
   const [noiseReduction, setNoiseReduction] = useState(false); // Export denoising remains independent.
   const [adaptivePreview, setAdaptivePreview] = useState(true);
+  const [viewportResolution, setViewportResolution] = useState(100);
   // Native pointer listeners are installed once when the viewer initializes.
   // Keep their adaptive-preview settings current without rebuilding the viewer.
   const adaptiveConfigRef = useRef({ aoV2Enabled, adaptivePreview });
@@ -216,7 +217,7 @@ function Index() {
   const [studioLayout, setStudioLayout] = useState({ open: false, ratio: 9 / 16 });
   const [saving, setSaving] = useState(false);
   const [captureError, setCaptureError] = useState("");
-  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength });
+  const settingsRef = useRef({ background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength, viewportResolution });
   useEffect(() => {
     if (!aoV2Enabled || !adaptivePreview) {
       if (adaptiveTimerRef.current) clearTimeout(adaptiveTimerRef.current);
@@ -226,7 +227,8 @@ function Index() {
     }
   }, [aoV2Enabled, adaptivePreview]);
   useEffect(() => {
-    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength };
+    settingsRef.current = { background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, aoV2Enabled, aoV2ContactStrength, viewportResolution };
+    viewerRef.current?.set_viewport_resolution_scale(viewportResolution / 100);
     const viewer = viewerRef.current;
     if (!viewer) return;
     const target = viewer;
@@ -260,7 +262,7 @@ function Index() {
     viewer.set_ao_v2_enabled(aoV2Enabled);
     viewer.set_ao_v2_contact_strength(aoV2ContactStrength);
     scheduleRef.current();
-  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen, aoV2Enabled, aoV2ContactStrength]);
+  }, [background, brightness, shadowStrength, shadowComponents, orthographic, options, sun, blueLight, blueLightEnabled, blueLightPanelOpen, aoV2Enabled, aoV2ContactStrength, viewportResolution]);
   const [loading, setLoading] = useState<LoadingState>({ progress: 0, status: "Loading model...", indeterminate: true, ready: false });
 
   useEffect(() => {
@@ -391,6 +393,7 @@ function Index() {
       v.set_fancy(settingsRef.current.options.fancy, settingsRef.current.options.fancyQuality);
       v.set_ao_v2_enabled(settingsRef.current.aoV2Enabled);
       v.set_ao_v2_contact_strength(settingsRef.current.aoV2ContactStrength);
+      v.set_viewport_resolution_scale(settingsRef.current.viewportResolution / 100);
       for (const name of v.texture_names()) {
         const pending = downloads.get(name);
         if (!pending) continue;
@@ -641,7 +644,7 @@ function Index() {
       onTwist={(a) => { noteCameraMotion(); viewerRef.current?.roll(a); scheduleRef.current(); }} />}
     {loading.ready && <ViewerControls options={options} brightness={brightness} shadowStrength={shadowStrength} shadowComponents={shadowComponents} orthographic={orthographic} rotation={rotation}
       saving={saving} error={uploadError || captureError} uploading={uploading} customModel={Boolean(model)} sunIntensity={sun.intensity} blueLight={blueLight}
-      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={(enabled) => { setAoV2Enabled(enabled); if (enabled) setAdaptivePreview(true); }} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} adaptivePreview={adaptivePreview} onAdaptivePreviewChange={setAdaptivePreview}
+      onBlueLightChange={(patch) => setBlueLight((value) => ({ ...value, ...patch }))} blueLightEnabled={blueLightEnabled} onBlueLightEnabledChange={setBlueLightEnabled} blueLightPanelOpen={blueLightPanelOpen} onBlueLightPanelOpenChange={setBlueLightPanelOpen} aoV2Enabled={aoV2Enabled} onAoV2EnabledChange={(enabled) => { setAoV2Enabled(enabled); if (enabled) setAdaptivePreview(true); }} aoV2ContactStrength={aoV2ContactStrength} onAoV2ContactStrengthChange={setAoV2ContactStrength} viewportResolution={viewportResolution} onViewportResolutionChange={setViewportResolution} adaptivePreview={adaptivePreview} onAdaptivePreviewChange={setAdaptivePreview}
       onSunIntensity={(intensity) => setSun((value) => ({ ...value, intensity }))}
       onUpload={() => fileRef.current?.click()} models={BUILT_IN_MODELS.map(({ id, name }) => ({ id, name }))} activeModel={model ? "" : builtInId}
       onModel={(id) => { clearAssetByteCache(); restartCameraPoseRef.current = null; setModel(null); setEmptyScene(false); setBuiltInId(id as BuiltInId); setAttempt((value) => value + 1); }} onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))} onBrightness={setBrightness} onShadowStrength={setShadowStrength} onShadowComponents={(patch) => setShadowComponents((current) => ({ ...current, ...patch }))}
