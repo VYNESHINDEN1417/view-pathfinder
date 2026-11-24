@@ -244,7 +244,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
       aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
-    <div className="relative">
+    <div className="viewer-fancy-wrap">
       <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon"
         onPointerDown={(event) => { if (event.pointerType === "mouse" && event.button !== 0) return; clearAoHold(); suppressAoClick.current = false; aoHoldTimer.current = setTimeout(() => { suppressAoClick.current = true; setDenoiseMenuOpen(true); }, 500); }}
         onPointerUp={clearAoHold} onPointerLeave={clearAoHold} onPointerCancel={clearAoHold}
