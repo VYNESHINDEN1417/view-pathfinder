@@ -160,7 +160,8 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
 }) {
   const [draft, setDraft] = useState<[string, string]>([String(options.custom[0]), String(options.custom[1])]);
   const [shadowPanelOpen, setShadowPanelOpen] = useState(false);
-  const [denoiseMenuOpen, setDenoiseMenuOpen] = useState(false);\n  const [viewportPanelOpen, setViewportPanelOpen] = useState(false);
+  const [denoiseMenuOpen, setDenoiseMenuOpen] = useState(false);
+  const [viewportPanelOpen, setViewportPanelOpen] = useState(false);
   const aoHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressAoClick = useRef(false);
   const clearAoHold = () => { if (aoHoldTimer.current) clearTimeout(aoHoldTimer.current); aoHoldTimer.current = null; };
