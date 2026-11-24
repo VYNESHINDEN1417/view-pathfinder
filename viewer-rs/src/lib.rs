@@ -1231,9 +1231,17 @@ impl Viewer {
         if self.interactive_preview || self.viewport_resolution_scale < 0.9995 {
             // Persistent viewport scaling remains independent from camera-motion preview.
             let adaptive_scale = if self.interactive_preview { self.interactive_preview_scale } else { 1.0 };
-            let combined_scale = adaptive_scale * self.viewport_resolution_scale;
-            let rw = ((w as f32 * combined_scale).round() as u32).max(1);
-            let rh = ((h as f32 * combined_scale).round() as u32).max(1);
+            let combined_scale = (adaptive_scale * self.viewport_resolution_scale).clamp(0.05, 1.0);
+            // Keep a minimum raster footprint on the shorter axis. At very low
+            // percentages, tiny phone viewports otherwise rasterize important
+            // model faces to only a handful of pixels, making geometry appear
+            // clipped or disappear before the full-size composite.
+            const MIN_MODEL_RASTER_DIMENSION: u32 = 192;
+            let short_side = w.min(h).max(1);
+            let raster_floor = (MIN_MODEL_RASTER_DIMENSION as f32 / short_side as f32).min(1.0);
+            let effective_scale = combined_scale.max(raster_floor);
+            let rw = ((w as f32 * effective_scale).round() as u32).clamp(1, w);
+            let rh = ((h as f32 * effective_scale).round() as u32).clamp(1, h);
             let model_color = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model color"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: self.config.format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING, view_formats: &[] });
             let model_color_view = model_color.create_view(&Default::default());
             let model_msaa = self.device.create_texture(&wgpu::TextureDescriptor { label: Some("adaptive model MSAA"), size: wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: SAMPLES, dimension: wgpu::TextureDimension::D2, format: self.config.format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[] });
