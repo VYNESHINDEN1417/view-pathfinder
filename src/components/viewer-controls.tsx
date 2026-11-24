@@ -243,13 +243,13 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
       </DropdownMenu>
     </div>
     <Button className="viewer-tool viewer-save" variant="ghost" size="icon" onClick={onSave} disabled={saving}
-      aria-label="Save image" title="Save PNG image">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
+      aria-label="Take picture" title="Take picture">{saving ? <LoaderCircle className="animate-spin" /> : <Camera />}</Button>
     <div className="viewer-fancy-wrap">
       <Button className="viewer-tool viewer-fancy" variant="ghost" size="icon"
         onPointerDown={(event) => { if (event.pointerType === "mouse" && event.button !== 0) return; clearAoHold(); suppressAoClick.current = false; aoHoldTimer.current = setTimeout(() => { suppressAoClick.current = true; setDenoiseMenuOpen(true); }, 500); }}
         onPointerUp={clearAoHold} onPointerLeave={clearAoHold} onPointerCancel={clearAoHold}
         onClick={() => { if (suppressAoClick.current) { suppressAoClick.current = false; return; } onAoV2EnabledChange(!aoV2Enabled); }}
-        aria-label="AO V2" aria-pressed={aoV2Enabled} title="Tap: AO V2 · Hold: Viewport quality"><Sparkles /></Button>
+        aria-label="AO V2" aria-pressed={aoV2Enabled} title="AO V2 · Hold for viewport quality"><Sparkles /></Button>
       {denoiseMenuOpen && <div className="absolute right-0 top-full z-50 mt-2 min-w-[190px] rounded-lg border border-white/10 bg-zinc-950 p-3 text-white shadow-xl" role="group" aria-label="Adaptive viewport quality">
         <div className="mb-2 text-xs font-semibold tracking-wide text-white/65">RENDER QUALITY</div>
         <button type="button" role="switch" aria-checked={adaptivePreview} onClick={() => onAdaptivePreviewChange(!adaptivePreview)} className="flex w-full items-center justify-between gap-4 rounded-md px-1 py-2 text-sm hover:bg-white/5">
@@ -283,7 +283,7 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
         aria-label="Brightness" />
     </div>
-    <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow strength">
+    <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow slider">
       <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy && !aoV2Enabled} onApply={onShadowStrength} />
       <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy && !aoV2Enabled} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
       <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
@@ -317,9 +317,9 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
       </section>
     </div>}
     <Button className="viewer-tool viewer-projection" variant="ghost" size="icon" onClick={onProjection}
-      aria-label="Orthographic view" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
+      aria-label="Orthograph" aria-pressed={orthographic} title={orthographic ? "Switch to perspective" : "Switch to orthographic"}><Box /></Button>
     <Button className="viewer-tool viewer-blue-light-trigger" variant="ghost" size="icon" onClick={() => onBlueLightPanelOpenChange(true)}
-      aria-label="Blue light settings" title="Blue light settings"><Lightbulb /></Button>
+      aria-label="Blue Sun" title="Open Blue Sun settings"><Lightbulb /></Button>
     {blueLightPanelOpen && <BlueLightPanel value={blueLight} rotation={rotation} onChange={onBlueLightChange} enabled={blueLightEnabled} onToggle={onBlueLightEnabledChange} onClose={() => onBlueLightPanelOpenChange(false)} />}
   </>;
 }
