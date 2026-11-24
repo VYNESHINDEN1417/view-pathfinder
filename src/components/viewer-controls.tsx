@@ -40,6 +40,51 @@ function SliderValueReadout({ value, min, max, step, label, disabled, onApply }:
     onClick={() => { setDraft(value.toFixed(2)); setEditing(true); }}>{value.toFixed(2)}×</button>;
 }
 
+function ArcSlider({ value, min, max, onChange, disabled, label, variant }: {
+  value: number; min: number; max: number; onChange: (value: number) => void;
+  disabled?: boolean; label: string; variant: "outer" | "inner";
+}) {
+  const curve = variant === "outer"
+    ? [[85, 2], [18, 10], [4, 77], [78, 98]]
+    : [[92, 2], [28, 12], [12, 78], [90, 98]];
+  const pointAt = (t: number) => {
+    const u = 1 - t;
+    const [p0, p1, p2, p3] = curve;
+    return {
+      x: u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+      y: u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1],
+    };
+  };
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const thumb = pointAt(t);
+  const d = `M ${curve[0][0]} ${curve[0][1]} C ${curve[1][0]} ${curve[1][1]}, ${curve[2][0]} ${curve[2][1]}, ${curve[3][0]} ${curve[3][1]}`;
+  const updateFromPointer = (event: React.PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width * 100;
+    const py = (event.clientY - rect.top) / rect.height * 100;
+    let bestT = 0, bestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i <= 200; i++) {
+      const candidateT = i / 200;
+      const p = pointAt(candidateT);
+      const distance = (p.x - px) ** 2 + (p.y - py) ** 2;
+      if (distance < bestDistance) { bestDistance = distance; bestT = candidateT; }
+    }
+    onChange(Number((min + bestT * (max - min)).toFixed(4)));
+  };
+  const adjust = (delta: number) => onChange(Math.min(max, Math.max(min, value + delta)));
+  return <svg className={`viewer-arc-slider viewer-arc-slider-${variant}`} viewBox="0 0 100 100"
+    role="slider" tabIndex={disabled ? -1 : 0} aria-label={label} aria-valuemin={min}
+    aria-valuemax={max} aria-valuenow={value} aria-disabled={disabled || undefined}
+    onPointerDown={(event) => { if (disabled) return; event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); updateFromPointer(event); }}
+    onPointerMove={(event) => { if (!disabled && event.currentTarget.hasPointerCapture(event.pointerId)) updateFromPointer(event); }}
+    onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+    onKeyDown={(event) => { if (disabled) return; if (event.key === "ArrowUp" || event.key === "ArrowRight") { event.preventDefault(); adjust((max-min)/100); } if (event.key === "ArrowDown" || event.key === "ArrowLeft") { event.preventDefault(); adjust(-(max-min)/100); } if (event.key === "Home") { event.preventDefault(); onChange(min); } if (event.key === "End") { event.preventDefault(); onChange(max); } }}>
+    <path className="viewer-arc-slider-track" d={d} />
+    <path className="viewer-arc-slider-progress" d={d} pathLength="100" strokeDasharray={`${t*100} 100`} />
+    <circle className="viewer-arc-slider-thumb" cx={thumb.x} cy={thumb.y} r="6.5" />
+  </svg>;
+}
+
 function ShadowSettingRow({ title, description, value, onChange, disabled }: {
   title: string; description: string; value: number; onChange: (value: number) => void; disabled: boolean;
 }) {
@@ -279,17 +324,14 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
     <div className="viewer-brightness" title="Brightness">
       <SliderValueReadout value={brightness} min={0.25} max={3} step={0.05} label="brightness" onApply={onBrightness} />
       <Sun size={17} aria-hidden="true" />
-      <Slider orientation="vertical" className="brightness-slider" min={0.25} max={3} step={0.05}
-        value={[brightness]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onBrightness(value); }}
-        aria-label="Brightness" />
+      <ArcSlider variant="inner" value={brightness} min={0.25} max={3}
+        onChange={onBrightness} label="Brightness" />
     </div>
     <div className={`viewer-shadow-strength ${options.fancy || aoV2Enabled ? "" : "shadow-strength-disabled"}`} title="Shadow slider">
       <SliderValueReadout value={shadowStrength} min={0} max={2} step={0.05} label="shadow strength" disabled={!options.fancy && !aoV2Enabled} onApply={onShadowStrength} />
       <button type="button" className="shadow-settings-trigger" aria-label="Open shadow settings" title="Shadow settings" disabled={!options.fancy && !aoV2Enabled} onClick={() => setShadowPanelOpen(true)}><Moon size={17} aria-hidden="true" /></button>
-      <Slider orientation="vertical" className="shadow-strength-slider" min={0} max={2} step={0.05}
-        value={[shadowStrength]} disabled={!options.fancy && !aoV2Enabled}
-        onValueChange={(values) => { const value = values[0]; if (value !== undefined) onShadowStrength(value); }}
-        aria-label="Shadow strength" />
+      <ArcSlider variant="outer" value={shadowStrength} min={0} max={2}
+        disabled={!options.fancy && !aoV2Enabled} onChange={onShadowStrength} label="Shadow strength" />
     </div>
     {shadowPanelOpen && <div className="shadow-settings-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShadowPanelOpen(false); }}>
       <section className="shadow-settings-panel" role="dialog" aria-modal="true" aria-label="Shadow settings">
