@@ -938,59 +938,150 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 
 
 
-/* SINGLE SOURCE OF TRUTH: mobile HUD geometry traced from the supplied 691×1536 reference. */
+/* Pathfinder mobile HUD — coordinates traced from the supplied 814×1536 drawing. */
 @media (max-width: 700px) and (min-height: 501px) {
-  /* The AO button is absolutely positioned in the viewer, not inside its JSX wrapper. */
   .viewer-fancy-wrap { position: static !important; }
 
-  .viewer-settings { position:absolute !important; top:max(14px,env(safe-area-inset-top)) !important; left:3% !important; z-index:20 !important; }
+  .viewer-settings {
+    position: absolute !important;
+    top: max(14px, env(safe-area-inset-top)) !important;
+    left: 3% !important;
+    z-index: 20 !important;
+  }
+
+  /* Keep the orientation gizmo centered in the circular control area. */
   .viewer-gizmo {
-    position:absolute !important; left:50% !important; bottom:max(5px,env(safe-area-inset-bottom)) !important;
-    transform:translateX(-50%) !important; width:min(36vw,250px) !important; height:min(36vw,250px) !important; z-index:12 !important;
+    position: absolute !important;
+    left: 50% !important;
+    bottom: max(3%, env(safe-area-inset-bottom)) !important;
+    transform: translateX(-50%) !important;
+    width: min(47vw, 390px) !important;
+    height: min(47vw, 390px) !important;
+    z-index: 12 !important;
   }
 
-  /* Right rail: camera, Orbit Studio, Trapdoor Color, Orthographic, Blue Sun. */
+  /* 1–5: right rail. Each polygon uses the sketch's own bounding box. */
   .viewer-save, .viewer-record, .viewer-iron-trapdoor, .viewer-projection, .viewer-blue-light-trigger {
-    position:absolute !important; left:auto !important; right:3% !important;
-    width:24.5% !important; height:6.3% !important; min-width:0 !important; min-height:48px !important;
-    padding:0 !important; display:inline-flex !important; align-items:center !important; justify-content:center !important;
-    border:2px solid #ff7300 !important; border-radius:0 !important;
-    background:rgb(35 30 27 / 25%) !important; color:#ff7300 !important;
-    box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
-    z-index:15 !important;
+    position: absolute !important;
+    left: auto !important;
+    right: 3.2% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid #ff7300 !important;
+    border-radius: 0 !important;
+    background: rgb(35 30 27 / 25%) !important;
+    color: #ff7300 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 15 !important;
   }
-  .viewer-save { top:30.7% !important; bottom:auto !important; clip-path:polygon(24% 0,100% 0,100% 100%,0 100%); }
-  .viewer-record { top:38.2% !important; bottom:auto !important; clip-path:polygon(0 0,100% 0,100% 100%,10% 100%); }
-  .viewer-iron-trapdoor { top:45.7% !important; bottom:auto !important; clip-path:polygon(0 0,100% 0,96% 100%,8% 100%); }
-  .viewer-projection { top:53.2% !important; bottom:auto !important; clip-path:polygon(8% 0,100% 0,100% 100%,0 100%); }
-  .viewer-blue-light-trigger { top:60.7% !important; bottom:auto !important; clip-path:polygon(22% 0,100% 0,100% 90%,92% 100%,0 100%); }
+  .viewer-save {
+    top: 63.0% !important; bottom: auto !important;
+    width: 34.2% !important; height: 6.45% !important;
+    clip-path: polygon(46% 0,100% 0,100% 100%,0 100%);
+  }
+  .viewer-record {
+    top: 71.15% !important; bottom: auto !important;
+    width: 32.9% !important; height: 4.95% !important;
+    clip-path: polygon(0 0,31% 0,100% 100%,31% 100%);
+  }
+  .viewer-iron-trapdoor {
+    top: 78.2% !important; bottom: auto !important;
+    width: 20.1% !important; height: 4.9% !important;
+    clip-path: polygon(0 0,91% 0,100% 100%,13% 100%);
+  }
+  .viewer-projection {
+    top: 85.3% !important; bottom: auto !important;
+    width: 19.0% !important; height: 4.9% !important;
+    clip-path: polygon(9% 0,100% 0,100% 100%,0 100%);
+  }
+  .viewer-blue-light-trigger {
+    top: 92.25% !important; bottom: auto !important;
+    width: 27.6% !important; height: 4.6% !important;
+    clip-path: polygon(25% 0,100% 0,100% 100%,0 100%);
+  }
 
-  /* Upper-left strip: viewport-resolution button, AO V2, Fancy Graphics. */
+  /* 6–8: connected upper strip, preserving the diagonal joins and zero gaps. */
   .viewer-viewport-control-wrap, .viewer-fancy, .viewer-fancy-graphics {
-    position:absolute !important; top:auto !important; bottom:27.5% !important;
-    height:6.7% !important; min-height:48px !important; min-width:0 !important;
-    display:inline-flex !important; align-items:center !important; justify-content:center !important;
-    border:2px solid #ff7300 !important; border-radius:0 !important;
-    background:rgb(35 30 27 / 25%) !important; color:#ff7300 !important;
-    box-shadow:none !important; z-index:16 !important;
+    position: absolute !important;
+    top: 65.6% !important;
+    bottom: auto !important;
+    height: 3.9% !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid #ff7300 !important;
+    border-radius: 0 !important;
+    background: rgb(35 30 27 / 25%) !important;
+    color: #ff7300 !important;
+    box-shadow: none !important;
+    z-index: 16 !important;
   }
-  .viewer-viewport-control-wrap { left:2.5% !important; right:auto !important; width:17% !important; clip-path:polygon(0 0,100% 0,78% 100%,0 100%); }
-  .viewer-viewport-trigger { width:100% !important; height:100% !important; min-width:0 !important; border:0 !important; background:transparent !important; clip-path:inherit; }
-  .viewer-fancy-graphics { left:21% !important; right:auto !important; width:17% !important; clip-path:polygon(27% 0,100% 0,73% 100%,0 100%); }
-  .viewer-fancy { left:40% !important; right:auto !important; width:17% !important; clip-path:polygon(27% 0,100% 0,73% 100%,0 100%); }
+  .viewer-viewport-control-wrap {
+    left: 2.8% !important; right: auto !important;
+    width: 21.1% !important;
+    clip-path: polygon(0 0,100% 0,68% 100%,0 100%);
+  }
+  .viewer-viewport-trigger {
+    width: 100% !important; height: 100% !important;
+    min-width: 0 !important; min-height: 0 !important;
+    border: 0 !important; background: transparent !important;
+    clip-path: inherit;
+  }
+  .viewer-fancy-graphics {
+    left: 17.0% !important; right: auto !important;
+    width: 28.8% !important;
+    clip-path: polygon(30% 0,100% 0,72% 100%,0 100%);
+  }
+  .viewer-fancy {
+    left: 37.9% !important; right: auto !important;
+    width: 29.1% !important;
+    clip-path: polygon(30% 0,100% 0,67% 100%,0 100%);
+  }
 
-  /* Left pair: Shadow and Brightness vertical controls. */
+  /* 9–10: separate tall vertical slider housings on the left. */
   .viewer-shadow-strength, .viewer-brightness {
-    position:absolute !important; top:75% !important; bottom:auto !important;
-    height:23% !important; min-height:0 !important; padding:10px 0 !important; gap:8px;
-    z-index:11 !important; border:2px solid #ff7300 !important; border-radius:0 !important;
-    background:rgb(35 30 27 / 14%) !important; box-shadow:none !important;
-    backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    position: absolute !important;
+    top: 71.1% !important; bottom: auto !important;
+    height: 25.8% !important;
+    min-height: 0 !important;
+    padding: 10px 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    z-index: 11 !important;
+    border: 2px solid #ff7300 !important;
+    border-radius: 0 !important;
+    background: rgb(35 30 27 / 14%) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
-  .viewer-shadow-strength { left:2% !important; width:13% !important; clip-path:polygon(0 0,100% 0,88% 20%,80% 42%,80% 60%,90% 82%,100% 100%,8% 100%,3% 75%,1% 48%); }
-  .viewer-brightness { left:16.5% !important; width:13% !important; clip-path:polygon(22% 0,100% 0,84% 20%,75% 42%,75% 60%,90% 82%,100% 100%,18% 100%,5% 75%,2% 48%); }
-  .shadow-strength-slider[data-orientation="vertical"], .brightness-slider[data-orientation="vertical"] {
-    height:calc(100% - 48px) !important; width:22px !important; min-height:0 !important;
+  .viewer-shadow-strength {
+    left: 2.7% !important; right: auto !important;
+    width: 19.4% !important;
+    clip-path: polygon(43% 0,100% 0,83% 17%,76% 36%,72% 57%,80% 78%,100% 100%,32% 100%,17% 80%,7% 58%,2% 37%,15% 17%);
   }
-  .viewer-tool svg { color:#ff7300 !important; width:23px !important; height:23px !important; }
+  .viewer-brightness {
+    left: 14.0% !important; right: auto !important;
+    width: 25.9% !important;
+    clip-path: polygon(35% 0,100% 0,70% 17%,55% 36%,48% 57%,55% 78%,77% 100%,35% 100%,19% 80%,10% 58%,5% 37%,20% 17%);
+  }
+  .shadow-strength-slider[data-orientation="vertical"],
+  .brightness-slider[data-orientation="vertical"] {
+    height: calc(100% - 48px) !important;
+    width: 22px !important;
+    min-height: 0 !important;
+    touch-action: none;
+  }
+  .viewer-tool svg { color: #ff7300 !important; width: 23px !important; height: 23px !important; }
 }
