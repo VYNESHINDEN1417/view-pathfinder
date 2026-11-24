@@ -887,3 +887,108 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   background: hsl(28 100% 50% / .08); color: hsl(32 100% 78%); font-size: 10px; font-weight: 750;
 }
 .studio-more-ratios-trigger:hover { background: hsl(28 100% 50% / .15); }
+
+
+/* Pathfinder mobile control layout — based on the supplied hand-drawn blueprint.
+   This is presentation-only: controls keep their existing handlers and renderer state. */
+@media (max-width: 700px) {
+  .viewer-gizmo {
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: min(220px, 58vw);
+    height: min(220px, 58vw);
+    z-index: 3;
+  }
+
+  /* Right rail: 1 capture, 2 Orbit Studio, 3 trapdoor color,
+     4 orthographic projection, 5 blue sun. */
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
+  .viewer-projection, .viewer-blue-light-trigger {
+    top: auto !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    left: auto !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--rail-step) * 54px) !important;
+    width: 44px;
+    height: 44px;
+    z-index: 6;
+  }
+  .viewer-save { --rail-step: 4; }
+  .viewer-record { --rail-step: 3; }
+  .viewer-iron-trapdoor { --rail-step: 2; }
+  .viewer-projection { --rail-step: 1; }
+  .viewer-blue-light-trigger { --rail-step: 0; }
+
+  /* Upper dock row: 8 viewport scale, 7 Fancy Graphics, 6 AO V2. */
+  .viewer-viewport-control {
+    position: absolute;
+    left: max(10px, env(safe-area-inset-left));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + min(220px, 58vw) + 14px);
+    width: min(38vw, 156px);
+    height: 44px;
+    z-index: 5;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 5px 9px 4px;
+    border: 1px solid rgb(255 132 35 / 58%);
+    border-radius: 10px;
+    color: #ffd0a6;
+    background: linear-gradient(145deg, rgb(255 115 0 / 22%), rgb(42 31 23 / 62%) 70%);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 34%), inset 0 1px 0 rgb(255 190 120 / 16%);
+  }
+  .viewer-viewport-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    font-size: 8px;
+    line-height: 1;
+    letter-spacing: .08em;
+  }
+  .viewer-viewport-heading strong { font-size: 10px; font-variant-numeric: tabular-nums; }
+  .viewer-viewport-control [data-orientation="horizontal"] { height: 16px; touch-action: pan-y; }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 160 85 / 30%); }
+  .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: linear-gradient(90deg, #ffb15c, #ff6900); }
+  .viewer-viewport-control [role="slider"] { width: 13px; height: 13px; border: 1px solid #fff0df; background: #ffd0a6; }
+
+  .viewer-fancy-graphics, .viewer-fancy {
+    top: auto !important;
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + min(220px, 58vw) + 14px) !important;
+    width: 44px;
+    height: 44px;
+    z-index: 6;
+  }
+  .viewer-fancy-graphics {
+    left: calc(max(10px, env(safe-area-inset-left)) + min(38vw, 156px) + 8px) !important;
+    right: auto !important;
+  }
+  .viewer-fancy {
+    left: calc(max(10px, env(safe-area-inset-left)) + min(38vw, 156px) + 60px) !important;
+    right: auto !important;
+  }
+
+  /* Left rail: 9 shadow strength and 10 brightness. */
+  .viewer-shadow-strength, .viewer-brightness {
+    top: auto !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    width: 36px;
+    height: min(184px, 25vh);
+    padding: 8px 0;
+    gap: 8px;
+    z-index: 4;
+  }
+  .viewer-shadow-strength { left: max(8px, env(safe-area-inset-left)) !important; }
+  .viewer-brightness { left: calc(max(8px, env(safe-area-inset-left)) + 46px) !important; }
+  .shadow-strength-slider[data-orientation="vertical"],
+  .brightness-slider[data-orientation="vertical"] { height: 100%; width: 22px; min-height: 90px; }
+  .viewer-value-readout { top: -21px; font-size: 10px; }
+  .viewer-value-input { top: -24px; }
+}
+
+/* Wider screens keep the same spatial grouping without stretching the controls. */
+@media (min-width: 701px) {
+  .viewer-viewport-control { display: none; }
+  .viewer-fancy-graphics { display: none; }
+}
