@@ -198,8 +198,17 @@ function Index() {
     adaptiveRafRef.current = null;
     const { aoV2Enabled: aoEnabled, adaptivePreview: previewEnabled } = adaptiveConfigRef.current;
     const useInteractiveProfile = aoEnabled && previewEnabled;
-    if (useInteractiveProfile) applyAdaptiveScale(0.05);
-    else applyAdaptiveScale(1.0);
+    if (!useInteractiveProfile) {
+      // Do not touch the persistent viewport scale when adaptive preview is off.
+      // The manual slider is applied independently by set_viewport_resolution_scale.
+      viewerRef.current?.set_interactive_preview(false);
+      adaptiveScaleRef.current = 1.0;
+      scheduleRef.current();
+      return;
+    }
+    viewerRef.current?.set_interactive_preview(true);
+    adaptiveScaleRef.current = 0.05;
+    scheduleRef.current();
     // Pointer drags stay in preview mode until the final pointer is released.
     // Discrete inputs such as wheel and gizmo actions get a brief settle window.
     if (!held) adaptiveTimerRef.current = setTimeout(settleCameraMotion, 120);
