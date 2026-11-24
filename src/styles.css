@@ -889,112 +889,118 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
 .studio-more-ratios-trigger:hover { background: hsl(28 100% 50% / .15); }
 
 
-/* Pathfinder mobile control layout — based on the supplied hand-drawn blueprint.
-   This is presentation-only: controls keep their existing handlers and renderer state. */
+
+/* Exact mobile layout mapped from the user's numbered wireframe.
+   8 / 7 / 6 across the upper row; 1–5 down the right;
+   9 / 10 down the left; XYZ gizmo centered between them. */
 @media (max-width: 700px) {
   .viewer-gizmo {
-    left: 50%;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    width: min(220px, 58vw);
-    height: min(220px, 58vw);
+    left: 50% !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    width: min(46vw, 310px) !important;
+    height: min(46vw, 310px) !important;
     z-index: 3;
   }
 
-  /* Right rail: 1 capture, 2 Orbit Studio, 3 trapdoor color,
-     4 orthographic projection, 5 blue sun. */
+  /* Right rail: 1 Take picture, 2 Orbit Studio, 3 Trapdoor color,
+     4 Orthographic, 5 Blue sun. */
   .viewer-save, .viewer-record, .viewer-iron-trapdoor,
   .viewer-projection, .viewer-blue-light-trigger {
     top: auto !important;
-    right: max(10px, env(safe-area-inset-right)) !important;
+    right: max(2%, env(safe-area-inset-right)) !important;
     left: auto !important;
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--rail-step) * 54px) !important;
-    width: 44px;
-    height: 44px;
-    z-index: 6;
+    width: clamp(48px, 9.5vw, 66px) !important;
+    height: clamp(48px, 9.5vw, 66px) !important;
+    padding: 0;
+    z-index: 7;
   }
-  .viewer-save { --rail-step: 4; }
-  .viewer-record { --rail-step: 3; }
-  .viewer-iron-trapdoor { --rail-step: 2; }
-  .viewer-projection { --rail-step: 1; }
-  .viewer-blue-light-trigger { --rail-step: 0; }
+  .viewer-save { --wire-step: 4; }
+  .viewer-record { --wire-step: 3; }
+  .viewer-iron-trapdoor { --wire-step: 2; }
+  .viewer-projection { --wire-step: 1; }
+  .viewer-blue-light-trigger { --wire-step: 0; }
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor,
+  .viewer-projection, .viewer-blue-light-trigger {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--wire-step) * 76px) !important;
+  }
 
-  /* Upper dock row: 8 viewport scale, 7 Fancy Graphics, 6 AO V2. */
+  /* Upper row, left to right: 8 Viewport resolution, 7 Fancy graphics,
+     6 AO V2. AO V2 is the existing .viewer-fancy control. */
   .viewer-viewport-control {
     position: absolute;
-    left: max(10px, env(safe-area-inset-left));
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + min(220px, 58vw) + 14px);
-    width: min(38vw, 156px);
-    height: 44px;
-    z-index: 5;
     display: grid;
+    left: max(2%, env(safe-area-inset-left));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 4 * 76px);
+    width: 39%;
+    height: clamp(48px, 9.5vw, 66px);
     align-content: center;
-    gap: 4px;
-    padding: 5px 9px 4px;
-    border: 1px solid rgb(255 132 35 / 58%);
+    gap: 6px;
+    padding: 7px 10px;
+    z-index: 6;
+    border: 1px solid rgb(255 132 35 / 62%);
     border-radius: 10px;
     color: #ffd0a6;
-    background: linear-gradient(145deg, rgb(255 115 0 / 22%), rgb(42 31 23 / 62%) 70%);
+    background: linear-gradient(145deg, rgb(255 115 0 / 25%), rgb(42 31 23 / 68%) 70%);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: 0 4px 14px rgb(0 0 0 / 34%), inset 0 1px 0 rgb(255 190 120 / 16%);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 190 120 / 18%);
   }
   .viewer-viewport-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 5px;
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1;
-    letter-spacing: .08em;
+    letter-spacing: .07em;
   }
-  .viewer-viewport-heading strong { font-size: 10px; font-variant-numeric: tabular-nums; }
-  .viewer-viewport-control [data-orientation="horizontal"] { height: 16px; touch-action: pan-y; }
+  .viewer-viewport-heading strong { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .viewer-viewport-control [data-orientation="horizontal"] { height: 18px; touch-action: pan-y; }
   .viewer-viewport-control [data-orientation="horizontal"] > span:first-child { height: 4px; background: rgb(255 160 85 / 30%); }
   .viewer-viewport-control [data-orientation="horizontal"] > span:first-child > span { background: linear-gradient(90deg, #ffb15c, #ff6900); }
-  .viewer-viewport-control [role="slider"] { width: 13px; height: 13px; border: 1px solid #fff0df; background: #ffd0a6; }
+  .viewer-viewport-control [role="slider"] { width: 14px; height: 14px; border: 1px solid #fff0df; background: #ffd0a6; }
 
   .viewer-fancy-graphics, .viewer-fancy {
+    position: absolute !important;
     top: auto !important;
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + min(220px, 58vw) + 14px) !important;
-    width: 44px;
-    height: 44px;
-    z-index: 6;
-  }
-  .viewer-fancy-graphics {
-    left: calc(max(10px, env(safe-area-inset-left)) + min(38vw, 156px) + 8px) !important;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 4 * 76px) !important;
+    left: auto !important;
     right: auto !important;
+    width: clamp(48px, 9.5vw, 66px) !important;
+    height: clamp(48px, 9.5vw, 66px) !important;
+    z-index: 7;
   }
-  .viewer-fancy {
-    left: calc(max(10px, env(safe-area-inset-left)) + min(38vw, 156px) + 60px) !important;
-    right: auto !important;
-  }
+  .viewer-fancy-graphics { left: 44% !important; }
+  .viewer-fancy { left: 56% !important; }
 
-  /* Left rail: 9 shadow strength and 10 brightness. */
+  /* Left rail: 9 Shadow strength, 10 Brightness. */
   .viewer-shadow-strength, .viewer-brightness {
     top: auto !important;
-    bottom: max(10px, env(safe-area-inset-bottom)) !important;
-    width: 36px;
-    height: min(184px, 25vh);
-    padding: 8px 0;
-    gap: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    width: clamp(36px, 11vw, 76px) !important;
+    height: min(28vh, 290px) !important;
+    min-height: 170px;
+    padding: 10px 0;
+    gap: 10px;
     z-index: 4;
+    border-radius: 10px;
+    clip-path: polygon(0 0, 100% 0, 100% 88%, 78% 100%, 0 100%);
   }
-  .viewer-shadow-strength { left: max(8px, env(safe-area-inset-left)) !important; }
-  .viewer-brightness { left: calc(max(8px, env(safe-area-inset-left)) + 46px) !important; }
+  .viewer-shadow-strength { left: max(2%, env(safe-area-inset-left)) !important; }
+  .viewer-brightness { left: 14% !important; }
   .shadow-strength-slider[data-orientation="vertical"],
-  .brightness-slider[data-orientation="vertical"] { height: 100%; width: 22px; min-height: 90px; }
-  .viewer-value-readout { top: -21px; font-size: 10px; }
-  .viewer-value-input { top: -24px; }
+  .brightness-slider[data-orientation="vertical"] {
+    height: calc(100% - 42px);
+    width: 22px;
+    min-height: 110px;
+  }
+  .viewer-value-readout { top: -22px; font-size: 10px; }
+  .viewer-value-input { top: -25px; }
+
+  .viewer-tool svg { width: 22px; height: 22px; }
 }
 
-/* Wider screens keep the same spatial grouping without stretching the controls. */
-@media (min-width: 701px) {
-  .viewer-viewport-control { display: none; }
-  .viewer-fancy-graphics { display: none; }
-}
-
-
-/* Keep the two newly surfaced controls available on desktop as well. */
+/* Desktop retains the familiar floating controls while exposing both added controls. */
 @media (min-width: 701px) {
   .viewer-viewport-control {
     position: absolute;
@@ -1019,7 +1025,7 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-fancy-graphics {
     position: absolute;
     display: inline-flex;
-    top: max(16px, env(safe-area-inset-top));
+    top: max(68px, calc(env(safe-area-inset-top) + 52px));
     right: max(120px, calc(env(safe-area-inset-right) + 104px));
     left: auto;
     bottom: auto;
