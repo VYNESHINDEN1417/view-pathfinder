@@ -1137,3 +1137,72 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   }
   .viewer-tool svg { color: #ff8a32 !important; width: 23px !important; height: 23px !important; }
 }
+
+
+/* Exact traced SVG outlines replace all hand-guessed CSS borders and clip paths. */
+@media (max-width: 700px) and (min-height: 501px) {
+  .viewer-wireframe {
+    position: fixed !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
+    overflow: visible !important;
+  }
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor, .viewer-projection, .viewer-blue-light-trigger,
+  .viewer-viewport-control-wrap, .viewer-fancy, .viewer-fancy-graphics,
+  .viewer-shadow-strength, .viewer-brightness {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    clip-path: none !important;
+    -webkit-clip-path: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .viewer-save, .viewer-record, .viewer-iron-trapdoor, .viewer-projection, .viewer-blue-light-trigger,
+  .viewer-fancy, .viewer-fancy-graphics, .viewer-viewport-control-wrap {
+    color: #ff8a32 !important;
+  }
+  .viewer-viewport-trigger {
+    border: 0 !important;
+    background: transparent !important;
+    clip-path: none !important;
+    -webkit-clip-path: none !important;
+  }
+  .viewer-shadow-strength, .viewer-brightness {
+    color: #ff8a32 !important;
+    padding: 12px 0 !important;
+  }
+  .viewer-arc-slider {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    touch-action: none !important;
+  }
+  .viewer-arc-slider-track {
+    fill: none;
+    stroke: rgb(255 115 0 / 38%);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .viewer-arc-slider-progress {
+    fill: none;
+    stroke: #ff7300;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .viewer-arc-slider-thumb {
+    fill: #ff1616;
+    stroke: #ff8a32;
+    stroke-width: 1.4;
+    filter: drop-shadow(0 0 3px rgb(255 80 0 / 35%));
+  }
+}
