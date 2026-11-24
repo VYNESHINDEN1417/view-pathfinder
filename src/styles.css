@@ -992,3 +992,37 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-viewport-control { display: none; }
   .viewer-fancy-graphics { display: none; }
 }
+
+
+/* Keep the two newly surfaced controls available on desktop as well. */
+@media (min-width: 701px) {
+  .viewer-viewport-control {
+    position: absolute;
+    display: grid;
+    top: max(68px, calc(env(safe-area-inset-top) + 52px));
+    left: max(16px, env(safe-area-inset-left));
+    width: 190px;
+    min-height: 48px;
+    align-content: center;
+    gap: 5px;
+    padding: 7px 10px;
+    z-index: 5;
+    border: 1px solid rgb(255 132 35 / 48%);
+    border-radius: 10px;
+    color: #ffd0a6;
+    background: rgb(25 22 20 / 70%);
+    backdrop-filter: blur(14px);
+  }
+  .viewer-viewport-heading { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: .08em; }
+  .viewer-viewport-heading strong { font-size: 11px; }
+  .viewer-viewport-control [data-orientation="horizontal"] { height: 18px; }
+  .viewer-fancy-graphics {
+    position: absolute;
+    display: inline-flex;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(120px, calc(env(safe-area-inset-right) + 104px));
+    left: auto;
+    bottom: auto;
+    z-index: 4;
+  }
+}

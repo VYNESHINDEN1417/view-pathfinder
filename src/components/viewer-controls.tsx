@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb, Layers } from "lucide-react";
+import { Camera, Menu, Box, Sun, Moon, LoaderCircle, Upload, RotateCcw, Sparkles, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -180,12 +180,31 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
                 onValueChange={(values) => { const value = values[0]; if (value !== undefined) onSunIntensity(value); }} />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => onOptions({ fancy: !options.fancy })}>{options.fancy ? "✓ Fancy Graphics" : "Fancy Graphics"}</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Fancy quality</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="viewer-settings-menu">
               <DropdownMenuRadioGroup value={String(options.fancyQuality)} onValueChange={(v) => onOptions({ fancyQuality: Number(v) })}>
                 {["Low", "Medium", "High"].map((label, id) => <DropdownMenuRadioItem key={id} value={String(id)}>{label}</DropdownMenuRadioItem>)}
               </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Viewport</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="viewer-settings-menu sun-intensity-menu">
+              <div className="px-3 py-2 space-y-3" onPointerDown={(event) => event.stopPropagation()}>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="text-white/65">Render scale</span>
+                  <strong className="text-white tabular-nums">{viewportResolution}%</strong>
+                </div>
+                <Slider aria-label="Viewport resolution" min={5} max={100} step={5} value={[viewportResolution]}
+                  onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} />
+                <div className="flex justify-between text-[10px] text-white/40"><span>5% · Performance</span><span>100% · Full</span></div>
+                <div className="grid grid-cols-4 gap-1">
+                  {[25, 50, 75, 100].map((value) => <button key={value} type="button" className={`rounded px-2 py-1 text-[11px] ${viewportResolution === value ? "bg-white/15 text-white" : "text-white/55 hover:bg-white/5"}`} onClick={() => onViewportResolutionChange(value)}>{value}%</button>)}
+                </div>
+                <p className="text-[10px] leading-relaxed text-white/40">Affects viewport rendering only. Model data and image/video exports stay unchanged.</p>
+              </div>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
@@ -257,12 +276,6 @@ export function ViewerControls({ options, brightness, shadowStrength, shadowComp
         <div className="mt-1 text-[10px] leading-relaxed text-white/45">Temporarily lowers render resolution and skips expensive AO and shadow passes while rotating. Full quality returns when the camera settles.</div>
         <button type="button" className="mt-2 w-full border-t border-white/10 pt-2 text-left text-xs text-white/55" onClick={() => setDenoiseMenuOpen(false)}>Close</button>
       </div>}
-    </div>
-    <Button className="viewer-tool viewer-fancy-graphics" variant="ghost" size="icon" onClick={() => onOptions({ fancy: !options.fancy })}
-      aria-label="Fancy graphics" aria-pressed={options.fancy} title={options.fancy ? "Disable Fancy Graphics" : "Enable Fancy Graphics"}><Layers /></Button>
-    <div className="viewer-viewport-control" aria-label="Viewport resolution">
-      <div className="viewer-viewport-heading"><span>VIEWPORT</span><strong>{viewportResolution}%</strong></div>
-      <Slider min={5} max={100} step={5} value={[viewportResolution]} onValueChange={(values) => { const value = values[0]; if (value !== undefined) onViewportResolutionChange(value); }} aria-label="Viewport resolution" />
     </div>
     {error && <p className="capture-error" role="alert">{error}</p>}
     <div className="viewer-brightness" title="Brightness">
