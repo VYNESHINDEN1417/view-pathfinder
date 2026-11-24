@@ -1006,3 +1006,53 @@ body:has(.blue-light-backdrop) .viewer-blue-light-trigger {
   .viewer-viewport-control { display: grid; }
   .viewer-fancy-graphics { display: inline-flex; }
 }
+
+/* Viewport resolution is a button; its slider is revealed only on demand. */
+.viewer-viewport-control-wrap { position: absolute; z-index: 30; }
+.viewer-viewport-trigger {
+  width: 100%; height: 100%;
+  color: #ff8a32 !important;
+  border: 1px solid rgb(255 115 0 / 72%) !important;
+  background: rgb(14 16 20 / 66%) !important;
+}
+.viewer-viewport-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: min(260px, 72vw);
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgb(255 115 0 / 65%);
+  background: rgb(13 16 20 / 88%);
+  color: #f4eee7;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 32%), inset 0 1px rgb(255 255 255 / 7%);
+}
+.viewer-viewport-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.09em; color:#ffad70; }
+.viewer-viewport-heading strong { font-size:14px; color:#fff; font-variant-numeric:tabular-nums; }
+.viewer-viewport-popover [data-orientation="horizontal"] { height:18px; touch-action:pan-y; }
+.viewer-viewport-popover [role="slider"] { width:16px; height:16px; border:1px solid #ffe0c7; background:#ff7300; }
+.viewer-viewport-presets { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+.viewer-viewport-presets button { min-height:30px; border:1px solid rgb(255 115 0 / 32%); background:rgb(255 255 255 / 4%); color:#f5d7c0; font-size:11px; }
+.viewer-viewport-presets button[data-active="true"] { border-color:#ff7300; background:rgb(255 115 0 / 18%); color:#fff; }
+.viewer-viewport-popover p { margin:0; color:rgb(255 255 255 / 48%); font-size:10px; line-height:1.4; }
+
+@media (max-width:700px) and (min-height:501px) {
+  .viewer-viewport-control-wrap {
+    left:2.5% !important; right:auto !important;
+    bottom:31.5% !important;
+    width:15% !important; height:7.2% !important; min-height:56px;
+    clip-path:polygon(0 0,100% 0,78% 100%,0 100%);
+  }
+  .viewer-viewport-trigger { clip-path:inherit; }
+  .viewer-save {
+    top:31.5% !important; bottom:auto !important;
+    right:3% !important; left:auto !important;
+    width:28% !important; height:7.2% !important; min-height:56px;
+    clip-path:polygon(24% 0,100% 0,100% 100%,0 100%);
+  }
+  .viewer-fancy-graphics { left:21.5% !important; bottom:31.5% !important; width:20% !important; }
+  .viewer-fancy { left:47.5% !important; bottom:31.5% !important; width:20% !important; }
+}
